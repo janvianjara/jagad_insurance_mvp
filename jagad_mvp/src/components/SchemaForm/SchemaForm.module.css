@@ -1,0 +1,291 @@
+/*
+ * The schema form's own surface. Everything a field looks like comes from the
+ * ui/form primitives; what is here is only the frame around them — stages, the
+ * draft line, the missing summary and the repeating-group scaffold.
+ *
+ * Navy for the action and the current stage, lime for the focus ring, green
+ * only where FormSection already puts it. No colour carries a message on its
+ * own: the current stage is marked by weight and a rule as well as by hue.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  max-width: 880px;
+}
+
+/* ------------------------------------------------------------------ stages */
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--hair);
+}
+
+.stageStep {
+  display: flex;
+}
+
+.stageButton {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.stageStep[data-current] .stageButton {
+  border-bottom-color: var(--action);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.stageNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.stageStep[data-current] .stageNumber {
+  border-color: var(--action);
+  background: var(--action-soft);
+  color: var(--action);
+}
+
+.stageTitle {
+  display: inline-block;
+}
+
+/* ------------------------------------------------------------------ fields */
+
+.field,
+.wideField {
+  display: flex;
+  flex-direction: column;
+}
+
+.wideField {
+  grid-column: 1 / -1;
+}
+
+.checkboxField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* A derived block reads as a statement, not as a control: no box, no border on
+   the label, and the RollUp inside carries its own "derived" marking. */
+.rollUpField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.rollUpLabel {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------- repeating group */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.groupLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.required {
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  background: var(--attn-soft);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.groupHint,
+.groupEmpty,
+.groupNote {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.groupRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.groupRowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.groupRowTitle {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.groupActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* ----------------------------------------------------------------- drafts */
+
+.draftNotice {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--info);
+  background: var(--info-soft);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------- summary */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A missing field is a way back to it, so it is a button and reads as one. */
+.summaryLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--action);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- actions */
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hair);
+}
+
+.savedAt {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* --------------------------------------------------------------- refusals */
+
+.refusal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  max-width: 720px;
+}
+
+.refusalTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.refusalBody {
+  margin: 0;
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+}
+
+.refusalList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding-left: var(--sp-5);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
