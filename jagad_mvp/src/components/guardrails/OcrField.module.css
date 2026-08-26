@@ -1,0 +1,95 @@
+/*
+ * An extracted value, flagged until a person has dealt with it.
+ *
+ * Lime is the charter's "needs a person" colour (U7). It is not amber and not
+ * red: nothing here is wrong or late, it simply has not been looked at yet, and
+ * conflating the two teaches people to ignore both.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--attn);
+  border-radius: var(--radius-md);
+  background: var(--attn-soft);
+}
+
+.field[data-confirmed='true'] {
+  border-left-color: var(--ok);
+  background: var(--ground);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  font-size: var(--text-sm);
+}
+
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--ink-2);
+  font-weight: var(--weight-medium);
+}
+
+.field[data-confirmed='true'] .flag {
+  color: var(--ok);
+}
+
+.confidence {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* Navy, because confirming is an action, and the only action on this card. */
+.confirm {
+  margin-left: auto;
+  min-height: var(--control-h);
+  padding: 0 var(--pad-x);
+  border: 1px solid var(--action);
+  border-radius: var(--radius-md);
+  background: var(--action);
+  color: var(--action-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.confirm:hover:not(:disabled) {
+  background: var(--action-hover);
+  border-color: var(--action-hover);
+}
+
+.confirm:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.confirm:disabled {
+  border-color: var(--border);
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* What the extractor read, kept visible once a person has typed over it. */
+.original {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.originalValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  text-decoration: line-through;
+}

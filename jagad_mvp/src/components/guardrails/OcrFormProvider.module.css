@@ -1,0 +1,62 @@
+/*
+ * The form around a set of extractions, and its submit block.
+ *
+ * The block states a count rather than greying a button out silently: "2
+ * extracted values need confirming" tells the user what to do next, which a
+ * disabled button on its own never does.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-stack);
+}
+
+.submitRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.blocked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: var(--pad-y) var(--pad-x);
+  border-radius: var(--radius-md);
+  background: var(--attn-soft);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.submit {
+  min-height: var(--control-h);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--action);
+  border-radius: var(--radius-md);
+  background: var(--action);
+  color: var(--action-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--action-hover);
+  border-color: var(--action-hover);
+}
+
+.submit:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.submit:disabled {
+  border-color: var(--border);
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}

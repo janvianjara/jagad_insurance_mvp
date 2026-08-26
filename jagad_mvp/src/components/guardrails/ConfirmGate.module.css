@@ -1,0 +1,161 @@
+/*
+ * The gate: what will happen, then Cancel and Confirm, then a receipt.
+ *
+ * Cancel is the quiet button and Confirm carries the navy, because navy is the
+ * primary action colour and confirming is the action. Neither is green: green is
+ * brand and positive status only, never a control.
+ */
+
+.gate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+  max-width: 480px;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.changes {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--pad-y) var(--sp-4);
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-ui);
+}
+
+.change {
+  display: contents;
+}
+
+.label {
+  color: var(--ink-3);
+}
+
+.values {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  min-width: 0;
+}
+
+/* The outgoing value is struck through rather than dropped: a preview that
+   shows only the new value asks the user to remember the old one. */
+.from {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+.arrow {
+  color: var(--ink-3);
+}
+
+.to {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--ink-2);
+  font-size: var(--text-ui);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.cancel,
+.confirm {
+  min-height: var(--control-h);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--border);
+  background: var(--ground);
+  color: var(--ink-2);
+}
+
+.cancel:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+.confirm {
+  border: 1px solid var(--action);
+  background: var(--action);
+  color: var(--action-ink);
+}
+
+.confirm:hover:not(:disabled) {
+  background: var(--action-hover);
+  border-color: var(--action-hover);
+}
+
+.cancel:focus-visible,
+.confirm:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.confirm:disabled {
+  border-color: var(--border);
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* The done state. Green here is a positive status, not an action — the action
+   already happened. */
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.receipt:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.receiptHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--ok);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}

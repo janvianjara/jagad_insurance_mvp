@@ -1,0 +1,15 @@
+/*
+ * The amount entry. It looks like a control a person types into, because that is
+ * the only thing it is (D3) — nothing here suggests a figure is on its way.
+ */
+
+.entry {
+  max-width: 220px;
+}
+
+/* The currency mark sits in the control rather than in the label, so the figure
+   is read as an amount at a glance and the mono column still aligns. */
+.mark {
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}

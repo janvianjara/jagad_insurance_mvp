@@ -413,6 +413,7 @@ Sessions append one line here instead of widening their step. Format:
 - [ ] (found in P-06b) `Card.module.css` and `StatCard.module.css` still repeat the six status branches; compose the shared `src/ui/tones.module.css` class instead — belongs to P-06b polish | P1
 - [ ] (found in P-06b) `Sparkline` is listed in plan §6's Data group but is in no step's scope — belongs to P-17 polish | P1
 - [ ] (found in P-06b) `rowPaginationFeature` and filtering are deliberately unregistered on DataTable because URL owns page and filter state; confirm this holds when `<WorkQueue>` lands — belongs to P-08 | M0
+- [ ] (found in P-07) plan §6's UI primitive table lists no `Button` in any group, so 21 files hand-roll `<button>`; add one to the Nav/action group and collapse them onto it — belongs to P-08 | M0
 
 ---
 
