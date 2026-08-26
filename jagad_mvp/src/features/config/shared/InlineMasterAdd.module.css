@@ -1,0 +1,27 @@
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.field {
+  flex: 1 1 18ch;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-1);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

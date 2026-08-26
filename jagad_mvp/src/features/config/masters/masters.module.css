@@ -1,0 +1,96 @@
+.drawer {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.values {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.value {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.value[data-inactive] {
+  background: var(--sunken);
+}
+
+.valueHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.valueName {
+  font-weight: var(--weight-medium);
+}
+
+.valueMeta {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.valueActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rename {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.renameField {
+  flex: 1 1 16ch;
+  min-width: 0;
+}
+
+.refusal {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--ink);
+}
+
+.history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.historyLine {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.version {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

@@ -1,0 +1,33 @@
+.nav {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  color: var(--action);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--action-soft);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.item[data-current] {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--action-ink);
+}
