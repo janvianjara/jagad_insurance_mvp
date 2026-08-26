@@ -1,0 +1,1426 @@
+<title>Jagad MVP Build Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────
+   TOKENS — light is the complete set on bare :root
+   ───────────────────────────────────────────────────────── */
+:root{
+  /* Jagad brand, derived from the logo */
+  --jag-green:#14683B;
+  --jag-green-2:#1C8A4E;
+  --jag-lime:#A6CB3A;
+  --jag-navy:#1C2C6B;
+  --jag-navy-2:#2C4193;
+  --jag-blue:#4C7FC4;
+
+  /* semantic */
+  --ok:#14683B;
+  --warn:#B8801C;
+  --bad:#B03A31;
+  --info:#4C7FC4;
+  --idle:#7A867F;
+
+  /* neutrals — cool, biased green */
+  --ground:#FAFBFA;
+  --surface:#FFFFFF;
+  --sunken:#F1F5F2;
+  --border:#DDE4E0;
+  --hair:#EBF0EC;
+  --ink:#121A16;
+  --ink2:#44514A;
+  --ink3:#78857D;
+
+  --accent:var(--jag-navy);
+  --rule:var(--jag-green);
+
+  --shadow:0 1px 2px rgba(18,26,22,.05),0 4px 16px rgba(18,26,22,.04);
+
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --jag-green:#4FB477;
+    --jag-green-2:#63C98B;
+    --jag-lime:#BCDD5C;
+    --jag-navy:#8AA0E8;
+    --jag-navy-2:#A3B5F0;
+    --jag-blue:#7FB0E8;
+    --ok:#4FB477;
+    --warn:#DCA83E;
+    --bad:#E0776C;
+    --info:#7FB0E8;
+    --idle:#76837B;
+    --ground:#0D1311;
+    --surface:#141C19;
+    --sunken:#101815;
+    --border:#26322C;
+    --hair:#1D2723;
+    --ink:#E9EFEB;
+    --ink2:#A9B6AF;
+    --ink3:#77847C;
+    --accent:#8AA0E8;
+    --rule:#4FB477;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --jag-green:#4FB477;
+  --jag-green-2:#63C98B;
+  --jag-lime:#BCDD5C;
+  --jag-navy:#8AA0E8;
+  --jag-navy-2:#A3B5F0;
+  --jag-blue:#7FB0E8;
+  --ok:#4FB477;
+  --warn:#DCA83E;
+  --bad:#E0776C;
+  --info:#7FB0E8;
+  --idle:#76837B;
+  --ground:#0D1311;
+  --surface:#141C19;
+  --sunken:#101815;
+  --border:#26322C;
+  --hair:#1D2723;
+  --ink:#E9EFEB;
+  --ink2:#A9B6AF;
+  --ink3:#77847C;
+  --accent:#8AA0E8;
+  --rule:#4FB477;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.28);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink2);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── page frame ─────────────────────────────────────────── */
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px 120px;display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:1080px){
+  .wrap{grid-template-columns:212px minmax(0,1fr);gap:48px;padding-left:32px;padding-right:32px}
+}
+
+/* ── contents rail ──────────────────────────────────────── */
+nav.toc{display:none}
+@media(min-width:1080px){
+  nav.toc{
+    display:block;position:sticky;top:0;align-self:start;
+    max-height:100vh;overflow-y:auto;padding:88px 0 40px;
+    font-size:12.5px;line-height:1.45;
+  }
+  nav.toc .tl{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink3);padding-bottom:12px;display:block}
+  nav.toc a{display:grid;grid-template-columns:22px 1fr;gap:6px;padding:5px 0 5px 9px;
+    color:var(--ink3);text-decoration:none;border-top:1px solid var(--hair);
+    box-shadow:inset 2px 0 0 transparent;transition:color .12s,box-shadow .12s}
+  nav.toc a:hover,nav.toc a:focus-visible{color:var(--accent);box-shadow:inset 2px 0 0 var(--jag-lime)}
+  nav.toc a b{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--ink3);padding-top:1px}
+  nav.toc a:hover b{color:var(--accent)}
+}
+
+/* ── masthead ───────────────────────────────────────────── */
+header.mast{padding:76px 0 0;border-bottom:1px solid var(--border);margin-bottom:52px}
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--jag-green);display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--hair)}
+header.mast h1{
+  font-family:var(--serif);font-weight:700;font-size:clamp(34px,5vw,52px);line-height:1.06;
+  letter-spacing:-.018em;color:var(--ink);margin:18px 0 0;text-wrap:balance;max-width:20ch;
+}
+header.mast .dek{font-size:17px;line-height:1.6;color:var(--ink2);max-width:64ch;margin:20px 0 30px}
+.metastrip{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--hair);margin-bottom:0}
+.metastrip div{flex:1 1 160px;padding:14px 18px 16px 0;border-right:1px solid var(--hair)}
+.metastrip div:last-child{border-right:none}
+.metastrip dt{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink3);margin-bottom:4px}
+.metastrip dd{font-size:13.5px;font-weight:500;color:var(--ink);margin:0;line-height:1.4}
+
+/* ── sections ───────────────────────────────────────────── */
+section{padding-top:8px;margin-bottom:64px;scroll-margin-top:24px}
+h2{
+  font-family:var(--serif);font-weight:700;font-size:27px;line-height:1.2;letter-spacing:-.012em;
+  color:var(--ink);margin:0 0 6px;text-wrap:balance;
+  display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:baseline;
+}
+h2 .num{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--jag-green);
+  letter-spacing:.04em;padding-top:2px}
+h2 + .sub{font-size:14.5px;color:var(--ink3);margin:0 0 26px;max-width:70ch;padding-left:0}
+@media(min-width:1080px){h2 + .sub{padding-left:36px}}
+h3{font-family:var(--sans);font-weight:600;font-size:15.5px;letter-spacing:-.005em;
+  color:var(--ink);margin:34px 0 10px}
+h4{font-family:var(--mono);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);margin:26px 0 10px}
+p{margin:0 0 14px;max-width:72ch}
+p:last-child{margin-bottom:0}
+strong{color:var(--ink);font-weight:600}
+em{font-style:italic;color:var(--ink2)}
+a{color:var(--accent)}
+code,.mono{font-family:var(--mono);font-size:.86em;color:var(--ink);
+  background:var(--sunken);border:1px solid var(--hair);border-radius:4px;padding:1px 5px}
+
+ul,ol{margin:0 0 14px;padding-left:20px;max-width:72ch}
+li{margin-bottom:6px}
+li::marker{color:var(--ink3)}
+
+/* ── tables ─────────────────────────────────────────────── */
+.tw{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);
+  margin:0 0 16px;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;min-width:600px;font-size:13.5px}
+thead th{
+  text-align:left;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);padding:11px 14px;background:var(--sunken);
+  border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:bottom;
+}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--hair);vertical-align:top;color:var(--ink2);line-height:1.5}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink);font-weight:500}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.c,th.c{text-align:center}
+td .mono,code{white-space:nowrap}
+table.tight tbody td{padding:8px 14px;font-size:13px}
+
+/* phase pills */
+.ph{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.05em;
+  padding:2px 7px;border-radius:4px;white-space:nowrap;display:inline-block;line-height:1.5;border:1px solid}
+.ph.m0{color:var(--jag-green);border-color:color-mix(in srgb,var(--jag-green) 35%,transparent);
+  background:color-mix(in srgb,var(--jag-green) 9%,transparent)}
+.ph.p1{color:var(--jag-navy);border-color:color-mix(in srgb,var(--jag-navy) 35%,transparent);
+  background:color-mix(in srgb,var(--jag-navy) 9%,transparent)}
+.ph.p2{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 38%,transparent);
+  background:color-mix(in srgb,var(--warn) 9%,transparent)}
+.ph.p3{color:var(--ink3);border-color:var(--border);background:var(--sunken)}
+.ph.blk{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent);
+  background:color-mix(in srgb,var(--bad) 9%,transparent)}
+
+/* ── callouts ───────────────────────────────────────────── */
+.call{border:1px solid var(--border);border-left:3px solid var(--rule);border-radius:0 8px 8px 0;
+  background:var(--surface);padding:15px 18px;margin:0 0 18px;font-size:14px;max-width:76ch}
+.call .ct{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--rule);margin-bottom:6px}
+.call p:last-child{margin-bottom:0}
+.call.warn{border-left-color:var(--warn)}
+.call.warn .ct{color:var(--warn)}
+.call.bad{border-left-color:var(--bad)}
+.call.bad .ct{color:var(--bad)}
+.call.navy{border-left-color:var(--jag-navy)}
+.call.navy .ct{color:var(--jag-navy)}
+
+/* ── palette swatches ───────────────────────────────────── */
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin:0 0 18px}
+.sw .s{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.sw .chip{height:60px;display:block}
+.sw .lab{padding:9px 11px 11px}
+.sw .lab b{display:block;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.3}
+.sw .lab span{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px}
+.sw .lab em{display:block;font-size:11.5px;font-style:normal;color:var(--ink3);margin-top:5px;line-height:1.4}
+
+/* ── code / tree blocks ─────────────────────────────────── */
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--ink2);
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:16px 18px;overflow-x:auto;margin:0 0 16px;box-shadow:var(--shadow)}
+pre b{color:var(--ink);font-weight:600}
+pre i{color:var(--ink3);font-style:normal}
+pre u{text-decoration:none;color:var(--jag-green);font-weight:500}
+pre s{text-decoration:none;color:var(--jag-navy);font-weight:500}
+
+/* ── state machine cards ────────────────────────────────── */
+.fsm{border:1px solid var(--border);border-radius:8px;background:var(--surface);
+  margin:0 0 14px;overflow:hidden;box-shadow:var(--shadow)}
+.fsm > .hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  padding:11px 16px;border-bottom:1px solid var(--hair);background:var(--sunken)}
+.fsm > .hd b{font-size:13.5px;font-weight:600;color:var(--ink)}
+.fsm > .hd span{font-family:var(--mono);font-size:10.5px;color:var(--ink3)}
+.fsm .bd{padding:14px 16px}
+.fsm .flow{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--ink2);
+  overflow-x:auto;white-space:pre-wrap;margin-bottom:12px}
+.fsm .flow b{color:var(--jag-navy);font-weight:600}
+.fsm .flow u{text-decoration:none;color:var(--ok);font-weight:600}
+.fsm .flow s{text-decoration:none;color:var(--bad);font-weight:600}
+.fsm .g{font-size:13px;margin:0;padding-left:0;list-style:none}
+.fsm .g li{display:grid;grid-template-columns:14px 1fr;gap:8px;margin-bottom:5px;color:var(--ink2)}
+.fsm .g li::before{content:"";width:6px;height:6px;border-radius:1px;background:var(--warn);margin-top:7px}
+
+/* ── decision list ──────────────────────────────────────── */
+.dec{border:1px solid var(--border);border-radius:8px;background:var(--surface);
+  margin:0 0 12px;box-shadow:var(--shadow);overflow:hidden}
+.dec .dh{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+  padding:13px 16px;border-bottom:1px solid var(--hair)}
+.dec .dk{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--surface);
+  background:var(--bad);border-radius:4px;padding:3px 7px;line-height:1.4}
+.dec.soft .dk{background:var(--warn)}
+.dec .dt{font-size:14px;font-weight:600;color:var(--ink);line-height:1.35}
+.dec .db{padding:14px 16px;font-size:13.5px}
+.dec .db p{margin-bottom:10px}
+.dec .db p:last-child{margin-bottom:0}
+.dec .ask{margin-top:10px;padding-top:10px;border-top:1px solid var(--hair);
+  font-size:13px;color:var(--ink)}
+.dec .ask b{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--jag-navy);display:block;margin-bottom:4px;font-weight:600}
+
+hr.div{border:none;border-top:1px solid var(--border);margin:44px 0}
+
+footer.end{border-top:1px solid var(--border);padding-top:22px;margin-top:56px;
+  font-size:13px;color:var(--ink3);max-width:72ch}
+footer.end b{color:var(--ink2)}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<nav class="toc" aria-label="Contents">
+  <span class="tl">Contents</span>
+  <a href="#s1"><b>01</b><span>Repository audit</span></a>
+  <a href="#s2"><b>02</b><span>Design system</span></a>
+  <a href="#s3"><b>03</b><span>Shell &amp; IA</span></a>
+  <a href="#s4"><b>04</b><span>Route map</span></a>
+  <a href="#s5"><b>05</b><span>Page inventory</span></a>
+  <a href="#s6"><b>06</b><span>Components</span></a>
+  <a href="#s7"><b>07</b><span>State</span></a>
+  <a href="#s8"><b>08</b><span>Domain &amp; mock data</span></a>
+  <a href="#s9"><b>09</b><span>Workflow states</span></a>
+  <a href="#s10"><b>10</b><span>Prototype reuse</span></a>
+  <a href="#s11"><b>11</b><span>Scope boundary</span></a>
+  <a href="#s12"><b>12</b><span>Blocking decisions</span></a>
+  <a href="#s13"><b>13</b><span>Build sequence</span></a>
+  <a href="#s14"><b>14</b><span>FR-22 draft</span></a>
+</nav>
+
+<main>
+
+<header class="mast">
+  <div class="eyebrow">Jagad Insurance &middot; Sarvadhi &middot; implementation plan &middot; revision 2</div>
+  <h1>React MVP Build Plan</h1>
+  <p class="dek">How PRD v0.4.1, the workflow canvas and the Assistant prototype become a running React
+  application &mdash; routes, screens, components, state, mock data and workflow machines &mdash; on a new
+  Jagad visual identity drawn from the logo. <strong>The four blocking decisions are answered</strong>
+  (<a href="#s12">&sect;12</a>): instalments and mandates are in scope as record-only history, the
+  Assistant sits at the top of the navigation as the landing view, and it is a committed feature &mdash;
+  which needs the FR block at <a href="#s14">&sect;14</a> and raises one compliance question nobody has
+  answered. The entity model is unblocked; B1 can start.</p>
+  <dl class="metastrip">
+    <div><dt>Source specs</dt><dd>PRD v0.4.1 &middot; 153 FRs &middot; 21 modules</dd></div>
+    <div><dt>UX reference</dt><dd>Canvas 78 nodes &middot; prototype 75 cards</dd></div>
+    <div><dt>Build target</dt><dd>Web only &mdash; no mobile app (<a href="#s11">&sect;11.1</a>)</dd></div>
+    <div><dt>Product code</dt><dd>None &mdash; greenfield</dd></div>
+  </dl>
+</header>
+
+<!-- ══════════════════ 1 ══════════════════ -->
+<section id="s1">
+<h2><span class="num">01</span>Repository audit</h2>
+<p class="sub">What is actually in <code>jagad_mvp/</code> today, and the compiler constraints that shape
+every decision downstream.</p>
+
+<p><code>jagad_mvp/</code> is an untouched Vite starter. <code>src/App.tsx</code> is the 122-line Vite/React
+demo page; there is no product code, no router, no state library, no styling system, no test runner. The
+four source documents sit in <code>jagad_mvp/documents/</code>. Everything below is greenfield.</p>
+
+<h4>Toolchain in place</h4>
+<div class="tw"><table class="tight">
+<thead><tr><th>Item</th><th>Version</th><th>What it means for the build</th></tr></thead>
+<tbody>
+<tr><td>Vite</td><td class="mono">8.2</td><td>Rolldown-based. Fast enough that a single-app bundle is fine for MVP; no monorepo needed.</td></tr>
+<tr><td>React</td><td class="mono">19.2</td><td>Actions, <code>useOptimistic</code>, <code>use()</code> available. Server components not in play &mdash; this is an SPA.</td></tr>
+<tr><td>React Compiler</td><td class="mono">1.0</td><td><strong>On</strong>, via <code>babel-plugin-react-compiler</code>. Do not hand-write <code>useMemo</code>/<code>useCallback</code> &mdash; the compiler does it and manual memoisation fights it.</td></tr>
+<tr><td>TypeScript</td><td class="mono">6.0</td><td>Strict-ish. Two flags below change how domain code must be written.</td></tr>
+<tr><td>ESLint</td><td class="mono">10</td><td>Flat config, <code>react-hooks</code> + <code>react-refresh</code>. Add an import-order and a11y plugin.</td></tr>
+</tbody></table></div>
+
+<h4>Hard constraints from tsconfig.app.json</h4>
+<div class="tw"><table class="tight">
+<thead><tr><th>Flag</th><th>Consequence</th></tr></thead>
+<tbody>
+<tr><td class="mono">erasableSyntaxOnly: true</td><td><strong>No TypeScript <code>enum</code>. No parameter properties.</strong> Every workflow status set in <a href="#s9">&sect;9</a> must be a frozen <code>const</code> object plus a <code>typeof</code>-derived union. This is a real constraint, not a style preference &mdash; <code>enum</code> will not compile.</td></tr>
+<tr><td class="mono">verbatimModuleSyntax: true</td><td>Type-only imports must be written <code>import type { Policy } from &hellip;</code>. Mixed value/type imports fail the build.</td></tr>
+<tr><td class="mono">noUnusedLocals / noUnusedParameters</td><td>No placeholder params, no stubbed handlers left in. Scaffolding must compile clean from day one.</td></tr>
+<tr><td class="mono">noEmit + tsc -b in build</td><td>Type errors break <code>npm run build</code>. Types are a gate, not advisory.</td></tr>
+</tbody></table></div>
+
+<h4>Dependencies to add, and why each earns its place</h4>
+<div class="tw"><table>
+<thead><tr><th>Package</th><th>Purpose</th><th>Why not the alternative</th></tr></thead>
+<tbody>
+<tr><td>react-router 7</td><td>The route map in <a href="#s4">&sect;4</a> is the app's spine; queues must be deep-linkable and role-gated.</td><td>Hand-rolled routing collapses once nested detail panels and URL-owned filters arrive.</td></tr>
+<tr><td>zustand</td><td>Session, permissions, drawer, toasts, and three composer/entry drafts. Small slices, no provider tree.</td><td>Context + <code>useReducer</code> is the zero-dependency fallback and is viable; Redux Toolkit is heavier than this app needs.</td></tr>
+<tr><td>@tanstack/react-table</td><td>Every screen is a dense queue (U2, U4, U9). Headless: sorting, selection, column visibility, no imposed styling.</td><td>Writing selection + bulk-action + column state by hand across 15 list screens is the single biggest avoidable cost in this build.</td></tr>
+<tr><td>react-hook-form + zod</td><td>Draft-safe long forms (U6), keyboard-first entry (U3), and the SKU engine needs a runtime schema type anyway.</td><td>Zod doubles as the validator for the form-builder's generated schemas and for mock-fixture integrity.</td></tr>
+<tr><td>date-fns</td><td>TAT clocks, expiry&minus;N, grace windows, claim aging. All timezone-naive IST business dates.</td><td>Native <code>Date</code> arithmetic across these five different clocks is where date bugs live.</td></tr>
+<tr><td>CSS Modules + tokens.css</td><td>Styling. Tokens as CSS custom properties are the single source of truth &mdash; see <a href="#s2">&sect;2</a>.</td><td>Tailwind is faster to type but the design system <em>is</em> a deliverable here, and D1/R-4 config-portability wants a re-themable token file per agency. If the team prefers Tailwind, map the same tokens into <code>@theme</code> and nothing else in this plan changes.</td></tr>
+</tbody></table></div>
+
+<div class="call warn"><div class="ct">Missing input</div>
+<p>There is <strong>no Jagad logo asset in the repository</strong> &mdash; only Vite's <code>react.svg</code>,
+<code>vite.svg</code> and <code>hero.png</code>. The design system in <a href="#s2">&sect;2</a> derives its
+palette from the logo image supplied in conversation. Before build, drop the source logo (SVG preferred,
+otherwise a transparent PNG at 3&times;) into <code>src/assets/brand/</code>. The starter assets and
+<code>App.css</code> get deleted in the first commit.</p></div>
+</section>
+
+<!-- ══════════════════ 2 ══════════════════ -->
+<section id="s2">
+<h2><span class="num">02</span>The Jagad design system</h2>
+<p class="sub">A palette derived from the logo, not from the prototype. The prototype's greys and its
+<code>--act:#2f6ba8</code> accent are discarded entirely.</p>
+
+<p>The logo carries four hues: a deep forest green graduating to chartreuse in the mark, a navy that
+sets the wordmark, a cornflower blue in the stacked bars, and a muted sage-grey ground. That is exactly
+the green / blue / grey / yellow balance the product should read in.</p>
+
+<h3>Brand palette</h3>
+<div class="sw">
+  <div class="s"><span class="chip" style="background:#14683B"></span><div class="lab"><b>Jagad Green</b><span>#14683B</span><em>Brand mark, positive status, section rules</em></div></div>
+  <div class="s"><span class="chip" style="background:#A6CB3A"></span><div class="lab"><b>Jagad Lime</b><span>#A6CB3A</span><em>Attention highlight, active-nav rail, focus accents</em></div></div>
+  <div class="s"><span class="chip" style="background:#1C2C6B"></span><div class="lab"><b>Jagad Navy</b><span>#1C2C6B</span><em>Primary actions, nav, headings</em></div></div>
+  <div class="s"><span class="chip" style="background:#4C7FC4"></span><div class="lab"><b>Jagad Blue</b><span>#4C7FC4</span><em>Informational, links, in-progress state</em></div></div>
+  <div class="s"><span class="chip" style="background:#5C6A72"></span><div class="lab"><b>Slate</b><span>#5C6A72</span><em>Neutral base &mdash; greys carry a faint green bias</em></div></div>
+</div>
+
+<div class="call navy"><div class="ct">The one conflict this palette has to resolve</div>
+<p>UX charter <strong>U7</strong> fixes the status language as <em>pending = amber, active = green,
+escalated = red, locked = grey</em>. If green is also the primary action colour, every button, every
+selected nav item and every healthy record read as the same thing, and the status language stops
+carrying information.</p>
+<p><strong>Resolution:</strong> <strong>navy carries primary action and navigation</strong>; green is
+reserved for brand identity and positive status only; lime is the attention accent that marks
+what needs a person; amber, red and grey keep their U7 meanings. Green still appears everywhere
+&mdash; as the brand mark, as section rules, as the "good" signal &mdash; but it never competes
+with itself.</p></div>
+
+<h3>Semantic status tokens</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th>Token</th><th>Value</th><th>U7 meaning</th><th>Seen on</th></tr></thead>
+<tbody>
+<tr><td class="mono">--ok</td><td class="mono">#14683B</td><td>Active / won / settled / verified</td><td>Policy live, deal won, claim closed, KYC complete</td></tr>
+<tr><td class="mono">--warn</td><td class="mono">#B8801C</td><td>Pending / awaiting / at risk</td><td>TAT nearing, KYC partial, OCR unreviewed, grace open</td></tr>
+<tr><td class="mono">--bad</td><td class="mono">#B03A31</td><td>Escalated / blocked / lapsed / bounced</td><td>TAT breached, cheque bounced, policy lapsed, unmatched notice</td></tr>
+<tr><td class="mono">--info</td><td class="mono">#4C7FC4</td><td>In progress / informational</td><td>Quotation shared, claim with insurer, revision loop</td></tr>
+<tr><td class="mono">--idle</td><td class="mono">#7A867F</td><td>Locked / closed / archived</td><td>Retention-locked policy, immutable version, deactivated master</td></tr>
+<tr><td class="mono">--attn</td><td class="mono">#A6CB3A</td><td>Needs a person (not an error)</td><td>Unassigned pool item, draft awaiting completion, proactive alert rail</td></tr>
+</tbody></table></div>
+
+<h3>Type</h3>
+<p>Three faces, each with a job. This is a tool used eight hours a day (U2, U13), so the UI face is
+chosen for legibility at 12&ndash;14px and for figure clarity in dense tables.</p>
+<div class="tw"><table class="tight">
+<thead><tr><th>Role</th><th>Face</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>UI &amp; body</td><td>IBM Plex Sans</td><td>Everything in the application chrome. 13px base for tables and forms, 15px for reading surfaces.</td></tr>
+<tr><td>Data &amp; identifiers</td><td>IBM Plex Mono</td><td>Every system and insurer number (<code>POL-DRAFT-0219</code>, <code>APP-0774</code>, <code>CLM-0412</code>), all currency, all dates in tables, all field labels in uppercase micro-caps. <code>font-variant-numeric: tabular-nums</code> throughout.</td></tr>
+<tr><td>Documents</td><td>Source Serif 4</td><td><strong>Only</strong> inside generated documents &mdash; quotations, policy packs, claim summaries, renewal notices, statements. A produced PDF should read as a document on agency letterhead, visibly not as UI.</td></tr>
+</tbody></table></div>
+
+<h3>Token file structure</h3>
+<pre><b>src/styles/</b>
+├── <u>tokens.css</u>        <i>// the only place a raw hex appears in the codebase</i>
+│     <s>:root</s>           <i>// brand, semantic, neutral, space, radius, type, motion</i>
+│     <s>[data-density]</s>  <i>// comfortable | compact — U2 lets ops staff choose</i>
+├── reset.css
+├── base.css          <i>// element defaults, focus ring, scrollbars</i>
+└── <b>*.module.css</b>      <i>// per component; consume tokens only</i>
+</pre>
+<p>Scale: spacing on a 4px base (<code>--sp-1</code>&hellip;<code>--sp-10</code>), radii
+<code>4 / 6 / 8 / 12</code>, three elevation steps, two motion durations. Enforce with a lint rule that
+rejects literal hex outside <code>tokens.css</code> &mdash; that rule is what keeps R-4 (config-portability
+erosion) from happening in CSS.</p>
+
+<div class="call"><div class="ct">Density is a product feature</div>
+<p>U2 asks for information density; U11 asks mobile screens to be single-task rather than shrunken
+desktop. Both are served by a <code>data-density</code> attribute on <code>&lt;html&gt;</code> that swaps
+row height, font step and padding tokens. Build it in from the first table, not retrofitted.</p></div>
+</section>
+
+<!-- ══════════════════ 3 ══════════════════ -->
+<section id="s3">
+<h2><span class="num">03</span>Application shell &amp; information architecture</h2>
+<p class="sub">The prototype's three-region shell is right and should be preserved. What it puts at the
+centre is not.</p>
+
+<h3>The shell</h3>
+<pre>┌──────────────┬────────────────────────────────────┬─────────────┐
+│ <b>SIDE RAIL</b>    │ <b>MAIN</b>                               │ <b>DRAWER</b>      │
+│ 240px fixed  │ PageHeader: title · meta · actions │ 340–560px   │
+│              │ ──────────────────────────────────  │ resizable   │
+│ brand mark   │ FilterBar / BulkActionBar          │ max-toggle  │
+│ role nav     │                                    │ Esc closes  │
+│  (sectioned) │ WorkQueue / DataTable / Form       │             │
+│              │                                    │ record       │
+│ ──────────── │                                    │ detail  ·   │
+│ user + role  │                                    │ document    │
+│ switcher     │                                    │ preview     │
+└──────────────┴────────────────────────────────────┴─────────────┘</pre>
+<p>Taken directly from the prototype's proven behaviour: sectioned navigation with live counts, a
+resizable drawer that maximises and closes on Escape, and a persona switcher in the rail footer. The
+counts on nav items are not decoration &mdash; they are the queue depths that make U1 work, and they must
+be live.</p>
+
+<h3>The home screen &mdash; decided: Assistant at the top, as the prototype has it</h3>
+<div class="call navy"><div class="ct">D-G &mdash; resolved</div>
+<p><strong>Assistant is the first item in every role's navigation rail, and it is the landing view.</strong>
+This matches the prototype exactly &mdash; <code>AIITEM</code> is the first entry in all six <code>NAV</code>
+arrays, and <code>fresh()</code> opens the chat feed.</p></div>
+<p>The apparent conflict with U1 (<em>"the queue IS the app"</em>) is thinner than it first looks, and
+the prototype already resolves it: <strong>the Assistant's opening turn is a briefing on the user's own
+queue.</strong></p>
+<div class="call"><div class="ct">The prototype's own opening line, sales role</div>
+<p><em>"18 open inquiries across the team. Four are still unassigned and two are close to their TAT
+&mdash; if those lapse they reassign on their own and the customer waits longer."</em></p></div>
+<p>So the landing view is not an empty chat box. It is the work summary U1 asks for, delivered
+conversationally, with the queue itself one nav item below and one suggestion chip away. Build it that
+way:</p>
+<ul>
+<li>Landing route per role is <code>/assistant</code>, opening with a generated queue briefing from live
+counts &mdash; never a blank prompt, never a greeting.</li>
+<li>The role's real queue is the <strong>second</strong> nav section and the first suggestion chip.</li>
+<li>Proactive notices arrive in the feed with the prototype's "noticed just now" framing and its stated
+reason, and mirror into a <code>NotificationRail</code> on every queue screen so someone who navigated
+straight past the Assistant does not miss them.</li>
+<li><code>Cmd/Ctrl-K</code> summons the Assistant as a drawer from any screen, carrying the current
+record as context.</li>
+</ul>
+<p><strong>Consequence for scope:</strong> the Assistant can no longer be deferred to P1. It is the
+first thing anyone sees, so a working shell &mdash; briefing, suggestion chips, and the Ask cards over
+the user's own queue &mdash; moves into M0. See <a href="#s11">&sect;11</a>.</p>
+
+<h3>Navigation model</h3>
+<p>The prototype's <code>NAV</code> map is a good IA and transfers almost unchanged &mdash; six role
+variants, grouped into named sections. Rebuild it as a typed config, with each item carrying the
+permission it requires so the rail is rendered by the same <code>can()</code> evaluator that gates the
+routes (<a href="#s7">&sect;7</a>).</p>
+<div class="tw"><table class="tight">
+<thead><tr><th>Role</th><th>Lands on</th><th>Nav sections</th></tr></thead>
+<tbody>
+<tr><td>Admin</td><td>Operations overview</td><td>Assistant &middot; Front office &middot; Operations &middot; Money &middot; Records &middot; Configuration (10 surfaces)</td></tr>
+<tr><td>Sales Manager</td><td>Pipeline</td><td>Assistant &middot; Front office &middot; My work &middot; Reference</td></tr>
+<tr><td>Agent</td><td>My leads</td><td>Assistant &middot; My book &middot; Money &middot; Reference</td></tr>
+<tr><td>Back-office</td><td>Work queue</td><td>Assistant &middot; My queue &middot; Servicing &middot; Records</td></tr>
+<tr><td>Claims</td><td>Claim queue</td><td>Assistant &middot; Claims &middot; Reference &nbsp;<span class="ph p2">P2</span></td></tr>
+<tr><td>Renewals</td><td>Renewal pool</td><td>Assistant &middot; Renewals &middot; Reference &nbsp;<span class="ph p2">P2</span></td></tr>
+<tr><td>Sub-agent</td><td>My leads (mobile-first)</td><td>Leads &middot; Customers &middot; Wallet &mdash; single-task screens per U11</td></tr>
+<tr><td>Customer</td><td>Portal home</td><td>Separate thin shell &mdash; see D-I in <a href="#s12">&sect;12</a></td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ══════════════════ 4 ══════════════════ -->
+<section id="s4">
+<h2><span class="num">04</span>Route map</h2>
+<p class="sub">URL owns filter, sort, page and selected record, so every queue state is linkable and
+every escalation email can point at a screen.</p>
+
+<pre><b>/</b>                                  <i>→ redirect to role home</i>
+<b>/login</b>  ·  <b>/login/2fa</b>                  <span class="ph m0">M0</span> <i>TOTP; OTP channels behind FR-18</i>
+<b>/assistant</b>                         <span class="ph p1">P1</span> <i>full route + Cmd-K drawer</i>
+
+<u>FRONT OFFICE</u>
+<b>/inquiries</b>                         <span class="ph m0">M0</span> <i>?status=&filter=&owner=&page=</i>
+<b>/inquiries/new</b>                     <span class="ph m0">M0</span>
+<b>/inquiries/:id</b>                     <span class="ph m0">M0</span> <i>detail + assignment trail + TAT clock</i>
+<b>/quotations</b>                        <span class="ph m0">M0</span>
+<b>/quotations/new</b>                    <span class="ph m0">M0</span> <i>Composer — customer + policy selection</i>
+<b>/quotations/:id</b>                    <span class="ph m0">M0</span> <i>benefit matrix, versions, share</i>
+<b>/quotations/:id/v/:version</b>         <span class="ph p1">P1</span> <i>immutable prior version</i>
+<b>/deals/:id</b>                         <span class="ph m0">M0</span>
+<b>/customers</b>  ·  <b>/customers/:id</b>        <span class="ph m0">M0</span> <i>360: household, policies, docs, timeline</i>
+<b>/customers/:id/consent</b>             <span class="ph p1">P1</span> <i>staff view of consent ledger</i>
+
+<u>OPERATIONS</u>
+<b>/policies</b>  ·  <b>/policies/:id</b>          <span class="ph m0">M0</span>
+<b>/policies/new</b>                      <span class="ph m0">M0</span> <i>SKU-rendered; ?dealId= pre-populates</i>
+<b>/policies/:id/versions</b>             <span class="ph p2">P2</span>
+<b>/back-office</b>                       <span class="ph m0">M0</span> <i>work-queue home</i>
+<b>/back-office/drafts</b>                <span class="ph m0">M0</span>
+<b>/back-office/kyc</b>                   <span class="ph m0">M0</span>
+<b>/back-office/collections</b>           <span class="ph p1">P1</span>
+<b>/back-office/issuance</b>              <span class="ph p1">P1</span>
+<b>/back-office/ocr-review</b>            <span class="ph p1">P1</span>
+<b>/tasks</b>                             <span class="ph p1">P1</span> <i>polymorphic queue, push|pull per module</i>
+
+<b>/renewals</b>                          <span class="ph p2">P2</span> <i>pull pool</i>
+<b>/renewals/:id</b>                      <span class="ph p2">P2</span>
+<b>/renewals/notices</b>                  <span class="ph p2">P2</span> <i>bulk ingest: upload → OCR → match → send-all</i>
+<b>/renewals/notices/:batchId</b>         <span class="ph p2">P2</span>
+<b>/claims</b>  ·  <b>/claims/:id</b>              <span class="ph p2">P2</span>
+<b>/claims/new</b>                        <span class="ph p2">P2</span>
+<b>/endorsements</b>  ·  <b>/endorsements/:id</b>  <span class="ph p2">P2</span>
+<b>/endorsements/new</b>                  <span class="ph p2">P2</span> <i>?policyId=&type= — form reshapes by type</i>
+
+<u>MONEY &amp; RECORDS</u>
+<b>/commission</b>                        <span class="ph p1">P1</span> <i>read-only ledger view</i>
+<b>/commission/ledger</b>                 <span class="ph p3">P3</span>
+<b>/commission/payouts</b>                <span class="ph p3">P3</span>
+<b>/wallet</b>                            <span class="ph p3">P3</span> <i>sub-agent only, ABAC-isolated</i>
+<b>/documents</b>                         <span class="ph p1">P1</span> <i>vault, ACL-filtered</i>
+<b>/reports</b>  ·  <b>/reports/:key</b>           <span class="ph p1">P1</span> <i>dashboard basic; deep analytics P3</i>
+
+<u>CONFIGURATION</u>  <i>— admin only, 10 surfaces mirroring canvas column 0</i>
+<b>/config/users</b>                      <span class="ph m0">M0</span> <i>users, permission templates, ABAC, 2FA matrix</i>
+<b>/config/masters</b>                    <span class="ph m0">M0</span>
+<b>/config/forms</b>                      <span class="ph p1">P1</span> <i>SKU builder: stages, fields, branching, preview, versions</i>
+<b>/config/companies</b>                  <span class="ph m0">M0</span> <i>per line; contacts per category</i>
+<b>/config/products</b>                   <span class="ph m0">M0</span> <i>+ policy→benefit map (FR-05.7)</i>
+<b>/config/benefits</b>                   <span class="ph m0">M0</span> <i>benefit catalog (FR-06.4)</i>
+<b>/config/agencies</b>                   <span class="ph m0">M0</span> <i>Agency Master: type, scope, commission %</i>
+<b>/config/agents</b>                     <span class="ph m0">M0</span> <i>agent %, sub-agent grant, cap, direct-updates toggle</i>
+<b>/config/templates</b>                  <span class="ph p1">P1</span>
+<b>/config/integrations</b>               <span class="ph p1">P1</span>
+<b>/config/automation</b>                 <span class="ph p1">P1</span> <i>recipe params P1; visual builder P3</i>
+<b>/config/compliance</b>                 <span class="ph p1">P1</span> <i>consent, retention classes, audit search</i>
+
+<u>CUSTOMER PORTAL</u>  <i>— separate shell, separate auth</i>
+<b>/portal</b>  ·  <b>/portal/policies</b>  ·  <b>/portal/documents</b>     <span class="ph p1">P1</span>
+<b>/portal/claims</b>  ·  <b>/portal/claims/new</b>                 <span class="ph p2">P2</span>
+<b>/consent/:token</b>                    <span class="ph p1">P1</span> <i>login-free, expiring — consent + sensitive data</i>
+<b>/upload/:token</b>                     <span class="ph p2">P2</span> <i>login-free, expiring — FR-16.8 discharge summary</i>
+</pre>
+
+<div class="call"><div class="ct">Two routes carry no session</div>
+<p><code>/consent/:token</code> and <code>/upload/:token</code> are tokenised, expiring and login-free by
+design (FR-09.9, D21). They must be code-split out of the authenticated bundle and must not import the
+app shell, the permission store or anything that assumes a user. Treat them as two small standalone
+entries.</p></div>
+</section>
+
+<!-- ══════════════════ 5 ══════════════════ -->
+<section id="s5">
+<h2><span class="num">05</span>Page inventory</h2>
+<p class="sub">Every screen, what it is, and which canvas node or prototype card it derives from.
+<span class="ph m0">M0</span> is the thin vertical slice defined in <a href="#s11">&sect;11</a>.</p>
+
+<h4>Front office</h4>
+<div class="tw"><table>
+<thead><tr><th style="width:190px">Screen</th><th>What it does</th><th>Derived from</th><th class="c">Phase</th></tr></thead>
+<tbody>
+<tr><td>Inquiry queue</td><td>Filterable list; unassigned and TAT-at-risk pinned; bulk assign. Row shows source, category, owner, TAT remaining.</td><td>Canvas n1&ndash;n8 &middot; <code>p_unassigned</code>, <code>p_tatrisk</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Inquiry detail</td><td>Assignment trail, confirm/accept action, TAT clock, escalation history, notes, convert-to-quotation.</td><td>Canvas n4&ndash;n8 &middot; <code>p_escalate</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Quotation list</td><td>By stage: draft, shared, revising, won, lost. Stalled (no reply &gt; N days) surfaced.</td><td><code>p_stalled</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td><strong>Quotation Composer</strong></td><td>The core screen. Select customer + 1&ndash;N company/policy columns &rarr; benefit matrix renders from the policy&rarr;benefit map, defaults pre-filled &rarr; ad-hoc rows inline &rarr; <strong>Final Payable Premium typed per column</strong> &rarr; generate single or side-by-side PDF.</td><td>Canvas n9&ndash;n12 &middot; <code>p_compose</code>, <code>p_quote</code>, <code>p_quotepdf</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Quotation detail</td><td>Version stack (immutable), revision with mandatory reason, share log, Won/Lost with mandatory Lost reason.</td><td>Canvas n13&ndash;n16 &middot; <code>p_revise</code>, <code>p_won</code>, <code>p_lost</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Deal detail</td><td>Application number, line items, links to customer / agent / sub-agent, hand-off to policy entry.</td><td>Canvas n16</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Customer list</td><td>Search, household grouping, source, linked sub-agent, KYC state.</td><td>Prototype agent + admin nav</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Customer 360</td><td>Household + members + relationships, policies, documents, transactions, change requests, consent state, full audit timeline (U14).</td><td><code>g_360</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+</tbody></table></div>
+
+<h4>Operations</h4>
+<div class="tw"><table>
+<thead><tr><th style="width:190px">Screen</th><th>What it does</th><th>Derived from</th><th class="c">Phase</th></tr></thead>
+<tbody>
+<tr><td>Back-office work queue</td><td>The heaviest users' home. Six ops queues in one view: entry, KYC completion, draft completion, collection verification, claim follow-up, sub-agent intake.</td><td>Canvas FR-08.1 &middot; prototype back-office role</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Policy entry (SKU form)</td><td>Multi-step, branching on product type; line items pre-populate from the deal; draft-save with missing-field indicator; premium block is per-type components with Net roll-up and Final = Net + GST.</td><td>Canvas n17&ndash;n25 &middot; <code>b_complete</code>, <code>b_missing</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Policy detail</td><td>State, dual numbers, premium record, payment block, documents, dispatch, versions, retention lock.</td><td>Canvas n24, n25</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>KYC queue + detail</td><td>Doc checklist, OCR review fields, Aadhaar masked to last-4, consent-link send/resend, completeness gate.</td><td>Canvas n17&ndash;n19 &middot; <code>b_kyc</code>, <code>b_consent</code></td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td>Collections</td><td>Record-only entry, all modes, no receipt slip, cheque bounce marking, back-office verification before close.</td><td>Canvas n20&ndash;n23 &middot; <code>b_collect</code></td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Issuance queue</td><td>Policies stuck awaiting insurer; days-waiting; chase-the-insurer draft.</td><td><code>b_stuck</code>, <code>b_chase</code></td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>OCR review queue</td><td>Extracted rows flagged until confirmed; never silent-commit (U10).</td><td><code>b_ocr</code></td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Task queue</td><td>Polymorphic work items across every entity; push or pull per module; ABAC-filtered pool.</td><td>FR-15</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Renewal pool</td><td>Pull queue, self-assign, due buckets, silent (no reply after N reminders), lapsed + win-back.</td><td>Canvas n26&ndash;n31 &middot; <code>r_due</code>, <code>r_lapsed</code>, <code>r_winback</code></td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td>Notice bulk ingest</td><td>Upload &rarr; per-insurer OCR template &rarr; match/review &rarr; unmatched flagged and blocked from send &rarr; send-all with per-customer PDF.</td><td>Canvas n32&ndash;n36 &middot; <code>r_ocr</code>, <code>r_send</code>, <code>r_link</code></td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td>Claim queue + detail</td><td>Push-to-team then pickup; cashless vs file fork; checklist per company/product; query loop in three languages; settlement + mandatory company remark to close.</td><td>Canvas n37&ndash;n50 &middot; 12 <code>c_*</code> cards</td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td>Endorsement</td><td>Type-driven form reshape; non-financial / financial / cancellation; auto claims-in-period refund check; immutable version on approval.</td><td>Canvas n51&ndash;n56 &middot; <code>b_endorse</code></td><td class="c"><span class="ph p2">P2</span></td></tr>
+</tbody></table></div>
+
+<h4>Money, records, configuration</h4>
+<div class="tw"><table>
+<thead><tr><th style="width:190px">Screen</th><th>What it does</th><th>Derived from</th><th class="c">Phase</th></tr></thead>
+<tbody>
+<tr><td>Commission view</td><td><strong>Read-only.</strong> Chain shown per policy: payer &rarr; agency % &rarr; agent % &rarr; sub-agent share. Booked totals by channel.</td><td>Canvas n57&ndash;n59 &middot; <code>a_comm</code>, <code>a_why</code></td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Wallet</td><td>Sub-agent only; own payouts; ABAC-isolated so no other wallet is reachable.</td><td><code>g_wallet</code></td><td class="c"><span class="ph p3">P3</span></td></tr>
+<tr><td>Document vault</td><td>Polymorphic docs, versions, retention class, ACL, access log. Every open is logged.</td><td>FR-16</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Reports</td><td>Core dashboard: policy/claim summaries, renewal buckets, YoY, birthdays. Deep analytics and configurable params in P3.</td><td>Prototype admin role &middot; <code>a_report</code></td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Config &times; 10</td><td>Users/roles/2FA, masters, form builder, companies, products, benefits, agencies, agents, templates, integrations, automation, compliance.</td><td>Canvas column 0 (g1&ndash;g12)</td><td class="c"><span class="ph m0">M0</span> / <span class="ph p1">P1</span></td></tr>
+<tr><td>Assistant</td><td>Four request kinds; every Act gated by confirm; six stated boundaries enforced in code, not copy.</td><td>Whole prototype</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td>Customer portal</td><td>Thin: policies, documents, transactions, change requests. Claim raise + track in P2.</td><td>FR-09.5</td><td class="c"><span class="ph p1">P1</span></td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ══════════════════ 6 ══════════════════ -->
+<section id="s6">
+<h2><span class="num">06</span>Component architecture</h2>
+<p class="sub">Three guardrail components carry the product's non-negotiables. Build them before any
+screen, because every screen borrows from them.</p>
+
+<h3>Folder shape</h3>
+<pre><b>src/</b>
+├── <b>app/</b>            <i>router, providers, error + suspense boundaries, role guards</i>
+├── <b>ui/</b>             <i>primitives — no domain knowledge, no imports from features/</i>
+├── <b>components/</b>     <i>shared domain composites — knows Policy, Claim, Task</i>
+├── <b>features/</b>       <i>one folder per module: routes, hooks, local state, feature components</i>
+│     inquiries/ quotations/ deals/ customers/ policies/ backoffice/
+│     renewals/ claims/ endorsements/ commission/ documents/ reports/
+│     config/ assistant/ portal/
+├── <b>domain/</b>         <i>types (each field dataClass-tagged), workflow machines, guards,</i>
+│                  <i>permission evaluator, money</i>
+├── <b>data/</b>           <i>repository interfaces + mock adapters + fixtures</i>
+│     <u>assistant/</u>    <i>AssistantView projection — allow-listed, sensitive fields absent</i>
+├── <b>styles/</b>         <i>tokens.css, reset, base</i>
+└── <b>lib/</b>            <i>formatters, date helpers, id generators, hooks</i>
+</pre>
+<p>One dependency rule, lint-enforced: <code>ui/</code> may not import from <code>features/</code>,
+<code>components/</code> or <code>domain/</code>. It is the layer that survives a re-theme and, if mobile
+apps arrive (D-J), the layer worth extracting.</p>
+
+<h3>The three guardrail components</h3>
+<p>These are not UI conveniences. Each one is a business rule made physical, and each appears in both
+the PRD and the prototype as an explicit promise.</p>
+
+<div class="tw"><table>
+<thead><tr><th style="width:180px">Component</th><th>Rule it enforces</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><code>&lt;RecordOnlyAmount&gt;</code></td><td>D3 &mdash; the platform records money, it never calculates it.</td><td>An amount input that <strong>cannot be auto-filled from a computation</strong>. Renders the "type the figure" affordance the prototype uses for final premium and settlement. Sibling <code>&lt;RollUp&gt;</code> displays Net = &Sigma; components and Final = Net + GST as read-only derived text, visibly distinct from anything typed. Any future PR that computes into this component is a review reject.</td></tr>
+<tr><td><code>&lt;OcrField&gt;</code></td><td>FR-16 &mdash; extraction never silent-commits (U10).</td><td>Wraps a form field. Three states: <em>extracted</em> (lime flag, confidence shown, value present but unconfirmed), <em>confirmed</em> (person accepted), <em>edited</em> (person overrode &mdash; original kept for audit). A form containing any unconfirmed <code>OcrField</code> cannot submit.</td></tr>
+<tr><td><code>&lt;ConfirmGate&gt;</code></td><td>Prototype boundary &mdash; nothing sends or saves without showing what it will do; Cancel writes nothing.</td><td>Renders the intended change as a key/value preview, then Cancel / Confirm. On confirm it emits the mutation and swaps to a done-state receipt. Used by every Assistant Act, every bulk send, every escalation, every status transition that leaves the system.</td></tr>
+</tbody></table></div>
+
+<h3>UI primitives &mdash; <code>src/ui/</code></h3>
+<div class="tw"><table class="tight">
+<thead><tr><th>Group</th><th>Components</th></tr></thead>
+<tbody>
+<tr><td>Form</td><td>Field, Label, Input, NumberInput, MoneyInput, Select, Combobox, CascadeSelect, DatePicker, DateRange, Textarea, Checkbox, RadioGroup, Toggle, FileDrop, FormRow, FormSection, FieldError</td></tr>
+<tr><td>Data</td><td>DataTable, TableToolbar, ColumnPicker, Pagination, SortHeader, SelectionBar, EmptyState, Skeleton, StatCard, Sparkline</td></tr>
+<tr><td>Signal</td><td>StatusPill, StatusStripe, Badge, CountChip, Clock (TAT / grace / aging), ProgressRing, Tag</td></tr>
+<tr><td>Surface</td><td>Card, Panel, Drawer, Modal, Popover, Tooltip, Tabs, Accordion, SplitView, Toast/Toaster</td></tr>
+<tr><td>Nav</td><td>SideRail, NavSection, NavItem, Breadcrumb, PageHeader, ActionBar, RoleSwitcher</td></tr>
+<tr><td>Type</td><td>Money, DateTime, RelativeTime, RecordId, MaskedValue, TruncatedText, KeyValueList</td></tr>
+<tr><td>Media</td><td>Icon (SVG sprite &mdash; <strong>no emoji, standing rule</strong>), Avatar, BrandMark, DocThumb</td></tr>
+</tbody></table></div>
+
+<h3>Shared domain composites &mdash; <code>src/components/</code></h3>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:200px">Component</th><th>Job</th><th>Reused by</th></tr></thead>
+<tbody>
+<tr><td>AppShell</td><td>Rail + main + drawer, density attribute, keyboard map.</td><td>Every authenticated route</td></tr>
+<tr><td>WorkQueue</td><td>The list pattern: filter bar, dense table, severity stripe, bulk actions, row&rarr;drawer or row&rarr;route. One implementation, configured per module.</td><td>All 15 queue screens</td></tr>
+<tr><td>RecordTimeline</td><td>Who did what when, on every record (U14). Reads the audit stream.</td><td>Policy, claim, customer, inquiry, endorsement</td></tr>
+<tr><td>SchemaForm</td><td>Renders a form from a stored SKU schema: stages, branching, conditional visibility, reserved fields, draft-save, schema version pinning.</td><td>Policy entry, endorsement, claim intimation, KYC, inquiry</td></tr>
+<tr><td>BenefitMatrix</td><td>Rows = mapped benefits, columns = companies, defaults pre-filled, ad-hoc row insert, per-column Final Premium via <code>RecordOnlyAmount</code>.</td><td>Quotation Composer</td></tr>
+<tr><td>DocumentViewer</td><td>Paged preview in the drawer, Source Serif 4 letterhead surface, download/share gate.</td><td>7 document types</td></tr>
+<tr><td>AssignmentTrail</td><td>Assign &rarr; confirm &rarr; reassign &rarr; escalate history with clocks.</td><td>Inquiry, task, claim</td></tr>
+<tr><td>ChecklistPanel</td><td>Per-company/product document checklist with collection mode.</td><td>Claim, KYC, policy docs</td></tr>
+<tr><td>ConsentBadge / MaskedField</td><td>Consent state; Aadhaar last-4 only, never full, never exportable.</td><td>Customer, KYC, documents</td></tr>
+<tr><td>NotificationRail</td><td>Proactive notices above the queue &mdash; the prototype's push behaviour, relocated.</td><td>Every role home</td></tr>
+<tr><td>AssistantPanel</td><td>Cmd-K drawer; four request kinds; renders the block vocabulary in <a href="#s10">&sect;10</a>.</td><td>Global</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ══════════════════ 7 ══════════════════ -->
+<section id="s7">
+<h2><span class="num">07</span>State architecture</h2>
+<p class="sub">Five layers, each with one job. Nothing derived is ever stored.</p>
+
+<div class="tw"><table>
+<thead><tr><th style="width:150px">Layer</th><th>Holds</th><th>Mechanism</th></tr></thead>
+<tbody>
+<tr><td>URL</td><td>Filter, sort, page, tab, selected record, drawer target.</td><td>React Router search params. A queue view is fully reconstructible from its URL &mdash; escalation notices and Assistant answers link straight to a filtered screen.</td></tr>
+<tr><td>Data</td><td>Every entity read.</td><td>Repository interfaces in <code>data/repo/</code> returning Promises, with a mock adapter behind them. A thin <code>useResource</code> hook in MVP; swap in TanStack Query when a real API lands. <strong>No component imports a fixture directly.</strong></td></tr>
+<tr><td>Session</td><td>Current user, active role, resolved permission set, density, theme.</td><td>Zustand slice, hydrated once at boot. Feeds <code>can()</code>.</td></tr>
+<tr><td>Feature drafts</td><td>Composer working state, policy entry draft, notice batch review, claim checklist progress.</td><td>Zustand slice per feature + <code>localStorage</code> autosave keyed by entity id, so U6 draft-safety survives a session timeout.</td></tr>
+<tr><td>Form</td><td>Field values, validation, dirty tracking.</td><td>react-hook-form + zod resolver. Schemas generated from SKU definitions at runtime.</td></tr>
+</tbody></table></div>
+
+<h3>Permissions are state, and they gate rendering</h3>
+<p>FR-01.2/.3 make roles a permission template plus an attribute scope, and the Assistant's stated
+boundary is <em>"it runs as you &mdash; an agent asking about a customer they did not source gets nothing
+back."</em> Both need one evaluator:</p>
+<pre><s>can</s>(action, resource, record?) → boolean
+
+  <i>action</i>    'view' | 'create' | 'edit' | 'delete' | 'assign' | 'approve' | 'export'
+  <i>resource</i>  module key
+  <i>record</i>    optional — enables the ABAC scope test:
+             own | team | all,  by company, category, sub-agent ownership
+</pre>
+<p>Every nav item, route guard, toolbar button, table column and bulk action reads through it. The
+sensitive-data classes (health, KYC, financials) are a second axis: <code>canSeeClass()</code> drives
+<code>MaskedField</code>. Build both in M0 &mdash; retrofitting permission gating across 15 screens is
+the second-biggest avoidable cost after table state.</p>
+
+<h3>The Assistant reads a different shape of the data</h3>
+<p>Per <a href="#s14">&sect;14.1</a>, the Assistant never queries an entity. It queries
+<code>AssistantView&lt;T&gt;</code> &mdash; an allow-listed projection carrying operational and contact
+fields plus document <em>presence</em> flags, with sensitive values and document contents absent by
+construction. Assistant repository methods return projections only, and a CI test asserts per entity that
+the projection carries no field tagged <code>sensitive</code> or <code>document-content</code>.</p>
+<p>This sits alongside <code>can()</code>, not instead of it. <code>can()</code> decides <em>which
+records</em> the Assistant may read as this user; the projection decides <em>which fields</em> exist at
+all. Both are needed: an admin has permission to see an Aadhaar number, and the Assistant still must not
+receive one.</p>
+
+<h3>Events</h3>
+<p>The PRD's automation engine is an event bus (<code>policy.issued</code>, <code>inquiry.unconfirmed</code>,
+<code>claim.status_changed</code>&hellip;). In the MVP, emit the same event names from a small in-memory
+dispatcher whenever a workflow transition fires, and let mock "recipes" subscribe. Two things fall out
+for free: the audit timeline is just the event log, and when the real backend arrives the event names
+already match the FR contracts.</p>
+</section>
+
+<!-- ══════════════════ 8 ══════════════════ -->
+<section id="s8">
+<h2><span class="num">08</span>Domain model &amp; mock data</h2>
+<p class="sub">Types first, fixtures second, screens third. The fixture set is a demo script, not filler.</p>
+
+<h3>P1 entity set</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:150px">Cluster</th><th>Entities</th></tr></thead>
+<tbody>
+<tr><td>Identity</td><td>User, PermissionTemplate, AbacRule, Session, TwoFactorConfig, Team</td></tr>
+<tr><td>Configuration</td><td>MasterType, MasterValue, ObjectDef, AttributeDef, FormSchema(+version), Recipe(+version), Template, IntegrationConfig, RetentionClass</td></tr>
+<tr><td>Market</td><td>Company, CompanyContact, Product, CommissionRate, DocChecklist, BenefitItem, PolicyBenefitMap</td></tr>
+<tr><td>Channel</td><td><strong>Agency</strong>, AgencyPolicyScope, Agent, SubAgent, CommissionSplit</td></tr>
+<tr><td>Demand</td><td>Inquiry, Quotation(+version), QuotationLine, Deal, DealLineItem</td></tr>
+<tr><td>Customer</td><td>Customer, Household, Member, ChangeRequest, CustomerCredential, ConsentRecord</td></tr>
+<tr><td>Contract</td><td>Policy(+PolicyVersion), PremiumRecord, PaymentRecord, CollectionRecord, DispatchRecord</td></tr>
+<tr><td>Work</td><td>Task, WorkQueue, Draft, AuditEvent</td></tr>
+<tr><td>Records</td><td>Document(+version), OcrTemplate, OcrExtraction, MessageLog</td></tr>
+<tr><td>Money</td><td>CommissionRule, LedgerEntry</td></tr>
+<tr><td>Assistant</td><td>AssistantThread, AssistantTurn, AssistantAction, ProactiveNotice &middot; <strong><code>AssistantView&lt;T&gt;</code> projection (&sect;14.1)</strong></td></tr>
+<tr><td>Payment schedule</td><td><strong>PremiumSchedule, InstalmentDue, Mandate, MandateEvent</strong> &mdash; types M0, screens P2</td></tr>
+<tr><td class="ph p2">P2 adds</td><td>Claim, ClaimChecklist, ClaimQuery, SettlementRecord, RenewalTask, NoticeBatch, NoticeMatch, Endorsement</td></tr>
+</tbody></table></div>
+
+<h3>Premium schedules, mandates and grace &mdash; decided: in scope, record-only</h3>
+<div class="call"><div class="ct">D-A &mdash; resolved</div>
+<p>The prototype was right and the PRD had a gap: <em>"Twelve due dates and one expiry date are
+different objects, and only one of them is currently tracked."</em> Four entities are added, with the
+<strong>types written in M0</strong> so Policy and Renewal never need migrating, and the
+<strong>screens built in P2</strong> alongside renewals.</p>
+<p>"We just save history" sets the boundary, and it is the same boundary as D3 everywhere else in this
+platform &mdash; <strong>the system records the money story, it never runs it.</strong></p></div>
+
+<div class="tw"><table>
+<thead><tr><th style="width:150px">Entity</th><th>Holds</th><th>Record-only boundary</th></tr></thead>
+<tbody>
+<tr><td><code>PremiumSchedule</code></td><td>Mode (annual / half-yearly / quarterly / monthly), instalment amount, debit day, term, grace days for this mode. One per policy.</td><td>The instalment amount is <strong>typed from the insurer's schedule</strong> via <code>RecordOnlyAmount</code>. The platform never divides an annual premium by twelve &mdash; the prototype says this out loud and it stays true.</td></tr>
+<tr><td><code>InstalmentDue</code></td><td>One row per expected payment: due date, amount, state, linked collection or reference.</td><td>Generated from the schedule as a set of dates. Amounts come from the schedule, never computed per row.</td></tr>
+<tr><td><code>Mandate</code></td><td>e-NACH / NACH / standing-instruction reference, bank, debit day, active window, who registered it.</td><td><strong>The platform never initiates a debit and never holds bank credentials.</strong> The mandate is set up through the insurer's own link; we record that it exists.</td></tr>
+<tr><td><code>MandateEvent</code></td><td>Each presentation outcome: date, result, insurer reason text.</td><td>Recorded from what the insurer or customer reports. No status is inferred.</td></tr>
+</tbody></table></div>
+
+<p><strong>Two clocks, not one.</strong> A policy's expiry date and its instalment due dates are separate
+objects with separate grace windows &mdash; monthly mode commonly carries 15 days against 30 on annual,
+and motor often carries none. <code>GraceClock</code> and the renewal <code>ExpiryClock</code> are distinct
+components reading distinct fields, and the renewals queue shows both kinds of item with a visible type
+distinction. A policy with a due instalment is <strong>in force and not expiring</strong> &mdash; the
+queue must never imply otherwise.</p>
+<p><strong>Behaviour retained from the prototype</strong>, per the standing instruction to preserve its
+workflow logic: a recorded mandate failure raises a same-day follow-up task inside the grace window,
+notifies the linked agent, and surfaces as a proactive notice. That is task-raising and messaging &mdash;
+both things this platform already does everywhere &mdash; not payment processing.</p>
+<div class="call warn"><div class="ct">Interpretation flagged</div>
+<p>"We just save history" is read as <em>record-only money, active workflow</em>: we record the schedule,
+mandate and outcomes, and we still raise tasks and reminders off them. If you meant a purely passive log
+with no tasks and no alerts, say so and I will drop the task-raising &mdash; it removes about a third of
+the P2 work here and two of the prototype's six proactive notices.</p></div>
+
+<h3>Money as a type</h3>
+<p>Record-only does not mean careless. Store every amount as integer paise in a branded
+<code>Money</code> type with an explicit currency, format at the edge only, and give roll-ups a single
+addition function. Floating-point rupees in a commission chain that splits three ways will produce
+reconciliation mismatches that look like business bugs.</p>
+
+<h3>Dual numbering</h3>
+<p>Every numbered entity carries two optional fields from the first commit &mdash; <code>systemNo</code>
+(always present, generated) and <code>insurerNo</code> (present when received). Format
+<code>INQ-1041</code>, <code>QTN-0332</code>, <code>APP-0774</code>, <code>POL-DRAFT-0219</code>,
+<code>CLM-0412</code>, per the prototype. Render both through <code>&lt;RecordId&gt;</code> so the
+distinction is visible everywhere.</p>
+
+<h3>Fixture strategy</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:150px">Set</th><th>Volume</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Story records</td><td>~35 hand-authored</td><td>The prototype's named cast &mdash; Rakesh Patel, Jayesh Kapadia, Nilesh Bhatt, Bhavesh Trivedi, Falguni Shah, Kiran Solanki, Priya Desai, Amit Rana, Sneha Patel. Every demo path in the 48 canvas scenarios must be walkable on these records. The client will recognise them from the prototype walkthrough.</td></tr>
+<tr><td>Volume records</td><td>~300 customers, ~500 policies, ~800 tasks</td><td>Generated deterministically from a fixed seed. Makes U12's speed budgets (list &lt; 2s) measurable rather than theoretical, and exposes table virtualisation needs early.</td></tr>
+<tr><td>Config seed</td><td>8 companies, ~24 products, ~40 benefits, 4 agencies, 6 users</td><td>Real Indian insurers already named in the prototype: HDFC Ergo, Niva Bupa, Bajaj Allianz, ICICI Lombard, Tata AIG, IFFCO Tokio, Royal Sundaram, LIC.</td></tr>
+</tbody></table></div>
+<p>Fixtures live behind the repository layer with simulated latency, so loading, empty and error states
+get built rather than discovered in UAT.</p>
+</section>
+
+<!-- ══════════════════ 9 ══════════════════ -->
+<section id="s9">
+<h2><span class="num">09</span>Business workflow states</h2>
+<p class="sub">Every machine as a frozen <code>const</code> map plus a derived union &mdash;
+<code>enum</code> will not compile under <code>erasableSyntaxOnly</code>. Guards listed are the PRD's
+acceptance criteria, expressed as code.</p>
+
+<div class="fsm">
+<div class="hd"><b>Inquiry</b><span>FR-06.3 &middot; canvas n1&ndash;n8</span><span class="ph m0">M0</span></div>
+<div class="bd">
+<div class="flow">new → <b>assigned</b> ─┬─ confirmed within TAT ──→ <u>accepted</u> (owner set, clock stops)
+                 ├─ TAT elapsed ──────────→ <b>reassigned</b> (next in category group) ──┐
+                 └─ no category match ────→ <s>unrouted</s> (admin alert)                │
+      <b>reassigned</b> ── TAT elapsed again ──────────────────────────────→ <s>escalated</s> ←┘
+      <u>accepted</u> → converted (quotation opens) | <s>lost</s></div>
+<ul class="g">
+<li>Reassignment stays inside the same category group; escalation carries the full assignment history, not just the item.</li>
+<li>Unrouted is a visible state with an alert, never a silent drop.</li>
+<li>TAT duration is a recipe parameter, not a constant.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Quotation</b><span>FR-06.5&ndash;.10 &middot; canvas n9&ndash;n16</span><span class="ph m0">M0</span></div>
+<div class="bd">
+<div class="flow">draft → composed → <b>generated</b> → shared ─┬─ revision requested → <b>generated</b> (v+1) ↺
+                                     ├─ <u>won</u>  → Deal created
+                                     └─ <s>lost</s> (reason mandatory)</div>
+<ul class="g">
+<li>A revision requires a reason. Prior versions are immutable and remain viewable.</li>
+<li>Lost requires a reason &mdash; that mandatory field is what makes lost-reason reporting worth reading.</li>
+<li>Auto-share is a config fork, applying identically to generated and uploaded quotations.</li>
+<li>Final Payable Premium must be present per column before generate. It is typed, never computed.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Deal &rarr; Policy</b><span>FR-06.11, FR-10.1 &middot; canvas n16&ndash;n25</span><span class="ph m0">M0</span></div>
+<div class="bd">
+<div class="flow">Deal: created → line_items_set → consumed
+Policy: draft → <b>proposal</b> → sent → <u>issued</u> | <s>declined</s>
+                                    ↓
+                          dispatch → documents → <b>closed</b> (retention lock, 10 yr)</div>
+<ul class="g">
+<li>A deal with zero line items is blocked with a clear message.</li>
+<li>Issue is gated on KYC complete <em>and</em> a non-empty Final Premium. Components stay optional.</li>
+<li>Direct-entry path skips proposal for already-issued policies.</li>
+<li>Placement offers only companies and products inside the selected agency's scope.</li>
+<li>A closed policy past its retention class locks; it is never hard-deleted.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>KYC &amp; consent</b><span>FR-09.3, .9 &middot; canvas n17&ndash;n19</span><span class="ph m0">M0</span></div>
+<div class="bd">
+<div class="flow">pending → partial ─┬─ staff completes ──────┐
+                   └─ consent link filled ──┴→ <u>complete</u> → credentials generated + sent</div>
+<ul class="g">
+<li>Aadhaar is masked to last-4 on extraction. No screen and no export ever shows the full number.</li>
+<li>The consent link is tokenised, expiring, login-free, and carries no session.</li>
+<li>Completion fires the credentials recipe automatically &mdash; it is not a manual step.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Payment &amp; collection</b><span>FR-10.4, FR-12.9 &middot; canvas n20&ndash;n23</span><span class="ph p1">P1</span></div>
+<div class="bd">
+<div class="flow">fork ─┬─ <b>direct_to_company</b> → reference recorded (no agency books)
+      └─ <b>via_agency</b> → recorded → <u>verified</u> (back-office)
+                              └─ cheque → <s>bounced</s> → follow-up task auto-created, collection reopens</div>
+<ul class="g">
+<li>Record-only. No receipt slip is issued by the platform.</li>
+<li>On-field collections require back-office verification before the item can close.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Claim</b><span>FR-11 &middot; canvas n37&ndash;n50</span><span class="ph p2">P2</span></div>
+<div class="bd">
+<div class="flow">raised ── policy inactive ──→ <s>blocked</s> (agent notified)
+       └─ policy active ───→ <b>intimated</b> (system claim no. + insurer email, CC agent)
+              → <b>picked_up</b> (claims team owns; sales agent informed, not owner)
+              ├─ <b>cashless</b> → upload_link_sent → summary_received → tracked
+              └─ <b>file</b> → checklist_raised → docs_collected (self | on-field pickup)
+                        → <b>filed_with_insurer</b> ⇄ <b>query_open</b> (multi-language loop) ↺
+                        → settlement_recorded → <u>closed</u></div>
+<ul class="g">
+<li>Close requires both a settlement record and a company remark. The remark feeds the insurer rating.</li>
+<li>Settlement amount and deduction are typed from the insurer's advice &mdash; never derived.</li>
+<li>Every status change fires a customer message, unless the agent's direct-updates toggle is OFF, in which case it routes to the agent and the reroute is logged.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Renewal &amp; notice batch</b><span>FR-12 &middot; canvas n26&ndash;n36</span><span class="ph p2">P2</span></div>
+<div class="bd">
+<div class="flow">Renewal:  scheduled (expiry − N) → in_pool → <b>assigned</b> (self) → reminded ×n
+          → <u>renewed</u> (new term, new PDF version, commission recalc) | <s>lapsed</s> → win_back_list
+Batch:    uploaded → ocr_running → <b>review</b> ─┬─ matched ──→ <u>sent</u> (per-customer PDF + renewal request)
+                                          └─ <s>unmatched</s> → manual link | reject</div>
+<ul class="g">
+<li>An unmatched row cannot be included in a bulk send. This is a hard block, not a warning.</li>
+<li>Backdating is permitted but logs actor, timestamp, original date and reason.</li>
+<li>Reminders carry year-wise amounts and offers, enriched by the matched notice.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Endorsement &amp; cancellation</b><span>FR-13 &middot; canvas n51&ndash;n56</span><span class="ph p2">P2</span></div>
+<div class="bd">
+<div class="flow">type_selected ─┬─ <b>non_financial</b> → correction fields only (no premium block)
+               ├─ <b>financial</b> → delta entry → commission delta hook
+               └─ <b>cancellation</b> → claims-in-period check ─┬─ claim found → <s>refund_not_eligible</s>
+                                                        └─ clear → refund typed (insurer figure)
+       → submitted → approved → <u>policy_versioned</u> (immutable, both endorsement nos., new PDF)</div>
+<ul class="g">
+<li>The claims-in-period check runs against the platform's own claim data and returns instantly.</li>
+<li>Non-financial types must render no premium fields at all.</li>
+<li>A change too large for endorsement triggers a guard suggesting fresh issue.</li>
+</ul>
+</div></div>
+
+<div class="fsm">
+<div class="hd"><b>Commission chain</b><span>FR-07.3a, FR-14.9 &middot; canvas n57&ndash;n59</span><span class="ph p1">P1</span></div>
+<div class="bd">
+<div class="flow">trigger: policy.issued | renewal.completed | endorsement.approved (delta)
+
+  payer (<b>company</b> on own code | <b>broker</b> as vendor channel)
+    → Jagad pay-in   = agency % (per company × policy, on the Agency record)
+      → agent cut    = agent %
+        → sub-agent share = carved from the agent's own cut, admin cap enforced
+    → ledger entries at every level → net profit</div>
+<ul class="g">
+<li>An Individual agency locks to exactly one company; Broker allows many.</li>
+<li>A share above the configured cap is blocked; with no cap set, any share within the agent's own % is accepted.</li>
+<li>Wallets exist for sub-agents only. A broker is a payer, never a payee and never a user.</li>
+<li>The Assistant reads this ledger and never writes to it, from any role including admin.</li>
+</ul>
+</div></div>
+</section>
+
+<!-- ══════════════════ 10 ══════════════════ -->
+<section id="s10">
+<h2><span class="num">10</span>What to reuse from the prototypes, and what to rebuild</h2>
+<p class="sub">The HTML files are the behavioural specification. They are not the styling specification,
+and none of their code ships.</p>
+
+<h3>Keep as reference &mdash; rebuild properly in React</h3>
+<div class="tw"><table>
+<thead><tr><th style="width:210px">From the prototype</th><th>What it teaches</th><th>Becomes</th></tr></thead>
+<tbody>
+<tr><td>Three-region shell</td><td>Rail / main / resizable drawer, with max-toggle and Escape-to-close. The proportions are right and staff-tested.</td><td><code>AppShell</code>, <code>Drawer</code></td></tr>
+<tr><td><code>NAV</code> map (6 roles)</td><td>The information architecture &mdash; which modules each role sees, grouped and counted. This is the most valuable single object in the file.</td><td><code>app/navigation.ts</code>, permission-gated</td></tr>
+<tr><td>Block vocabulary<br><code>para · rows · table · kv · act · choice · file · stop · note</code></td><td>A complete, disciplined set of ways to present a business answer. Nine block types cover 75 scenarios &mdash; that is a well-designed vocabulary, and it maps one-to-one onto components.</td><td><code>TextBlock</code>, <code>SignalList</code>, <code>DataTable</code>, <code>KeyValueList</code>, <code>ConfirmGate</code>, <code>ChoiceGate</code>, <code>DocumentCard</code>, <code>RecordOnlyAmount</code>, <code>NoteBlock</code></td></tr>
+<tr><td><code>.row .mk</code> severity stripe<br><span class="mono">hot / warm / cool / good</span></td><td>A four-level attention language that reads at a glance without text. Retain the mechanic; remap the colours to the &sect;2 tokens.</td><td><code>StatusStripe</code></td></tr>
+<tr><td><code>PUSH</code> proactive notices</td><td>The product's best idea: the system raises what nobody asked about, and says why it raised it. Preserve the "noticed just now" framing and the stated reason.</td><td><code>NotificationRail</code></td></tr>
+<tr><td>The <code>stop</code> block</td><td>Refusing to fill the premium, in the UI, with an explanation. This is D3 made visible and it should survive verbatim in behaviour.</td><td><code>RecordOnlyAmount</code></td></tr>
+<tr><td><code>NEVER</code> &mdash; six boundaries</td><td>Product constraints stated as features. Encode them as tests, not as copy.</td><td>Test suite + review checklist</td></tr>
+<tr><td><code>KINDS</code> &mdash; four request types</td><td>Ask / Analyse / Act / Produce, each with its own affordance and confirmation posture.</td><td>Assistant intent taxonomy</td></tr>
+<tr><td>7 <code>DOCS</code> layouts</td><td>What each module actually produces on letterhead, including the client's reference quotation header (persons, DOBs, PORT, floater).</td><td>Document templates, Source Serif 4</td></tr>
+<tr><td>Named cast &amp; scenarios</td><td>A coherent demo narrative the client has already seen.</td><td>Fixtures (<a href="#s8">&sect;8</a>)</td></tr>
+</tbody></table></div>
+
+<div class="tw"><table>
+<thead><tr><th style="width:210px">From the workflow canvas</th><th>What it teaches</th><th>Becomes</th></tr></thead>
+<tbody>
+<tr><td>9 lanes &times; 8 columns</td><td>Who does what, in what order, across the whole business. The canonical process map.</td><td>The route map's ordering and the module boundaries</td></tr>
+<tr><td>78 nodes</td><td>An inventory of every distinct system state and human step, including the error and loop states most specs omit.</td><td>Screen and state checklist &mdash; every node maps to a screen, a state, or a transition in <a href="#s9">&sect;9</a></td></tr>
+<tr><td>Column 0 &mdash; 12 config groups</td><td>The complete admin surface, richer than the PRD's own bird's-eye.</td><td>The 10&ndash;12 <code>/config</code> routes</td></tr>
+<tr><td>Scenarios tab &mdash; 48 G/W/T rows</td><td>Executable acceptance criteria covering happy paths, edges and error states.</td><td>Route smoke tests + component stories, one per row</td></tr>
+<tr><td>Auto / decision / error / loop node types</td><td>Which steps are automated, which fork, which fail, which repeat. Directly informs where <code>ConfirmGate</code> is and is not required.</td><td>Recipe seed list</td></tr>
+</tbody></table></div>
+
+<h3>Do not carry over</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:230px">Thing</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>The entire colour set<br><span class="mono">--act:#2f6ba8 · --doc:#6b5bb0 · --side:#fbfbfa</span></td><td>Replaced wholesale by the Jagad tokens in <a href="#s2">&sect;2</a>. No prototype hex survives.</td></tr>
+<tr><td>Inter as the UI face</td><td>Replaced by IBM Plex Sans &mdash; better figure clarity in the dense tables this product is made of.</td></tr>
+<tr><td>Chat-first home</td><td>Contradicts U1. See <a href="#s3">&sect;3</a> and decision D-G.</td></tr>
+<tr><td><code>KEYS</code> regex intent matcher</td><td>A demo device for a fixed script. Replace with a typed intent registry, or drop the free-text box until there is a real backend behind it.</td></tr>
+<tr><td>Hardcoded content in <code>C{}</code> / <code>ROLES{}</code></td><td>Becomes fixtures behind the repository layer.</td></tr>
+<tr><td><code>innerHTML</code> string templating</td><td>Becomes JSX. Every one of these is an injection surface the moment real customer data flows through it.</td></tr>
+<tr><td>Module-scope mutable state<br><span class="mono">cur · seq · view · made · pushed · drawW</span></td><td>Becomes store slices (<a href="#s7">&sect;7</a>).</td></tr>
+<tr><td>Inline <code>onclick="fn('id')"</code></td><td>Becomes props and handlers.</td></tr>
+<tr><td>Canvas pan/zoom/minimap engine</td><td>Not a product feature. The canvas stays a standalone reference document, maintained alongside the code, not ported into it.</td></tr>
+</tbody></table></div>
+
+<div class="call"><div class="ct">Standing rule, carried forward</div>
+<p>No emoji in any deliverable or in the product. Icons are SVG, from a single sprite. The prototype
+already complies and its icon set is a reasonable starting inventory.</p></div>
+</section>
+
+<!-- ══════════════════ 11 ══════════════════ -->
+<section id="s11">
+<h2><span class="num">11</span>Scope boundary</h2>
+<p class="sub">First, what is web and what is a mobile app. Then the phases.</p>
+
+<h3>11.1 &nbsp;Web now, mobile app later</h3>
+<div class="call navy"><div class="ct">D-I &mdash; resolved</div>
+<p><strong>No mobile app is built in this MVP. Web only.</strong> The finished product has three mobile
+apps in it (PRD NFR &sect;11 names them); none is in this plan, and none should be estimated as part
+of it.</p></div>
+
+<div class="tw"><table>
+<thead><tr><th style="width:150px">Audience</th><th>Their channel in the finished product</th><th class="c">Built now?</th><th>What they get in the MVP instead</th></tr></thead>
+<tbody>
+<tr><td>Admin &middot; Sales Mgr &middot; Back-office &middot; Claims &middot; Renewals</td><td>Desktop web</td><td class="c"><span class="ph m0">Yes, full</span></td><td>The ERP. This is the MVP.</td></tr>
+<tr><td>Agent</td><td>Web at the desk, mobile in the field</td><td class="c"><span class="ph m0">Yes, web</span></td><td>Agent screens inside the same web app</td></tr>
+<tr><td>Sub-agent</td><td><strong>Mobile app</strong> &mdash; inquiry capture, own leads/customers, wallet</td><td class="c"><span class="ph blk">No app</span></td><td>Responsive web on the same routes, so the M0 field-capture path is demonstrable end to end</td></tr>
+<tr><td>On-field</td><td><strong>Mobile app</strong> &mdash; pickup/collection tasks, doc scan, payment entry</td><td class="c"><span class="ph blk">No app</span></td><td>Responsive web for pickup and collection tasks (P1/P2)</td></tr>
+<tr><td><strong>Customer</strong></td><td><strong>Mobile app</strong> &mdash; policies, documents, claim raise and track</td><td class="c"><span class="ph blk">No app</span></td><td>Two web surfaces &mdash; below</td></tr>
+</tbody></table></div>
+
+<h4>The customer surfaces that do ship &mdash; and why they are not the app</h4>
+<p>This is the distinction that matters most, because M0 is blocked without the first one.</p>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:170px">Surface</th><th>What it is</th><th class="c">Ships</th></tr></thead>
+<tbody>
+<tr><td><code>/consent/:token</code></td><td>A <strong>login-free, expiring web page</strong> the customer opens from a WhatsApp message on their phone. They fill in sensitive health data and give consent. No session, no account, no app.</td><td class="c"><span class="ph m0">M0</span><br><span class="mono" style="font-size:10px">KYC needs it</span></td></tr>
+<tr><td><code>/upload/:token</code></td><td>The same mechanic for a cashless claim's discharge summary (FR-16.8, D21). One tap from the link.</td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td><code>/portal/*</code></td><td>A thin responsive web portal &mdash; policies, documents, transactions. The browser fallback, and the "what does the customer see" view for staff.</td><td class="c"><span class="ph p1">P1</span><br><span class="mono" style="font-size:10px">read-only</span></td></tr>
+</tbody></table></div>
+<p>A tokenised link is <strong>not</strong> a stripped-down app. It is the deliberate design in FR-09.9
+and D21: the least possible friction at the moment a customer is standing in a hospital corridor. It
+stays a web page even after the app exists.</p>
+
+<h4>What the MVP must do so the apps are cheap to build later</h4>
+<p>The apps are a separate project with their own estimate. This MVP's job is to not make them
+expensive:</p>
+<ul>
+<li><code>domain/</code> and <code>data/</code> contain <strong>no DOM and no React</strong> &mdash;
+types, workflow machines, guards, <code>can()</code>, <code>Money</code>, repository interfaces. A React
+Native app imports them verbatim.</li>
+<li><code>ui/</code> may not import from <code>domain/</code>, <code>components/</code> or
+<code>features/</code> (the rule already in <a href="#s6">&sect;6</a>). That is the seam where a native
+component layer substitutes in.</li>
+<li>Every screen the future apps need has its data shaped by a <strong>repository method</strong>, never
+assembled inside a component &mdash; so the app calls the same method against the real API.</li>
+<li>The API contracts the web consumes are the contracts the apps will consume. One backend, three
+clients.</li>
+</ul>
+<div class="call bad"><div class="ct">Explicitly not in this plan, and not costed anywhere in it</div>
+<p>React Native setup, app-store release, push notifications, device camera and document scan, and
+<strong>offline sync for on-field staff</strong>. Offline sync in particular is a genuinely hard problem
+&mdash; conflict resolution on collection entries recorded without signal &mdash; and it should not be
+assumed to fall out of a responsive web build.</p></div>
+
+<h3>11.2 &nbsp;Phases</h3>
+<p>PRD Phase 1 is fifteen modules. That is a release, not a first increment. This plan inserts a thinner
+slice in front of it.</p>
+
+<div class="call navy"><div class="ct">M0 &mdash; the vertical slice</div>
+<p><strong>One golden path, end to end, on real workflow rules:</strong> land on the Assistant and read
+your queue briefing &rarr; configure a company, a product, a benefit map, an agency and an agent &rarr;
+capture an inquiry &rarr; route it with a TAT clock &rarr; build a side-by-side quotation in the Composer
+&rarr; revise it with a reason &rarr; mark it Won &rarr; complete KYC through the consent link &rarr;
+issue credentials &rarr; enter the policy from the deal's line items &rarr; upload the policy PDF &rarr;
+<strong>POLICY LIVE</strong> &rarr; see the commission chain calculate.</p>
+<p>That single path exercises the design system, the shell, the Assistant landing view, the permission
+evaluator, the SKU form engine, all three guardrail components, five workflow machines and the event
+bus. Everything after M0 is addition rather than invention &mdash; which is the point of doing it
+first.</p></div>
+
+<div class="tw"><table>
+<thead><tr><th style="width:120px">Phase</th><th>Contains</th><th>Deliberately excluded</th></tr></thead>
+<tbody>
+<tr>
+<td><span class="ph m0">M0</span><br>Vertical slice</td>
+<td>Design system + shell + permission evaluator &middot; <strong>Assistant shell: landing briefing, suggestion chips, Ask cards over the user's own queue</strong> &middot; config for users, masters, companies, products, benefits, agencies, agents &middot; Inquiry &middot; Quotation Composer &middot; Deal &middot; Customer 360 &middot; KYC + consent link &middot; Policy entry &amp; issuance &middot; commission calculation (view only) &middot; the three guardrail components &middot; <strong>premium-schedule and mandate types (types only, no screens)</strong> &middot; mock repository + fixtures</td>
+<td>Claims, renewals, endorsements, bulk OCR, the customer portal, reports beyond a stub</td>
+</tr>
+<tr>
+<td><span class="ph p1">P1</span><br>Operate the core</td>
+<td>Everything in PRD P1: SKU form builder UI &middot; collections + cheque bounce &middot; issuance queue &middot; OCR single-doc review &middot; task engine with push/pull queues &middot; templates &amp; comms &middot; integrations config &middot; automation recipe parameters &middot; compliance spine (consent ledger, retention, audit search) &middot; document vault &middot; core dashboard &middot; customer portal web view &middot; <strong>Assistant: Analyse, Act with confirm gates, Produce (FR-22, <a href="#s14">&sect;14</a>)</strong></td>
+<td>Visual recipe builder, payout cycles, wallets, deep analytics</td>
+</tr>
+<tr>
+<td><span class="ph p2">P2</span><br>Service the book</td>
+<td>Claims full lifecycle &middot; renewals incl. bulk notice ingest &middot; <strong>premium-schedule, instalment and mandate screens</strong> &middot; endorsements &amp; cancellation &middot; vault-full and OCR everywhere &middot; multi-language content &middot; tokenised upload link &middot; registers</td>
+<td>&mdash;</td>
+</tr>
+<tr>
+<td><span class="ph p3">P3</span><br>Optimise</td>
+<td>Commission full: payout cycles, sub-agent wallets, reconciliation, GST export &middot; visual recipe builder, versioning, test mode &middot; deep analytics &middot; full customer self-service &middot; Assistant free-text intent</td>
+<td>&mdash;</td>
+</tr>
+<tr>
+<td><span class="ph blk">Post-MVP</span><br>Separate project</td>
+<td>The three mobile apps &mdash; customer, sub-agent, on-field. Boundary in &sect;11.1 above.</td>
+<td>Not costed in this plan</td>
+</tr>
+</tbody></table></div>
+
+<h3>Out of scope in every phase</h3>
+<p>Carried from PRD &sect;4 and worth restating because the prototype blurs two of them (see D-F):
+no premium rating or calculation engine &middot; no claim adjudication &middot; no mutual funds &middot;
+no insurer-portal or Bima Sugam API &middot; no bulk historical migration &middot; no multi-tenant runtime.</p>
+</section>
+
+<!-- ══════════════════ 12 ══════════════════ -->
+<section id="s12">
+<h2><span class="num">12</span>Decisions needed before implementation</h2>
+<p class="sub">Four block the entity model and must be answered first. The rest can be answered in
+parallel with M0.</p>
+
+<h4>Resolved &mdash; the entity model is unblocked, B1 can start</h4>
+
+<div class="dec soft">
+<div class="dh"><span class="dk" style="background:var(--ok)">D-A</span><span class="dt">Premium instalments, mandates and grace periods: in scope, record-only</span><span class="ph m0">Types M0 &middot; screens P2</span></div>
+<div class="db">
+<p>"Yes, we just save history." Four entities added &mdash; <code>PremiumSchedule</code>,
+<code>InstalmentDue</code>, <code>Mandate</code>, <code>MandateEvent</code> &mdash; with types written in
+M0 so Policy and Renewal never need migrating, and screens in P2 alongside renewals.</p>
+<p>The boundary is the same D3 boundary as everywhere else: the platform records the money story, it
+never runs it. Instalment amounts are typed from the insurer's schedule, no debit is ever initiated, no
+bank credentials are held. Full design in <a href="#s8">&sect;8</a>; state machine in
+<a href="#s9">&sect;9</a>.</p>
+<div class="ask"><b>One interpretation flagged</b>I read "save history" as record-only money with active
+workflow &mdash; we still raise tasks and alerts off a recorded mandate failure, as the prototype does.
+If you meant a purely passive log, say so and I will drop the task-raising.</div>
+</div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk" style="background:var(--ok)">D-G</span><span class="dt">AI Assistant at the top, as the HTML has it</span><span class="ph m0">Moves into M0</span></div>
+<div class="db">
+<p>First item in every role's nav rail and the landing view, matching the prototype exactly. The
+apparent U1 conflict dissolves once you notice the prototype's opening turn <em>is</em> a queue briefing
+&mdash; so the landing view is the work summary U1 asks for, delivered conversationally, never a blank
+prompt. Queues sit one nav section below and one suggestion chip away. Full design in
+<a href="#s3">&sect;3</a>.</p>
+<p><strong>Consequence:</strong> the Assistant moves from P1 into M0. It is the first thing anyone sees,
+so it cannot be deferred.</p>
+</div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk" style="background:var(--ok)">D-H</span><span class="dt">The Assistant is part of the product</span><span class="ph blk">Needs FR-22 + a compliance answer</span></div>
+<div class="db">
+<p>It therefore needs requirements, and PRD v0.4.1 has none for it. <strong>FR-22 is drafted at
+<a href="#s14">&sect;14</a></strong> &mdash; 12 requirements covering the four request kinds, the six
+boundaries as enforceable rules, proactive notices, document production and audit attribution. It needs
+inserting into the PRD before the walkthrough.</p>
+<p>It also raises <strong>one compliance question nobody has answered yet</strong>, with vendor lead time
+attached. See <a href="#s14">&sect;14</a>.</p>
+</div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk" style="background:var(--ok)">D-I</span><span class="dt">Customer is on a mobile app; MVP is web only</span><span class="ph m0">Boundary in &sect;11.1</span></div>
+<div class="db">
+<p>No mobile app is built in this MVP. Three apps exist in the finished product &mdash; customer,
+sub-agent, on-field &mdash; and none is in this plan or costed by it. What ships for customers is the two
+tokenised login-free web links (<code>/consent/:token</code> in M0, <code>/upload/:token</code> in P2)
+plus a thin read-only web portal in P1.</p>
+<p><strong>Full web-versus-app boundary at <a href="#s11">&sect;11.1</a></strong>, including what the MVP
+must do so the apps are cheap to build later, and what is explicitly not costed anywhere &mdash; React
+Native setup, push, device scan, and offline sync.</p>
+</div></div>
+
+<h4>Document defects &mdash; fix before the walkthrough</h4>
+
+<div class="dec soft">
+<div class="dh"><span class="dk">D-B</span><span class="dt">FR-16.8 is still missing from the docx</span><span class="ph p1">5 min</span></div>
+<div class="db"><p>FR-16 stops at <code>.7</code> in both &sect;8.16 and Appendix B. The capability is specified
+three times elsewhere (FR-11.1, decision D21, the FR-21.2 recipe list), so it is a traceability hole in
+Document Vault rather than a scope hole. Flagged twice previously, still unpatched. It <em>is</em> present
+in the requirements package.</p></div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk">D-C</span><span class="dt">Appendix A has claims and endorsements swapped</span><span class="ph p1">2 min</span></div>
+<div class="db"><p>Row 10 (Claim management) points at &sect;8.13; row 11 (Endorsement) points at &sect;8.11.
+Claims is &sect;8.11, Endorsement is &sect;8.13. This is the client-facing traceability table.</p></div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk">D-D</span><span class="dt">&sect;16 P1 scope names the wrong module</span><span class="ph p1">2 min</span></div>
+<div class="db"><p>"Commission core (FR-15)" &mdash; FR-15 is the Task &amp; Activity Engine; Commission is
+FR-14. Two errors from one slip: the wrong module is named, and the Task &amp; Activity Engine, whose
+FRs are all P1 and on which every queue in this plan depends, is not named in the P1 list at all.</p></div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk">D-E</span><span class="dt">Which scenario set is the acceptance-test source of truth?</span></div>
+<div class="db"><p>Canvas has 48 rows across 7 flows; PRD has 43 across 6 heart workflows. The canvas adds
+an Admin Configuration flow the PRD lacks, and per-flow counts differ (quotation 8 vs 9, claims 9 vs 8).
+Tests will be written from one of them.</p>
+<div class="ask"><b>Recommendation</b>Canvas, as the later and broader artifact &mdash; then backport the
+five extra rows into the PRD so the two agree.</div></div></div>
+
+<div class="dec soft">
+<div class="dh"><span class="dk">D-F</span><span class="dt">The prototype demonstrates two explicitly deferred capabilities</span></div>
+<div class="db"><p><code>c_summ</code> reads "14 documents read" and produces a claim summary &mdash; that is
+claim-document summarisation. <code>g_gap</code> surfaces coverage gaps &mdash; that is cross-sell.
+PRD &sect;2.3 places both in "future roadmap (out of scope now)". The prototype hedges defensibly
+("read from records already on file, nothing here is guessed" &mdash; rules over records, not a model),
+but that distinction will not survive a client walkthrough.</p>
+<div class="ask"><b>Decision needed</b>Move the &sect;2.3 line, or relabel the two cards.</div></div></div>
+
+<h4>Technical calls taken in this plan &mdash; override if you disagree</h4>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:44px">#</th><th>Call</th><th>Reasoning</th></tr></thead>
+<tbody>
+<tr><td class="mono">D-J</td><td><s style="text-decoration:line-through;color:var(--ink3)">Web-only for MVP</s> &mdash; <strong>superseded by D-I</strong>, which confirms it. Full boundary at <a href="#s11">&sect;11.1</a>.</td><td>&mdash;</td></tr>
+<tr><td class="mono">D-K</td><td>Money is integer paise in a branded type; formatted only at the edge.</td><td>A three-way commission split on floating-point rupees produces reconciliation mismatches that read as business bugs.</td></tr>
+<tr><td class="mono">D-L</td><td>CSS Modules over Tailwind.</td><td>The token file is a deliverable and must be auditable and re-themable per agency (D1, R-4). Tailwind is a fine substitute if the same tokens drive it.</td></tr>
+<tr><td class="mono">D-M</td><td>Mock data behind repository interfaces, not imported directly.</td><td>Swapping to a real API becomes one adapter file. Also forces loading, empty and error states to be built rather than discovered in UAT.</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ══════════════════ 13 ══════════════════ -->
+<section id="s13">
+<h2><span class="num">13</span>Build sequence</h2>
+<p class="sub">Ordered by what unblocks what. No dates &mdash; durations after estimation, per CON-1.</p>
+
+<div class="tw"><table>
+<thead><tr><th style="width:52px">Step</th><th>Work</th><th>Unblocks</th></tr></thead>
+<tbody>
+<tr><td class="mono">B1</td><td>Strip the Vite starter. Add dependencies. Land <code>tokens.css</code>, the reset, the type scale, the icon sprite and the brand mark. Lint rule rejecting hex outside tokens.</td><td>Everything visual</td></tr>
+<tr><td class="mono">B2</td><td><code>domain/</code>: entity types <strong>with a <code>dataClass</code> tag on every field</strong>, workflow machines as frozen const maps, guards, <code>Money</code>, <code>can()</code>, the event dispatcher. <strong>No React in this step.</strong></td><td>All logic; testable alone</td></tr>
+<tr><td class="mono">B3</td><td><code>data/</code>: repository interfaces, mock adapter with simulated latency, config seed + story cast + generated volume.</td><td>Every screen</td></tr>
+<tr><td class="mono">B3a</td><td><strong><code>AssistantView</code> projection + the CI boundary test</strong> (&sect;14.1). Allow-listed; sensitive fields absent by construction.</td><td>The Assistant shell &mdash; nothing assistant-facing is safe to build before this</td></tr>
+<tr><td class="mono">B4</td><td><code>ui/</code> primitives, starting with DataTable, StatusPill, StatusStripe, Field set, Drawer. Storybook or a route-based gallery.</td><td>All composites</td></tr>
+<tr><td class="mono">B5</td><td>The three guardrail components, with tests asserting each refusal.</td><td>Composer, policy entry, every Act</td></tr>
+<tr><td class="mono">B6</td><td><code>AppShell</code>, navigation config (Assistant first), role guards, role switcher, <code>WorkQueue</code>.</td><td>Every route</td></tr>
+<tr><td class="mono">B6a</td><td><strong>Assistant shell</strong>: landing route, queue briefing from live counts, suggestion chips, block renderer, <code>NotificationRail</code>. Ask cards only &mdash; no Act yet.</td><td>The landing view; nothing is reachable without it</td></tr>
+<tr><td class="mono">B7</td><td>Config screens: companies, products, benefits + policy&rarr;benefit map, agencies, agents, users.</td><td>M0 golden path needs data to exist</td></tr>
+<tr><td class="mono">B8</td><td>Inquiry &rarr; routing &rarr; TAT &rarr; escalation.</td><td>First live workflow machine</td></tr>
+<tr><td class="mono">B9</td><td><code>SchemaForm</code> renderer (consuming stored schemas; the builder UI comes in P1).</td><td>Policy, endorsement, claim, KYC</td></tr>
+<tr><td class="mono">B10</td><td><strong>Quotation Composer</strong> + <code>BenefitMatrix</code> + versions + Won/Lost + Deal.</td><td>The client's headline change</td></tr>
+<tr><td class="mono">B11</td><td>Customer 360, KYC, <strong><code>/consent/:token</code> login-free page</strong> (mobile-web, no session &mdash; &sect;11.1), credentials.</td><td>Issuance gate</td></tr>
+<tr><td class="mono">B12</td><td>Policy entry from deal, premium roll-up, issuance, document upload, POLICY LIVE.</td><td>Closes M0</td></tr>
+<tr><td class="mono">B13</td><td>Commission chain calculation + read-only ledger view.</td><td>M0 complete &mdash; demo-ready</td></tr>
+<tr><td class="mono">B14</td><td>Route smoke tests written from the 48 canvas scenarios.</td><td>UAT evidence</td></tr>
+</tbody></table></div>
+
+<div class="call"><div class="ct">What M0 proves</div>
+<p>At B13 the client can be walked from an empty system through configuration to a live policy with a
+calculated commission, in the new Jagad identity, with every guardrail visibly working. That is the
+walkthrough M1 was always supposed to be &mdash; run on software rather than on a canvas.</p></div>
+</section>
+
+<!-- ══════════════════ 14 ══════════════════ -->
+<section id="s14">
+<h2><span class="num">14</span>FR-22 &mdash; AI Assistant</h2>
+<p class="sub">D-H makes the Assistant a committed feature, so it needs requirements. PRD v0.4.1 has
+none. This is the missing block, written in the PRD's own format for insertion into &sect;8 as module 22
+and into Appendix B.</p>
+
+<div class="call navy"><div class="ct">FR-22</div>
+<p>Every staff member's entry point: a role-scoped assistant that reads the system <em>as them</em>,
+changes it only with confirmation, and raises what nobody asked about.</p></div>
+
+<div class="tw"><table>
+<thead><tr><th style="width:74px">FR ID</th><th>Feature</th><th class="c">MoSCoW</th><th class="c">Phase</th></tr></thead>
+<tbody>
+<tr><td class="mono">FR-22.1</td><td>Landing view per role: opens with a generated briefing of that user's own queue from live counts &mdash; never a blank prompt. First item in the navigation rail.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td class="mono">FR-22.2</td><td>Four request kinds, each tagged in the response: <strong>Ask</strong> (retrieve), <strong>Analyse</strong> (explain a movement from the ledgers), <strong>Act</strong> (change something), <strong>Produce</strong> (generate a document).</td><td class="c">M</td><td class="c"><span class="ph m0">Ask M0</span> <span class="ph p1">rest P1</span></td></tr>
+<tr><td class="mono">FR-22.3</td><td><strong>Runs as the requesting user.</strong> Every read and every write passes through the same RBAC/ABAC evaluator as the UI (FR-01.2/.3). No elevation, ever. An agent asking about a customer they did not source gets nothing back.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td class="mono">FR-22.4</td><td><strong>Confirmation gate on every Act</strong>: shows the intended change before it happens; Cancel writes nothing; Confirm emits the mutation and records it as user-initiated with assistant attribution.</td><td class="c">M</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.5</td><td><strong>Money boundary</strong>: never produces, suggests, computes or estimates a premium, settlement, refund or endorsement delta. Never writes to the commission ledger, from any role including admin. Reads and analyses only.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td class="mono">FR-22.6</td><td><strong>OCR boundary</strong>: cannot confirm an extracted value on a person's behalf, and cannot include an unmatched row in a bulk send.</td><td class="c">M</td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td class="mono">FR-22.7</td><td><strong>Claim boundary</strong>: never decides, predicts or scores a claim outcome. Coordinates, records and chases only &mdash; the insurer and TPA decide.</td><td class="c">M</td><td class="c"><span class="ph p2">P2</span></td></tr>
+<tr><td class="mono">FR-22.8</td><td>Proactive notices: threshold-triggered, per role, each carrying the reason it was raised. Deduplicated, dismissible, logged. Mirrored into the queue screens' notification rail.</td><td class="c">M</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.9</td><td>Document production: generates the configured document types from data already in the system, on agency letterhead. Nothing sends without confirmation.</td><td class="c">M</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.10</td><td>Context binding: opened from a record it carries that record as context; summonable from any screen by keyboard shortcut.</td><td class="c">S</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.11</td><td>Audit attribution: every interaction records the request, the user, the records read and any mutation emitted &mdash; into the same append-only store as FR-20.4.</td><td class="c">M</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.12</td><td>Conversation retention: transcripts contain personal data and carry a retention class like any other record. Not indefinite, not exportable outside the user's own scope.</td><td class="c">M</td><td class="c"><span class="ph p1">P1</span></td></tr>
+<tr><td class="mono">FR-22.13</td><td><strong>Operational Data Layer</strong>: the Assistant reads from an allow-listed projection of the domain, never from entities directly. Business and workflow state only. Sensitive values and document contents are absent from the projection &mdash; not filtered out of the response, absent from the query.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td class="mono">FR-22.14</td><td><strong>Document presence, never document content</strong>: the Assistant sees that a document exists, its type, its submitted and verified state &mdash; never the file, never its OCR-extracted text, never an identity or bank number in any form <em>including masked</em>.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+<tr><td class="mono">FR-22.15</td><td><strong>Health data out of scope by default</strong>: raw medical documents, health declarations and diagnosis fields are excluded from the projection. Any exception requires a separately approved requirement and its own consent basis.</td><td class="c">M</td><td class="c"><span class="ph m0">M0</span></td></tr>
+</tbody></table></div>
+
+<p><strong>Entities</strong> &mdash; Owns: <code>AssistantThread</code>, <code>AssistantTurn</code>,
+<code>AssistantAction</code>, <code>ProactiveNotice</code>. Refs: all (read, scope-filtered).<br>
+<strong>Config</strong> &mdash; L1: proactive thresholds per role, enabled request kinds per permission
+template, retention class for transcripts. Fixed: the boundaries in FR-22.3&ndash;.7.<br>
+<strong>Depends on</strong> &mdash; FR-01 (permissions), FR-15 (queues), FR-17 (templates), FR-20 (audit,
+retention, consent), FR-21 (event bus).</p>
+
+<h4>Acceptance criteria</h4>
+<ul>
+<li>A sub-agent asking about another sub-agent's customer receives nothing, and the refusal is logged.</li>
+<li>Cancelling an Act leaves no record changed and no message sent.</li>
+<li>No prompt, phrasing or role can make the assistant output a premium or settlement figure it was not given.</li>
+<li>Every proactive notice states why it fired.</li>
+<li>Every assistant-originated mutation is traceable in the audit log to a user and a confirmation.</li>
+</ul>
+
+<h3>14.1 &nbsp;Assistant data access scope &mdash; decided</h3>
+<div class="call navy"><div class="ct">The principle, as given</div>
+<p><em>"The Assistant should understand the business state and workflow, not the underlying sensitive
+document data. It should operate on a controlled, permission-filtered operational data layer rather than
+having unrestricted access to the customer's complete record."</em></p></div>
+
+<p>This is the right shape, and it is enforceable &mdash; but only if it is built as a <strong>data
+boundary</strong>, not as an instruction to the model.</p>
+
+<div class="call bad"><div class="ct">The non-negotiable engineering point</div>
+<p>Telling a model not to reveal an Aadhaar number is not a control. <strong>Prompts are not
+permissions.</strong> The only durable enforcement is that the sensitive value never enters the context
+in the first place &mdash; the Assistant queries a projection that does not contain the field, so there
+is nothing for any phrasing, role or jailbreak to extract.</p></div>
+
+<h4>Four data classes</h4>
+<p>Every field on every entity carries a class. This extends FR-01.4's sensitive-data classes rather
+than inventing a parallel scheme.</p>
+<div class="tw"><table>
+<thead><tr><th style="width:128px">Class</th><th>Contains</th><th style="width:180px">Assistant sees</th><th style="width:150px">Staff UI sees</th></tr></thead>
+<tbody>
+<tr><td><strong>Operational</strong></td><td>Policy, product, company, status, premium amount, payment history, expiry, renewal state, claim status and workflow stage, quotation and deal data, assigned agent/sub-agent, tasks, request history, member composition</td><td>Full value</td><td>Full value</td></tr>
+<tr><td><strong>Contact</strong></td><td>Customer and member name, mobile, email, address, DOB, relationship</td><td>Full value &mdash; it cannot identify a record or draft a message without this</td><td>Full value</td></tr>
+<tr><td><strong>Sensitive value</strong></td><td>Aadhaar number (<strong>including the masked last-4</strong>), PAN number, bank account, IFSC, health declaration answers, diagnosis</td><td><strong>Status flag only</strong> &mdash; submitted, verified, pending. Never the value, in any form</td><td>Masked / permission-gated per FR-01.4</td></tr>
+<tr><td><strong>Document content</strong></td><td>File binaries, images, PDFs, OCR-extracted text, medical reports</td><td><strong>Metadata only</strong> &mdash; type, submitted date, verified-by, review state</td><td>Per document ACL (FR-16.7); every open logged</td></tr>
+</tbody></table></div>
+
+<pre><u>Assistant receives</u>                    <s>Assistant never receives</s>
+  Aadhaar    Submitted <b>✓</b>                Aadhaar Number  XXXXXXXX1234
+  PAN        Submitted <b>✓</b>                PAN Number      ABCDE1234F
+  KYC        Completed <b>✓</b>                aadhaar-front.pdf
+  Health cover · HDFC Ergo            discharge-summary.pdf
+  Premium ₹18,200 · paid              health declaration answers
+  Renews 12 Mar 2027                  diagnosis / medical condition
+  Claim CLM-0412 · with insurer</pre>
+
+<p><strong>The masked form is denied too.</strong> Staff with the grant see last-4 in the UI; the
+Assistant sees neither. That is stricter than FR-01.4 and it is the correct default &mdash; a masked
+identifier is still an identifier for correlation purposes.</p>
+
+<h4>How it is built</h4>
+<p>Three layers, in ascending order of how much they actually protect:</p>
+<div class="tw"><table class="tight">
+<thead><tr><th style="width:46px">&nbsp;</th><th style="width:210px">Layer</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td class="mono">1</td><td>Field classification</td><td>A <code>dataClass</code> tag on every field, colocated with the type definition so it is impossible to add a field without classifying it.</td></tr>
+<tr><td class="mono">2</td><td>Allow-listed projection</td><td><code>data/assistant/projection.ts</code> builds <code>AssistantView&lt;T&gt;</code> from an explicit <strong>allow-list, never a deny-list</strong>. A deny-list means one forgotten field is a leak; an allow-list means a forgotten field is merely missing. Assistant repository methods return projections only &mdash; there is no code path to an entity.</td></tr>
+<tr><td class="mono">3</td><td>CI boundary test</td><td>For every entity, assert the projection contains no field tagged <code>sensitive</code> or <code>document-content</code>. <strong>This is the layer that matters in eighteen months</strong>, when the schema has grown through P1, P2 and P3 and everyone has forgotten this conversation.</td></tr>
+</tbody></table></div>
+<p>Build all three in <strong>M0</strong>, alongside <code>can()</code> &mdash; the projection and the
+permission evaluator are the same kind of object and should ship together. <code>can()</code> decides
+<em>which records</em> the Assistant may read as this user; the projection decides <em>which fields</em>
+exist at all. Both are needed: an admin has permission to see an Aadhaar number, and the Assistant still
+must not receive one.</p>
+
+<h4>Three consequences worth knowing before the walkthrough</h4>
+<div class="tw"><table>
+<thead><tr><th style="width:120px">Prototype card</th><th>What changes</th></tr></thead>
+<tbody>
+<tr><td><code>c_summ</code><br><span class="ph blk">Retire or rebuild</span></td><td>Labelled <em>"14 documents read"</em> and outputs <em>"Dengue with thrombocytopenia. Four nights, no ICU."</em> That is raw medical document content and this rule now forbids it. <strong>It was already deferred by PRD &sect;2.3, so the two decisions agree</strong> &mdash; this retires the claim-summarisation half of D-F. Either pull the card before the client sees it, or rebuild it to summarise only operational claim state: type, hospital, dates, claimed amount, insurer position, what is outstanding. That reduced version is genuinely useful and stays in scope.</td></tr>
+<tr><td><code>c_query</code><br><span class="ph p2">Narrower</span></td><td>Drafting a reply to an insurer's clinical query needs the clinical detail. The Assistant can draft the frame &mdash; reference numbers, dates, what the insurer asked, the covering language in Gujarati/Hindi/English &mdash; and the claims handler supplies the medical substance. Worth setting that expectation now, because the prototype shows it as a complete draft.</td></tr>
+<tr><td><code>g_gap</code><br><span class="ph m0">Survives</span></td><td>Coverage-gap detection reads household composition and vehicle records &mdash; operational data, untouched by this rule. Only the PRD &sect;2.3 wording still needs moving for it (D-F's other half).</td></tr>
+</tbody></table></div>
+
+<h3>The compliance question &mdash; substantially reduced, not closed</h3>
+<p>The scope decision removes the sharpest edge: <strong>no health data and no identity documents reach
+the model.</strong> That is the single biggest risk reduction available, and it makes the vendor
+conversation a normal one rather than a difficult one. Two things still need an answer, and they still
+carry vendor lead time.</p>
+<div class="tw"><table>
+<thead><tr><th style="width:170px">Still open</th><th>Why the scope decision does not close it</th></tr></thead>
+<tbody>
+<tr><td><strong>Data residency</strong></td><td>IRDAI's Maintenance of Information Regulations 2025 require regulated records <em>"stored solely in India"</em>, and the NFR commits to India-region hosting. Customer names, policy numbers, premium amounts and claim states are still <strong>regulated records</strong> even though they are not sensitive personal data. If they reach a model API outside India the commitment is still broken &mdash; just less badly. Needs an India-region endpoint, or an explicit legal position on why inference is not storage.</td></tr>
+<tr><td><strong>Processor contract</strong></td><td>Name, mobile, address, DOB and policy holdings are personal data under DPDP regardless of sensitivity. A model vendor processing them on the agency's behalf is a Data Processor, needs a contract in the <strong>FR-20.6 registry</strong> &mdash; which today lists BSP, SMS, SMTP and OCR but no model vendor &mdash; and needs coverage in the itemised consent notice under FR-20.1.</td></tr>
+</tbody></table></div>
+<p>Neither blocks M0, because M0 runs on mock data. Both must be settled before the Assistant touches a
+real customer record, which means before P1 go-live. <strong>Add them to the open-questions register as
+OQ-7</strong> (model vendor + residency) <strong>and OQ-8</strong> (processor contract + consent-notice
+wording), alongside OQ-1 (OCR) and OQ-2 (BSP).</p>
+<p>The build stance is unchanged and now cheap to hold: <strong>the Assistant sits behind an
+adapter</strong>, exactly as OCR and WhatsApp do. Residency and vendor become configuration questions
+answered at deployment rather than architecture questions answered in code &mdash; which is also what D1
+config-portability requires if a second agency is ever deployed in a different posture.</p>
+</section>
+
+<footer class="end">
+<p><b>Sources.</b> PRD v0.4.1 (153 FRs, 21 modules, D1&ndash;D21) &middot; workflow canvas v3 (78 nodes,
+89 edges, 48 scenarios) &middot; Assistant prototype 8 (6 personas, 75 cards, 7 documents) &middot; thread
+handoff &middot; repository audit of <b>jagad_mvp/</b> at <b>claude/document-review-os26kz</b>.</p>
+<p>Palette derived from the Jagad Insurance logo. No code has been written &mdash; this plan is the
+proposal. Twelve decisions at <a href="#s12">&sect;12</a>; four of them block the entity model.</p>
+</footer>
+
+</main>
+</div>
