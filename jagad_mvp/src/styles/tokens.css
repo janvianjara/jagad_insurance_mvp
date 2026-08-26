@@ -1,0 +1,28 @@
+/*
+ * The only file under src/ where a raw colour literal may appear.
+ * Enforced by scripts/check-tokens.mjs, run as part of `npm run check`.
+ * Bootstrap subset only. The full token system (brand ramps, neutrals, spacing,
+ * radius, shadow, motion, type, density) lands in playbook step P-01, plan §2.
+ */
+:root {
+  /* Brand */
+  --jag-green: #14683b;
+  --jag-lime: #a6cb3a;
+  --jag-navy: #1c2c6b;
+  --jag-blue: #4c7fc4;
+
+  /* Semantic status, UX charter U7 */
+  --ok: #14683b;
+  --warn: #b8801c;
+  --bad: #b03a31;
+  --info: #4c7fc4;
+  --idle: #7a867f;
+  --attn: #a6cb3a;
+
+  /* Green-biased neutrals */
+  --ground: #ffffff;
+  --surface: #f7f8f7;
+  --border: #dfe3e0;
+  --ink: #14181a;
+  --ink-2: #5c6a72;
+}
