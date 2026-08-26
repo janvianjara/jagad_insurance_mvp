@@ -1,0 +1,156 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.blockHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.blockTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.blockNote {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 78ch;
+}
+
+.cardRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-3);
+  align-items: start;
+}
+
+.controlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.button {
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.button:hover {
+  background: var(--action-hover);
+}
+
+.buttonQuiet {
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--action);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.buttonQuiet:hover {
+  background: var(--action-soft);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--text-ui);
+}
+
+.kv dt {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.kv dd {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A stand-in for the §3 shell so the drawer can be shown doing its real job. */
+.shell {
+  display: flex;
+  align-items: stretch;
+  height: 340px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--ground);
+}
+
+.shellMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.shellNote {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 60ch;
+}
+
+.splitFrame {
+  height: 300px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--raised);
+}
+
+.pane {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--text-ui);
+}
+
+.paneTitle {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.listLine {
+  padding: var(--pad-y) 0;
+  border-bottom: 1px solid var(--hair);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.tabBody {
+  padding: var(--sp-3) 0;
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+}

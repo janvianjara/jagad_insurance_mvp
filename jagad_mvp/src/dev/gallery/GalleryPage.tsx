@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { BrandMark } from '../../ui/BrandMark'
 import { Icon, ICON_NAMES } from '../../ui/Icon'
 import {
   BRAND_SWATCHES,
@@ -105,16 +104,10 @@ function DensityPane({ density, title }: { density: 'comfortable' | 'compact'; t
 export default function GalleryPage() {
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.headerText}>
-          <BrandMark size="md" label="Design gallery" />
-          <span className={styles.headerNote}>
-            Plan §2 tokens. Navy carries action and navigation, green is brand and positive status
-            only, lime marks what needs a person.
-          </span>
-        </div>
-        <span className={styles.caps}>dev only</span>
-      </header>
+      <p className={styles.lead}>
+        Plan §2 tokens. Navy carries action and navigation, green is brand and positive status only,
+        lime marks what needs a person.
+      </p>
 
       <div className={styles.body}>
         <Section

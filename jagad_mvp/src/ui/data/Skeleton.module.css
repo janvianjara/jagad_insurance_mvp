@@ -1,0 +1,53 @@
+.skeleton {
+  display: block;
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+/* A single slow sweep. Loading is information, not entertainment. */
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--ground), transparent);
+  opacity: 0.55;
+  transform: translateX(-100%);
+  animation: skeleton-sweep 1400ms var(--motion-ease) infinite;
+}
+
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.text {
+  height: 0.75em;
+  margin: 0.2em 0;
+  border-radius: var(--radius-xl);
+}
+
+.block {
+  height: 100%;
+  border-radius: var(--radius-md);
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}

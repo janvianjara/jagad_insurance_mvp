@@ -1,0 +1,127 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.blockHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.blockTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.blockNote {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 78ch;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--sp-3);
+}
+
+.queue {
+  display: flex;
+  flex-direction: column;
+}
+
+.queue > :global(nav) {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.selectionSlot {
+  padding: 0 0 var(--sp-2);
+}
+
+.button {
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.button:hover {
+  background: var(--action-hover);
+}
+
+.buttonQuiet {
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--action);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.buttonQuiet:hover {
+  background: var(--action-soft);
+}
+
+.search {
+  height: var(--control-h);
+  min-width: 200px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  font-size: var(--text-ui);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.amount {
+  display: block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.opened {
+  min-height: var(--control-h);
+  padding: var(--pad-y) var(--pad-x);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.stateFrame {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.skeletonBoard {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}

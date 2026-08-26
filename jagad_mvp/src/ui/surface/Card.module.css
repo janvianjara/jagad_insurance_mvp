@@ -1,0 +1,130 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: var(--text-ui);
+  text-align: left;
+  overflow: hidden;
+}
+
+/* Status stripe, U7. The stripe reads before the text does. */
+.card[data-tone]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.card[data-tone='ok']::before {
+  background: var(--ok);
+}
+.card[data-tone='warn']::before {
+  background: var(--warn);
+}
+.card[data-tone='bad']::before {
+  background: var(--bad);
+}
+.card[data-tone='info']::before {
+  background: var(--info);
+}
+.card[data-tone='idle']::before {
+  background: var(--idle);
+}
+.card[data-tone='attn']::before {
+  background: var(--attn);
+}
+
+.clickable {
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.clickable:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-2);
+}
+
+.clickable:focus-within {
+  border-color: var(--action);
+}
+
+/* The title is the control; its hit area is stretched over the whole card so
+   the card reads as one target without wrapping flow content in a button. */
+.titleButton {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.titleButton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+}
+
+.headText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  /* Above the stretched title hit area, so these stay independently clickable. */
+  position: relative;
+  z-index: 1;
+}
+
+.body {
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-stack);
+}
+
+.bodyFlush {
+  padding: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  border-top: 1px solid var(--hair);
+  background: var(--surface);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}

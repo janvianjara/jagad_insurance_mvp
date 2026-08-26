@@ -1,0 +1,39 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.anchor {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  max-width: 260px;
+  width: max-content;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--ink);
+  color: var(--ink-on-brand);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  pointer-events: none;
+}
+
+.tip[hidden] {
+  display: none;
+}
+
+.top {
+  bottom: calc(100% + var(--sp-1));
+}
+
+.bottom {
+  top: calc(100% + var(--sp-1));
+}

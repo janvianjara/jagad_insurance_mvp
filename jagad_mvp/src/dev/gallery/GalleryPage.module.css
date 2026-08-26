@@ -307,3 +307,10 @@
   background: var(--ground);
   font-size: var(--text-ui);
 }
+
+.lead {
+  padding: var(--sp-6) var(--sp-8) 0;
+  max-width: 78ch;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}

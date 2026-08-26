@@ -35,9 +35,8 @@ describe('design gallery', () => {
     expect(within(compact as HTMLElement).getByText('INQ-1036')).toBeInTheDocument()
   })
 
-  it('renders the brand mark in its header', () => {
+  it('says what the colour language means, next to the colours', () => {
     render(<GalleryPage />)
-    expect(screen.getByLabelText('Jagad Insurance')).toBeInTheDocument()
-    expect(screen.getByText('Design gallery')).toBeInTheDocument()
+    expect(screen.getByText(/lime marks what needs a person/i)).toBeInTheDocument()
   })
 })

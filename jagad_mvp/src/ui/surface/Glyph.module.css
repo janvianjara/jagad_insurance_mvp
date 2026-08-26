@@ -1,0 +1,119 @@
+/* Geometric chrome marks, drawn with borders so they inherit currentColor. */
+
+.glyph {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: inherit;
+}
+
+.glyph::before,
+.glyph::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* Cross — two bars through the centre. */
+.close::before,
+.close::after {
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.close::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.close::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+/* Chevrons — a corner of a square, rotated into the four directions. */
+.up::before,
+.down::before,
+.left::before,
+.right::before {
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  border-radius: 1px;
+  top: 50%;
+  left: 50%;
+}
+
+.up::before {
+  transform: translate(-50%, -25%) rotate(-45deg);
+}
+
+.down::before {
+  transform: translate(-50%, -75%) rotate(135deg);
+}
+
+.left::before {
+  transform: translate(-25%, -50%) rotate(-135deg);
+}
+
+.right::before {
+  transform: translate(-75%, -50%) rotate(45deg);
+}
+
+/* Sort — a stacked pair of carets, dimmed until the column carries the sort. */
+.sort::before,
+.sort::after {
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  opacity: 0.35;
+}
+
+.sort::before {
+  top: 1px;
+  border-bottom: 4px solid currentColor;
+  transform: translateX(-50%);
+}
+
+.sort::after {
+  bottom: 1px;
+  border-top: 4px solid currentColor;
+  transform: translateX(-50%);
+}
+
+/* Sort direction is set by the containing control, not by a second glyph. */
+[data-sorted='asc'] .sort::before,
+[data-sorted='desc'] .sort::after {
+  opacity: 1;
+}
+
+[data-sorted='asc'] .sort::after,
+[data-sorted='desc'] .sort::before {
+  opacity: 0.15;
+}
+
+/* Maximise — an empty frame. Restore — a frame with an inner pane, the same
+   read as a window stepping back out of full screen. */
+.maximise::before,
+.restore::before {
+  inset: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.restore::after {
+  left: 4px;
+  top: 4px;
+  right: 1px;
+  bottom: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  background: var(--raised);
+}
