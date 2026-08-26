@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assistant — Jagad Insurance</title>
+<style>
+:root{
+  --bg:#ffffff; --side:#fbfbfa; --line:#ebebe8; --line2:#f4f4f2;
+  --ink:#191919; --ink2:#3d3d3b; --mut:#767672; --faint:#a3a39e;
+  --act:#2f6ba8; --doc:#6b5bb0; --warn:#a9741d; --bad:#b1443c; --good:#2c7a4b;
+  --role:#191919;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;min-height:100%}
+body{font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);
+  font-size:14px;line-height:1.6;display:flex;overflow:hidden;min-height:520px;
+  -webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+
+/* ───────── sidebar ───────── */
+#side{flex:0 0 244px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:9px;padding:18px 18px 14px}
+.brand .m{width:24px;height:24px;border-radius:7px;background:var(--ink);display:flex;align-items:center;justify-content:center;flex:none}
+.brand .n{font-size:13.5px;font-weight:640;letter-spacing:-.012em}
+.newbtn{margin:0 14px 6px;display:flex;align-items:center;gap:9px;border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;font-size:13px;font-weight:560;color:var(--ink2);cursor:pointer;
+  background:#fff;width:calc(100% - 28px);transition:border-color .12s}
+.newbtn:hover{border-color:var(--faint)}
+.scroll{flex:1;overflow-y:auto;min-height:0;padding-bottom:8px}
+.scroll::-webkit-scrollbar{width:5px}
+.scroll::-webkit-scrollbar-thumb{background:#e2e2de;border-radius:3px}
+.sec{font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--faint);padding:16px 18px 5px;text-transform:uppercase}
+.sec.first{padding-top:8px}
+.item{display:flex;align-items:center;gap:10px;padding:6px 18px;font-size:13px;color:var(--mut);
+  font-weight:500;cursor:default;line-height:1.45}
+.item span:not(.ct){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic{width:15px;height:15px;flex:none;opacity:.52}
+.newbtn .ic{opacity:.7}
+.item .ct{margin-left:auto;font-size:11px;font-weight:560;color:var(--faint);flex:none}
+.item.on{color:var(--ink);font-weight:600;background:#fff;box-shadow:inset 2px 0 0 var(--ink)}
+.item.on .ic{opacity:1}
+.item.link{cursor:pointer}
+.item.link:hover{color:var(--ink)}
+.foot{flex:none;border-top:1px solid var(--line);padding:12px 14px 8px;display:flex;align-items:center;gap:9px}
+.foot .av{width:26px;height:26px;border-radius:7px;color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex:none;background:var(--role)}
+.foot .nm{font-size:12.5px;font-weight:600;line-height:1.3}
+.foot .rl{font-size:11px;color:var(--faint);line-height:1.35}
+.swap{flex:none;padding:0 14px 14px}
+.swap label{display:block;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:6px}
+#psel{width:100%;font-size:12.5px;font-weight:560;border:1px solid var(--line);background:#fff;
+  border-radius:9px;padding:8px 10px;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'><path d='M4 6.5L8 10.5L12 6.5' stroke='%23a3a39e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center}
+#psel:focus{outline:2px solid var(--ink);outline-offset:1px}
+
+/* ───────── main ───────── */
+#main{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+.top{flex:none;padding:16px 28px 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.top>div:first-child{min-width:0;flex:1 1 auto}
+.top .t{font-size:14px;font-weight:600;letter-spacing:-.012em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .s{font-size:12px;color:var(--faint);font-weight:500}
+#pselTop{display:none;font-size:12px;font-weight:560;border:1px solid var(--line);
+  background:#fff;border-radius:8px;padding:5px 8px;max-width:180px}
+
+#feed{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:8px 28px 4px;scroll-behavior:smooth}
+#feed::-webkit-scrollbar{width:6px}
+#feed::-webkit-scrollbar-thumb{background:#eaeae6;border-radius:3px}
+.turn{max-width:720px;margin:0 auto 26px}
+.turn.u{display:flex;justify-content:flex-end}
+.turn.u .b{background:#f4f4f2;border-radius:14px 14px 4px 14px;padding:10px 15px;font-size:13.5px;
+  font-weight:500;max-width:78%;color:var(--ink)}
+.who{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--faint);margin-bottom:9px}
+.who .d{width:6px;height:6px;border-radius:50%;background:var(--role);flex:none}
+.body{font-size:14px;line-height:1.65;color:var(--ink2)}
+.body p{margin-bottom:12px}.body p:last-child{margin-bottom:0}
+.body b{color:var(--ink);font-weight:620}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;color:var(--ink)}
+
+/* proactive */
+.turn.push .who{color:var(--bad)}
+.turn.push .who .d{background:var(--bad)}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.turn.push{animation:rise .3s ease both}
+@media(prefers-reduced-motion:reduce){.turn.push{animation:none}}
+
+/* ───────── content blocks ───────── */
+.blk{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:14px 0;background:#fff}
+.blk .h{display:flex;align-items:center;gap:8px;padding:10px 15px;border-bottom:1px solid var(--line2);
+  font-size:12px;font-weight:620;color:var(--ink)}
+.blk .h .tg{margin-left:auto;font-size:11px;font-weight:500;color:var(--faint)}
+.sx{overflow-x:auto}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:flex-start;gap:12px;padding:12px 15px;border-bottom:1px solid var(--line2);font-size:13px}
+.row:last-child{border-bottom:none}
+.row .mk{width:2px;align-self:stretch;border-radius:1px;background:#dedeD9;flex:none;min-height:24px}
+.row.hot .mk{background:var(--bad)}.row.warm .mk{background:var(--warn)}
+.row.cool .mk{background:var(--act)}.row.good .mk{background:var(--good)}
+.row .mn{flex:1;min-width:0}
+.row .t1{font-weight:600;color:var(--ink);line-height:1.45}
+.row .t2{font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.5}
+.row .rt{font-size:12px;font-weight:560;color:var(--mut);white-space:nowrap;text-align:right;padding-top:1px}
+.row .rt.hot{color:var(--bad)}.row .rt.good{color:var(--good)}
+
+table.dt{width:100%;border-collapse:collapse;min-width:400px}
+table.dt th{text-align:left;font-size:11px;color:var(--faint);font-weight:600;padding:10px 15px;border-bottom:1px solid var(--line2)}
+table.dt td{padding:10px 15px;font-size:13px;border-bottom:1px solid var(--line2);color:var(--ink2)}
+table.dt tr:last-child td{border-bottom:none}
+table.dt td:first-child{font-weight:600;color:var(--ink)}
+table.dt td.n,table.dt th.n{text-align:right}
+table.dt td.n{font-variant-numeric:tabular-nums}
+.up{color:var(--good);font-weight:600}.dn{color:var(--bad);font-weight:600}
+
+.kv{display:grid;grid-template-columns:104px 1fr;gap:9px 14px;padding:14px 15px;font-size:13px}
+.kv dt{font-size:11.5px;font-weight:560;color:var(--faint);padding-top:1px}
+.kv dd{color:var(--ink2);line-height:1.55}
+.kv dd b{color:var(--ink);font-weight:620}
+.note{font-size:12.5px;color:var(--mut);line-height:1.6;padding:12px 15px;background:#fcfcfb;border-top:1px solid var(--line2)}
+.note:first-child{border-top:none}
+.note b{color:var(--ink2);font-weight:600}
+
+.gate{display:flex;gap:8px;padding:12px 15px;border-top:1px solid var(--line2);align-items:center;flex-wrap:wrap}
+.gate .hint{font-size:12px;color:var(--faint);margin-right:auto;flex:1 1 150px;line-height:1.45}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 15px;font-size:13px;
+  font-weight:560;color:var(--ink2);cursor:pointer;transition:border-color .12s}
+.btn:hover{border-color:var(--faint)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.pri:hover{background:#000}
+.done{display:flex;align-items:flex-start;gap:9px;padding:12px 15px;border-top:1px solid var(--line2);
+  font-size:13px;font-weight:560;color:var(--good);line-height:1.55}
+.done svg{flex:none;margin-top:3px}
+
+.opts{display:flex;flex-wrap:wrap;gap:8px;padding:13px 15px;border-top:1px solid var(--line2)}
+.opt{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;
+  font-weight:560;color:var(--ink2);cursor:pointer}
+.opt:hover{border-color:var(--ink);color:var(--ink)}
+.ol{width:100%;font-size:11.5px;font-weight:560;color:var(--faint);margin-bottom:-3px}
+
+.doc{display:flex;align-items:center;gap:13px;padding:15px}
+.doci{width:34px;height:42px;border-radius:5px;border:1px solid #dcd7ee;background:#fbfaff;position:relative;flex:none}
+.doci::after{content:"PDF";position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:8px;
+  font-weight:700;letter-spacing:.04em;color:var(--doc)}
+.doci i{position:absolute;left:6px;right:6px;height:1.5px;background:#e8e4f5;border-radius:1px}
+.doci i:nth-child(1){top:8px}.doci i:nth-child(2){top:14px}.doci i:nth-child(3){top:20px;right:13px}
+.docn{font-weight:600;color:var(--ink);font-size:13.5px;line-height:1.45}
+.docm{font-size:12.5px;color:var(--mut);margin-top:3px;line-height:1.55}
+
+.stop{border-color:#eddad6}
+.stop .h{background:#fdf7f6;border-color:#f2e2df;color:var(--bad)}
+.stopb{padding:14px 15px;font-size:13.5px;line-height:1.65;color:var(--ink2)}
+.stopb b{color:var(--bad);font-weight:620}
+.prem{display:flex;gap:9px;padding:0 15px 15px;flex-wrap:wrap;align-items:center}
+.prem .pl{width:100%;font-size:11.5px;font-weight:560;color:var(--faint)}
+.pin{border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:500;width:140px;background:#fff}
+.pin::placeholder{color:var(--faint)}
+.pin:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+
+/* ───────── suggestions + composer ───────── */
+.sug{flex:none;padding:0 28px}
+.sugin{max-width:720px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px;padding-bottom:12px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 15px;font-size:13px;
+  font-weight:520;color:var(--ink2);cursor:pointer;display:flex;align-items:center;gap:8px;
+  transition:border-color .12s,color .12s;animation:rise .22s ease both}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip .mt{font-size:10px;font-weight:600;letter-spacing:.03em;color:#fff;border-radius:4px;padding:2px 5px;line-height:1.3}
+.chip.act .mt{background:var(--act)}
+.chip.doc2 .mt{background:var(--doc)}
+.chip.read .mt{display:none}
+@media(prefers-reduced-motion:reduce){.chip{animation:none}}
+
+.comp{flex:none;padding:4px 28px 22px}
+.compin{max-width:720px;margin:0 auto}
+.box{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;
+  padding:8px 8px 8px 17px;background:#fff;transition:border-color .12s,box-shadow .12s}
+.box:focus-within{border-color:#d3d3ce;box-shadow:0 1px 8px rgba(25,25,25,.05)}
+#ta{flex:1;border:none;outline:none;font-size:14px;padding:8px 0;background:none;min-width:0}
+#ta::placeholder{color:var(--faint)}
+.snd{width:34px;height:34px;border-radius:10px;background:var(--ink);border:none;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;flex:none}
+.snd:hover{background:#000}
+
+.typing{display:flex;gap:5px;padding:2px 0 10px}
+.typing i{width:5px;height:5px;border-radius:50%;background:var(--faint);animation:bob 1.1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.14s}.typing i:nth-child(3){animation-delay:.28s}
+@keyframes bob{0%,60%,100%{opacity:.28}30%{opacity:.9}}
+@media(prefers-reduced-motion:reduce){.typing i{animation:none;opacity:.5}}
+
+/* ───────── capabilities ───────── */
+#cap{flex:1 1 auto;min-height:0;overflow-y:auto;display:none;padding:28px 28px 80px}
+.capin{max-width:820px;margin:0 auto}
+.capin h2{font-size:20px;font-weight:640;letter-spacing:-.02em;margin-bottom:8px}
+.capin .lead{font-size:14px;color:var(--mut);line-height:1.7;margin-bottom:26px}
+.cg{border:1px solid var(--line);border-radius:var(--r);background:#fff;margin-bottom:18px;overflow:hidden}
+.cg .ch{padding:14px 18px;border-bottom:1px solid var(--line2);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cg .ch h3{font-size:14px;font-weight:620;letter-spacing:-.01em}
+.cg .ch .s{font-size:12.5px;color:var(--faint)}
+.kind{display:flex;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line2)}
+.kind:last-child{border-bottom:none}
+.kind .bar{width:2px;align-self:stretch;border-radius:1px;flex:none;min-height:38px}
+.kind .kt{font-size:13.5px;font-weight:620;color:var(--ink);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.kind .kt .mt{font-size:10px;font-weight:600;color:#fff;border-radius:4px;padding:2px 5px}
+.kind .kd{font-size:13px;color:var(--mut);line-height:1.6;margin-top:4px}
+.kind .ex{font-size:12.5px;line-height:1.9;margin-top:9px}
+.kind .ex em{font-style:normal;background:#fbfbfa;border:1px solid var(--line);border-radius:6px;
+  padding:3px 9px;display:inline-block;margin:0 5px 5px 0;color:var(--ink2)}
+table.ba{width:100%;border-collapse:collapse;min-width:620px}
+table.ba th{text-align:left;font-size:11px;color:var(--faint);font-weight:600;padding:11px 18px;border-bottom:1px solid var(--line2)}
+table.ba td{padding:13px 18px;font-size:13px;border-bottom:1px solid var(--line2);color:var(--ink2);vertical-align:top;line-height:1.6}
+table.ba tr:last-child td{border-bottom:none}
+table.ba td:first-child{font-weight:600;color:var(--ink);width:20%}
+table.ba td.was{color:var(--mut)}
+table.ba td.sv{text-align:right;font-weight:600;color:var(--good);white-space:nowrap}
+.si{display:flex;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line2);font-size:13px;line-height:1.6}
+.si:last-child{border-bottom:none}
+.si .x{width:15px;height:15px;border-radius:50%;border:1px solid #eddad6;background:#fdf7f6;flex:none;position:relative;margin-top:3px}
+.si .x::before,.si .x::after{content:"";position:absolute;left:4px;right:4px;top:6px;height:1.4px;background:var(--bad);border-radius:1px}
+.si .x::before{transform:rotate(45deg)}.si .x::after{transform:rotate(-45deg)}
+.si b{color:var(--ink);font-weight:620}
+table.rl{width:100%;border-collapse:collapse;min-width:660px}
+table.rl th{text-align:left;font-size:11px;color:var(--faint);font-weight:600;padding:11px 18px;border-bottom:1px solid var(--line2)}
+table.rl td{padding:13px 18px;font-size:12.5px;border-bottom:1px solid var(--line2);color:var(--ink2);vertical-align:top;line-height:1.6}
+table.rl tr:last-child td{border-bottom:none}
+table.rl td.r{font-weight:620;color:var(--ink);white-space:nowrap}
+table.rl td.r .sw{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px}
+
+
+/* ───────── document drawer ───────── */
+#draw{flex:0 0 0;width:0;overflow:hidden;background:#f7f7f5;border-left:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;position:relative;
+  transition:flex-basis .22s ease,width .22s ease}
+#draw.dragging{transition:none}
+.grip{position:absolute;left:-3px;top:0;bottom:0;width:9px;cursor:col-resize;z-index:8;touch-action:none}
+.grip::after{content:"";position:absolute;left:3px;top:0;bottom:0;width:3px;border-radius:2px;
+  background:transparent;transition:background .12s}
+.grip:hover::after,.grip.on::after{background:#c9c9c3}
+#draw.max .grip{display:none}
+body.rz{cursor:col-resize;user-select:none}
+#draw.open{flex:0 0 440px;width:440px}
+#draw.max{position:fixed;inset:0;width:100%;flex:none;z-index:70;border-left:none;transition:none}
+#draw.max .dh{padding:14px 22px}
+#draw.max .dbody{padding:26px 22px 60px}
+#draw.max .page{max-width:790px;margin:0 auto;padding:44px 46px 38px;font-size:12px}
+#draw.max .page h4{font-size:15px;margin-bottom:15px}
+#draw.max .page table{font-size:11px}
+#draw.max .page .mt{grid-template-columns:150px 1fr;gap:7px 16px}
+#draw.max .page .lh .ln{font-size:15px}
+#draw.max .page .lh .la,#draw.max .page .lh .lr{font-size:10px}
+#draw.max .pgn{max-width:790px;margin:0 auto}
+@media(prefers-reduced-motion:reduce){#draw{transition:none}}
+.dh{flex:none;display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);background:#fff}
+.dh .dt{font-size:13px;font-weight:620;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dh .dm{font-size:11.5px;color:var(--faint);margin-top:1px}
+.dh .sp{margin-left:auto;display:flex;gap:6px;flex:none}
+.ib{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:#fff;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;color:var(--mut)}
+.ib:hover{border-color:var(--faint);color:var(--ink)}
+.ib.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dbody{flex:1;overflow-y:auto;min-height:0;padding:18px 18px 40px}
+.dbody::-webkit-scrollbar{width:6px}
+.dbody::-webkit-scrollbar-thumb{background:#e2e2de;border-radius:3px}
+
+/* the page */
+.page{background:#fff;border:1px solid var(--line);border-radius:3px;padding:30px 28px 26px;
+  box-shadow:0 1px 4px rgba(25,25,25,.05);font-size:11px;line-height:1.6;color:#2a2a28}
+.lh{display:flex;align-items:flex-start;gap:10px;padding-bottom:13px;border-bottom:1.5px solid #1e1e1c;margin-bottom:16px}
+.lh .lm{width:26px;height:26px;border-radius:6px;background:#1e1e1c;display:flex;align-items:center;justify-content:center;flex:none}
+.lh .ln{font-size:13px;font-weight:700;letter-spacing:-.01em;color:#1e1e1c;line-height:1.25}
+.lh .la{font-size:9px;color:#8a8a85;line-height:1.5;margin-top:2px}
+.lh .lr{margin-left:auto;text-align:right;font-size:9px;color:#8a8a85;line-height:1.6;flex:none}
+.lh .lr b{color:#2a2a28;font-weight:650}
+.page h4{font-size:13px;font-weight:680;color:#1e1e1c;margin:0 0 12px;letter-spacing:-.01em}
+.page .mt{display:grid;grid-template-columns:118px 1fr;gap:5px 12px;margin-bottom:15px}
+.page .mt dt{color:#8a8a85;font-size:10px}
+.page .mt dd{color:#2a2a28}
+.ptw{overflow-x:auto;margin-bottom:15px}
+.ptw::-webkit-scrollbar{height:5px}
+.ptw::-webkit-scrollbar-thumb{background:#e2e2de;border-radius:3px}
+.page table{width:100%;border-collapse:collapse;font-size:10px;min-width:270px}
+.page th{text-align:left;background:#f4f4f2;color:#5c5c58;font-weight:650;padding:6px 8px;border:1px solid #e4e4e0}
+.page td{padding:6px 8px;border:1px solid #ececE8}
+.page td:first-child{font-weight:600;color:#1e1e1c}
+.page td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.page p{margin-bottom:11px;color:#3d3d3a}
+.pr{border:1px solid #e4e4e0;border-radius:4px;margin-bottom:15px;overflow:hidden}
+.pr .prh{background:#f4f4f2;padding:6px 9px;font-size:9.5px;font-weight:650;color:#5c5c58;display:flex}
+.pr .prh span:last-child{margin-left:auto;font-weight:500;color:#8a8a85}
+.pr .prr{display:flex;padding:7px 9px;border-top:1px solid #ececE8;font-size:11px}
+.pr .prr span:last-child{margin-left:auto;font-weight:680;color:#1e1e1c;font-variant-numeric:tabular-nums}
+.sg{margin-top:22px;padding-top:12px;border-top:1px solid #ececE8;font-size:9.5px;color:#8a8a85;line-height:1.6}
+.sg b{display:block;color:#2a2a28;font-size:10.5px;font-weight:650}
+.pgn{text-align:center;font-size:9.5px;color:var(--faint);padding:11px 0 3px}
+
+/* document index */
+.dix{display:flex;flex-direction:column;gap:8px}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 13px;display:flex;
+  gap:11px;align-items:center;cursor:pointer;transition:border-color .12s}
+.dcard:hover{border-color:var(--faint)}
+.dcard .mini{width:26px;height:32px;border-radius:3px;border:1px solid #dcd7ee;background:#fbfaff;flex:none;position:relative}
+.dcard .mini::after{content:"PDF";position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6.5px;font-weight:700;color:var(--doc)}
+.dcard .dn{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.4}
+.dcard .dd{font-size:11.5px;color:var(--faint);margin-top:2px}
+.dempty{font-size:12.5px;color:var(--faint);text-align:center;padding:30px 16px;line-height:1.7}
+.dcount{margin-left:auto;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;
+  border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:560;color:var(--ink2);cursor:pointer}
+.dcount:hover{border-color:var(--faint)}
+.dcount .n{font-size:11px;color:var(--faint)}
+@media(max-width:900px){
+  #draw.open{position:fixed;inset:0;width:100%;flex:none;z-index:60}
+  .dbody{padding:14px 14px 40px}
+  .page{padding:22px 18px 20px}
+  .page .mt{grid-template-columns:96px 1fr}
+}
+
+@media(max-width:900px){
+  #side{display:none}
+  #pselTop{display:block}
+  .top,#feed,.sug,.comp{padding-left:16px;padding-right:16px}
+  #pselTop{max-width:none;flex:1 1 100%;order:3;margin-top:8px}
+  .dcount{order:2}
+  #cap{padding:18px 16px 60px}
+}
+</style>
+</head>
+<body>
+
+<aside id="side"></aside>
+
+<div id="main">
+  <div class="top">
+    <div>
+      <div class="t" id="ctitle">Today</div>
+      <div class="s" id="csub"></div>
+    </div>
+    <button class="dcount" id="dcount" onclick="openIndex()" style="display:none">Documents<span class="n" id="dn">0</span></button>
+    <select id="pselTop" aria-label="Switch persona"></select>
+  </div>
+  <div id="feed"></div>
+  <div class="sug"><div class="sugin" id="sug"></div></div>
+  <div class="comp"><div class="compin">
+    <div class="box">
+      <input id="ta" placeholder="Ask, or describe what you want done" autocomplete="off">
+      <button class="snd" onclick="send()" aria-label="Send">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M4 7l4-4 4 4" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div></div>
+  <div id="cap"></div>
+</div>
+
+<aside id="draw"></aside>
+
+<script>
+const ICON={
+ grid:'<path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z"/>',
+ inbox:'<path d="M2 9l1.6-6h8.8L14 9v5H2V9z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 9h3.2l.9 1.8h3.8L10.8 9H14" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ doc:'<path d="M3.5 1.6h6L13 5.2v9.2H3.5z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9.2 1.8v3.6H12.8" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ shield:'<path d="M8 1.8l5 1.8v4.2c0 3-2.1 5.2-5 6.4-2.9-1.2-5-3.4-5-6.4V3.6z" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ coin:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6v6.8M6.1 6.4h3.1a1.4 1.4 0 010 2.8H6.1" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ chart:'<path d="M2.4 13.6V7.2M6.8 13.6V3.2M11.2 13.6V9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M1.6 13.6h12.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+ gear:'<circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.6v1.8M8 12.6v1.8M14.4 8h-1.8M3.4 8H1.6M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3M12.5 12.5l-1.3-1.3M4.8 4.8L3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+ users:'<circle cx="6" cy="6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.8 13.4c0-2.4 1.9-3.9 4.2-3.9s4.2 1.5 4.2 3.9" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 4.2a2.2 2.2 0 010 4.2M11.6 13.4c0-1.7-.5-2.9-1.4-3.6" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ clock:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6V8l2.4 1.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+ check:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.2 8.2l2 2 3.6-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+ alert:'<path d="M8 2.2l6 10.4H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.4v3M8 11.2v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+ folder:'<path d="M2 4.2h4.2l1.4 1.8H14v7.8H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+ plus:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 5.2v5.6M5.2 8h5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+ building:'<path d="M3 14V2.6h6.4V14M9.4 14V6.4H13V14M1.6 14h12.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 5.2h2.4M5 8h2.4M5 10.8h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'
+};
+
+const EXTRA_ICONS={
+ msg:'<path d="M2.4 3.2h11.2v7.6H7.2L4 13.4V10.8H2.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+ book:'<path d="M2.6 3.2h4a2 2 0 012 2v8a1.6 1.6 0 00-1.6-1.6H2.6zM13.4 3.2h-4a2 2 0 00-2 2v8a1.6 1.6 0 011.6-1.6h4.4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+ spark:'<path d="M8 1.6l1.7 4.3 4.3 1.7-4.3 1.7L8 13.6 6.3 9.3 2 7.6l4.3-1.7z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+ edit:'<path d="M11.2 2.4l2.4 2.4-8 8L2.4 14l1.2-3.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+ plug:'<path d="M6 2v3.4M10 2v3.4M4.4 5.4h7.2v2.8a3.6 3.6 0 01-3.6 3.6A3.6 3.6 0 014.4 8.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 11.8V14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+ lock:'<rect x="3.2" y="7" width="9.6" height="7" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.6 7V5a2.4 2.4 0 014.8 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+ wallet:'<path d="M2.4 4.6h11.2v8.8H2.4z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2.4 4.6l8-2.2v2.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="11" cy="9" r="1" fill="currentColor"/>'
+};
+
+const ROLES = {
+admin:{
+  label:"ADMIN", sub:"Vivek", raw:"#37424f",
+  who:"Vivek Jagad", role:"Admin · Whole business", av:"VJ",
+  nav:[["Dashboard","grid"],["Companies","building"],["Policies","doc"],["Claims","shield","12"],["Commission","coin"],["Reports","chart"],["Configuration","gear"]], navSel:5,
+  listTitle:"Reports", listCount:"August MTD", filters:["This month","Quarter","Year"],
+  recs:[
+   ["Business summary — August","47 policies · ₹8.2L premium","Live","blu"],
+   ["Commission by channel","5 channels · Q3 vs Q2","Ready","gry"],
+   ["Renewal conversion","71% · down 4 points","Watch","red"],
+   ["Claims aging","12 open · 2 over 30 days","Watch","red"],
+   ["Agent performance","4 agents · renewal basis","Ready","gry"],
+   ["Lapse report","5 lapsed last week","Ready","gry"],
+   ["Premium by line","Health · Motor · Life · Travel","Ready","gry"]],
+  widgets:[{v:"47",l:"Policies MTD"},{v:"₹8.2L",l:"Premium MTD"},{v:"₹94k",l:"Commission MTD"},{v:"12",l:"Claims open",tone:"warn"},{v:"71%",l:"Renewal conversion",tone:"err"}],
+  open:"Month to date: <b>47 policies</b>, ₹8.2L premium, ₹94k commission booked. Two things want your attention — renewal conversion is down 4 points to 71%, and two claims have aged past 30 days.",
+  chips:["a_comm","a_why","a_modemix","a_rule","a_user","a_report"]
+},
+sales:{
+  label:"SALES", sub:"Pipeline & team", raw:"#2E6FB0",
+  who:"Nikunj Shah", role:"Sales · Team pipeline", av:"NS",
+  nav:[["Pipeline","grid","18"],["Inquiries","inbox","7"],["Quotations","doc","7"],["Deals","check","2"],["Team","users"],["Tasks","clock","9"]], navSel:0,
+  listTitle:"Inquiries", listCount:"18 open", filters:["All","Unassigned","At risk"],
+  recs:[
+   ["INQ-1041 · Health · Surat","Website form · 09:20 today","Unassigned","red"],
+   ["INQ-1042 · Motor · Kamrej","Reference · waiting 3h","Unassigned","red"],
+   ["INQ-1036 · Health","Rohit Mehta · not confirmed","TAT 3h","red"],
+   ["INQ-1044 · Health · Adajan","Added by Kiran Solanki","Unassigned","amb"],
+   ["INQ-1039 · Health","Meera Joshi · quotation sent","Quoted","blu"],
+   ["INQ-1031 · Motor","Hardik Vyas · revision loop","Revising","amb"],
+   ["INQ-1028 · Health","Kiran Solanki · won 22 Aug","Won","grn"],
+   ["INQ-1025 · Travel","Meera Joshi · awaiting KYC","Won","grn"]],
+  widgets:[{v:"18",l:"Open inquiries"},{v:"4",l:"Unassigned",tone:"err"},{v:"2",l:"TAT at risk",tone:"err"},{v:"7",l:"Quotations awaiting reply",tone:"warn"},{v:"₹4.1L",l:"Pipeline value"}],
+  open:"<b>18 open inquiries</b> across the team. Four are still unassigned and two are close to their TAT — if those lapse they reassign on their own and the customer waits longer.",
+  chips:["p_unassigned","p_tatrisk","p_assign","p_resched","p_quote","p_stalled"]
+},
+agent:{
+  label:"AGENT", sub:"Own customers", raw:"#0d8a8a",
+  who:"Kiran Solanki", role:"Agent · Own customers only", av:"KS",
+  nav:[["My customers","users","14"],["My leads","inbox","6"],["Add inquiry","plus"],["Visits","clock","2"],["Wallet","coin"]], navSel:1,
+  listTitle:"My leads", listCount:"6 open", filters:["All","Today","Quiet"],
+  recs:[
+   ["Dinesh Bhai · Health","Added yesterday · not called","Call today","red"],
+   ["Manish Rathod · Motor","Quotation shared · comparing","In progress","blu"],
+   ["Rakesh Patel · Health","Quotation sent 9 days ago","Quiet","amb"],
+   ["Jayesh Kapadia · Health","Renewal due 2 Sep","Renewal","amb"],
+   ["Nita Shah · Health","Lapsed 19 Aug · grace open","Win-back","red"],
+   ["Suresh Kumar · Health","Policy issued 12 Aug","Won","grn"]],
+  widgets:[{v:"6",l:"Open leads"},{v:"2",l:"Visits today",tone:"warn"},{v:"₹4,200",l:"Wallet balance",tone:"ok"},{v:"3",l:"Renewals in my book"}],
+  open:"<b>6 open leads</b> and two visits booked today. Your wallet is at ₹4,200 with two payouts still in the current cycle.",
+  chips:["g_leads","g_360","g_gap","g_add","g_resched","g_due"]
+},
+backoffice:{
+  label:"BACK-OFFICE", sub:"Operations", raw:"#7c3fa0",
+  who:"Priya Desai", role:"Back-office · Assigned queues", av:"PD",
+  nav:[["My queue","grid","21"],["Drafts","doc","6"],["KYC","shield","4"],["Document vault","folder"],["Collections","coin","3"],["Issuance","check","3"]], navSel:1,
+  listTitle:"Draft policies", listCount:"6 incomplete", filters:["All","Blocked","KYC"],
+  recs:[
+   ["POL-DRAFT-0219 · Niva Bupa","Mehta family · nominee + KYC missing","Blocked","red"],
+   ["POL-DRAFT-0224 · IFFCO Tokio","Motor · chassis number missing","Incomplete","amb"],
+   ["POL-DRAFT-0227 · IFFCO Tokio","Awaiting insurer policy number","Waiting","amb"],
+   ["POL-DRAFT-0230 · HDFC Ergo","Rakesh Patel · KYC in progress","KYC","amb"],
+   ["POL-DRAFT-0231 · Tata AIG","Falguni Shah · travel 12 Sep","Urgent","red"],
+   ["POL-DRAFT-0233 · LIC","Jignesh Shah · ready to submit","Ready","grn"]],
+  widgets:[{v:"6",l:"Drafts incomplete"},{v:"4",l:"KYC pending",tone:"warn"},{v:"8",l:"OCR rows to review",tone:"warn"},{v:"3",l:"Stuck at issuance",tone:"err"}],
+  open:"Your queue: <b>6 drafts</b>, 4 KYC files short of complete, and 8 OCR rows waiting on review. Three policies have been sitting at issuance longer than three days.",
+  chips:["b_drafts","b_missing","b_complete","b_endorse","b_chase","b_ocr"]
+},
+claims:{
+  label:"CLAIMS TEAM", sub:"Claim files", raw:"#c04545",
+  who:"Amit Rana", role:"Claims · Claim queue", av:"AR",
+  nav:[["Claim queue","inbox","4"],["My claims","shield","7"],["Queries","alert","2"],["Settlements","coin"],["Checklists","check","3"]], navSel:1,
+  listTitle:"My claims", listCount:"7 assigned", filters:["All","Aged","Query"],
+  recs:[
+   ["CLM-0398 · Niva Bupa","₹1,84,000 · with insurer","34 days","red"],
+   ["CLM-0402 · ICICI Lombard","₹62,500 · query open","31 days","red"],
+   ["CLM-0411 · Bajaj Allianz","₹96,000 · discharge summary due","18 days","amb"],
+   ["CLM-0412 · HDFC Ergo","₹1,20,000 · cashless","6 days","blu"],
+   ["CLM-0414 · Tata AIG","₹34,000 · documents complete","4 days","blu"],
+   ["CLM-0416 · Niva Bupa","₹78,500 · settled 21 Aug","Closed","grn"],
+   ["CLM-0417 · Royal Sundaram","₹22,000 · settled 22 Aug","Closed","grn"]],
+  widgets:[{v:"7",l:"Claims assigned"},{v:"2",l:"Queries pending",tone:"warn"},{v:"1",l:"Aged over 30 days",tone:"err"},{v:"3",l:"Checklist incomplete"}],
+  open:"<b>7 claims</b> assigned to you. Two insurer queries are waiting on a reply, and CLM-0398 has now crossed 30 days without movement.",
+  chips:["c_mine","c_summ","c_query","c_intimate","c_analytics","c_link"]
+},
+renewals:{
+  label:"RENEWALS TEAM", sub:"Renewal pool", raw:"#c9711b",
+  who:"Sneha Patel", role:"Renewals · Renewal pool", av:"SP",
+  nav:[["Renewal pool","grid","34"],["Due this week","clock","4"],["Notice ingest","inbox","8"],["Reminders","alert","12"],["Lapsed","alert","5"]], navSel:0,
+  listTitle:"Renewal pool", listCount:"34 due in 30 days", filters:["All","This week","Silent"],
+  recs:[
+   ["Bhavesh Trivedi · Motor","Expires 28 Aug · 2 reminders, no reply","4 days","red"],
+   ["Nilesh Bhatt · Health","Expires 30 Aug · notice received","6 days","amb"],
+   ["Falguni Shah · Travel","Expires 31 Aug · no reminder yet","7 days","amb"],
+   ["Ketan Modi · Health","Expires 2 Sep · intent confirmed","9 days","grn"],
+   ["Jayesh Kapadia · Health","2 reminders read, no reply","9 days","red"],
+   ["Pooja Rana · Motor","Delivery failed once","12 days","amb"],
+   ["Rakesh Patel · Motor","Expires 12 Sep","19 days","gry"]],
+  widgets:[{v:"34",l:"Due in 30 days"},{v:"12",l:"Reminders unsent",tone:"warn"},{v:"8",l:"Notices to match",tone:"warn"},{v:"5",l:"Lapsed last week",tone:"err"}],
+  open:"<b>34 renewals</b> fall due inside 30 days. 12 have had no reminder yet, and a batch of 8 insurer notices came in overnight and needs matching.",
+  chips:["r_due","r_instal","r_grace","r_send","r_mandate","r_link"]
+}
+};
+
+const C = {
+
+/* ---------------- ADMIN ---------------- */
+a_comm:{k:"read",t:"Commission by agency",q:"Compare commission by agency this quarter vs last",b:[
+  {b:"para",v:"Pay-in booked by placement channel. Broker volume grew, but one rate change is doing most of the damage."},
+  {b:"table",h:["Agency channel","Q2","Q3","Change"],cls:["","n","n","n"],r:[
+    ["Own code — Health","₹1,84,200","₹2,06,400","<span class='up'>+12.1%</span>"],
+    ["Own code — Motor","₹1,42,800","₹98,600","<span class='dn'>-30.9%</span>"],
+    ["Broker — Shreeji","₹96,400","₹1,11,300","<span class='up'>+15.5%</span>"],
+    ["Broker — Anand Ins.","₹74,100","₹58,900","<span class='dn'>-20.5%</span>"],
+    ["Own code — Life","₹68,300","₹71,200","<span class='up'>+4.2%</span>"]]},
+  {b:"note",v:"<b>Read-only.</b> The panel reads the commission ledger. Rate and payout changes stay in the commission module with their own approval trail — the assistant never writes to money."}
+],n:["a_why","a_stmt","a_agentperf"]},
+
+a_why:{k:"read",t:"Why did commission drop",q:"Why did commission drop in Q3?",b:[
+  {b:"para",v:"Net pay-in fell <b>8.4%</b> quarter on quarter. Three causes, largest first:"},
+  {b:"rows",r:[
+    {c:"hot",t1:"Motor renewals down 31 policies",t2:"₹44,200 of the gap. Motor renewal conversion fell from 78% to 61%.",rt:"₹44,200",rc:"hot"},
+    {c:"warm",t1:"Anand Insurance changed pay-in rate",t2:"12% to 9% on 14 placed policies from 1 August. Volume held; the rate did not.",rt:"₹15,200",rc:"hot"},
+    {c:"good",t1:"Health new business grew",t2:"22 additional policies, partly offsetting the two above.",rt:"+₹22,200",rc:"good"}
+  ]},
+  {b:"para",v:"The motor drop is the actionable one — 31 policies lapsed without a second reminder going out."},
+  {b:"note",v:"This is the question a dashboard cannot answer. Three reports would show the fall; none of them would tell you which three things caused it."}
+],n:["a_rule","a_agentperf","a_report"]},
+
+a_agentperf:{k:"read",t:"Agent performance",q:"Which agent converts renewals best?",b:[
+  {b:"table",h:["Agent","Book","Renewed","Conversion"],cls:["","n","n","n"],r:[
+    ["Kiran Solanki","112","94","<span class='up'>84%</span>"],
+    ["Meera Joshi","98","76","78%"],
+    ["Hardik Vyas","86","61","71%"],
+    ["Rohit Mehta","74","44","<span class='dn'>59%</span>"]]},
+  {b:"para",v:"Rohit's book is smallest and converting worst. Worth checking whether reminders are actually reaching his customers before reading it as effort."}
+],n:["a_rebalance","a_comm","a_report"]},
+
+a_claimage:{k:"read",t:"Claims aging",q:"Show claims aging",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"CLM-0398 · Niva Bupa · ₹1,84,000",t2:"With insurer. No movement in 34 days. Two follow-ups logged.",rt:"34 days",rc:"hot"},
+    {c:"hot",t1:"CLM-0402 · ICICI Lombard · ₹62,500",t2:"Insurer query open 31 days. The reply has not gone out from our side.",rt:"31 days",rc:"hot"},
+    {c:"warm",t1:"CLM-0411 · Bajaj Allianz · ₹96,000",t2:"Checklist incomplete — discharge summary outstanding.",rt:"18 days"},
+    {c:"cool",t1:"CLM-0412 · HDFC Ergo · ₹1,20,000",t2:"With insurer, within normal turnaround.",rt:"6 days"}
+  ]},
+  {b:"para",v:"Median settlement this quarter: Niva Bupa 22 days, HDFC Ergo 17, ICICI Lombard 29."}
+],n:["a_report","a_comm","a_rule"]},
+
+a_report:{k:"doc",t:"Monthly business report",q:"Make me the monthly business report",b:[
+  {b:"para",v:"Built from August to date — policies, premium, commission by channel, renewal conversion, claims aging and agent performance."},
+  {b:"file",dk:"report",name:"Jagad — Business Report, August 2026.pdf",meta:"9 pages · 6 tables · 4 charts · agency letterhead",note:"Figures read live from the ledgers at generation time.",
+   done:"Sent to your email and saved to the reports vault."},
+  {b:"note",v:"The same report can be scheduled — first working day of every month, straight to your inbox, without anyone asking for it."}
+],n:["a_stmt","a_comm","a_why"]},
+
+a_stmt:{k:"doc",t:"Commission statement",q:"Generate the commission statement for Q3",q2:1,b:[
+  {b:"file",dk:"stmt",name:"Commission Statement — Q3 FY26-27.pdf",meta:"Channel-wise pay-in, agent pay-out, net · GSTIN and tax fields included",note:"Invoice-grade layout for your accountant.",
+   done:"Generated. Shared with the accounts folder."},
+  {b:"note",v:"Producing the document is a read. Changing any figure inside it is not something the assistant can do, from any role."}
+],n:["a_comm","a_report"]},
+
+a_rule:{k:"act",t:"Change a reminder rule",q:"Remind customers 45 days before expiry instead of 30",b:[
+  {b:"act",title:"Automation rule — draft",tag:"Configuration",kv:[
+    ["Rule","Renewal reminder — first touch"],
+    ["Trigger","Expiry date minus <b>45 days</b> <span class='dn'>(was 30)</span>"],
+    ["Condition","Policy active · renewable · consent on record"],
+    ["Action","Create renewal task in the pull queue, send the reminder"],
+    ["Affects","<b>218 policies</b> currently between 30 and 45 days of expiry"]],
+    hint:"Drafted from your sentence. Nothing changes until you save it.",
+    ok:"Save rule", okDone:"Saved as version 4. 218 policies enter the reminder window tonight."},
+  {b:"note",v:"This is the ordinary automation rule object — the same one the rule builder edits. The assistant drafts it; the engine runs it."}
+],n:["a_why","a_report","a_rebalance"]},
+
+a_rebalance:{k:"act",t:"Rebalance a workload",q:"Rohit has too much open — move some to Meera",b:[
+  {b:"para",v:"Rohit has 22 open items against a team average of 13. These four are the least progressed and have no scheduled contact."},
+  {b:"act",title:"Reassign 4 inquiries",tag:"Team",kv:[
+    ["From","Rohit Mehta"],["To","Meera Joshi (currently 11 open)"],
+    ["Moving","INQ-1032, INQ-1035, INQ-1039, INQ-1040 — all Health"],
+    ["Both notified","Yes, with the reason recorded on each item"]],
+    hint:"Assignment history stays on every record.",
+    ok:"Reassign four", okDone:"Moved. Rohit at 18, Meera at 15. Both notified."}
+],n:["a_agentperf","a_report"]},
+
+/* ---------------- SALES ---------------- */
+p_unassigned:{k:"read",t:"Unassigned inquiries",q:"What is still unassigned?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"INQ-1041 · Health · Surat",t2:"Website form, 09:20 today. No category owner free at the time.",rt:"TAT 1h 40m",rc:"hot"},
+    {c:"hot",t1:"INQ-1042 · Motor · Kamrej",t2:"Reference from an existing customer. Waiting 3 hours.",rt:"TAT 5h",rc:"hot"},
+    {c:"warm",t1:"INQ-1044 · Health · Adajan",t2:"Added by Kiran from the field this morning.",rt:"TAT 9h"},
+    {c:"cool",t1:"INQ-1045 · Travel · Surat",t2:"Marketing campaign lead.",rt:"TAT 14h"}
+  ]},
+  {b:"para",v:"Assign them now and the clocks stop. Leave them and the rules reassign automatically, which works — it just costs the customer a few more hours."}
+],n:["p_assign","p_tatrisk","p_pipeline"]},
+
+p_assign:{k:"act",t:"Assign to an agent",q:"Assign the four unassigned inquiries",b:[
+  {b:"act",title:"Assign 4 inquiries",tag:"Routing",kv:[
+    ["INQ-1041 Health","Kiran Solanki — Health, 6 open, Surat"],
+    ["INQ-1042 Motor","Hardik Vyas — Motor, 4 open, Kamrej area"],
+    ["INQ-1044 Health","Kiran Solanki — he sourced it"],
+    ["INQ-1045 Travel","Meera Joshi — Travel, 3 open"],
+    ["Matched on","Category, current load and area"]],
+    hint:"Change any one before confirming.",
+    ok:"Assign all four", okDone:"Assigned. All four notified, TAT clocks running from now."}
+],n:["p_tatrisk","p_pipeline","p_resched"]},
+
+p_tatrisk:{k:"read",t:"TAT at risk",q:"Which inquiries are about to breach TAT?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"INQ-1041 · Health · unassigned",t2:"Received 09:20. Nothing has happened on it yet.",rt:"1h 40m",rc:"hot"},
+    {c:"hot",t1:"INQ-1036 · Health · Rohit Mehta",t2:"Assigned yesterday, not confirmed. Reassigns to the next Health owner on breach.",rt:"3h 10m",rc:"hot"}
+  ]},
+  {b:"para",v:"INQ-1036 is the awkward one — it is assigned but unconfirmed, so it looks handled and is not."}
+],n:["p_escalate","p_assign","p_pipeline"]},
+
+p_pipeline:{k:"read",t:"Team pipeline",q:"Show the team pipeline",b:[
+  {b:"table",h:["Stage","Count","Value","Oldest"],cls:["","n","n","n"],r:[
+    ["New inquiry","7","—","today"],
+    ["Quotation sent","7","₹2,40,000","9 days"],
+    ["Revision loop","2","₹86,000","4 days"],
+    ["Won, awaiting KYC","2","₹78,000","2 days"]]},
+  {b:"para",v:"The quotation stage is where things stall — seven sent, four with no reply for more than three days."}
+],n:["p_stalled","p_resched","p_quote"]},
+
+p_stalled:{k:"read",t:"Stalled quotations",q:"Which quotations have gone quiet?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Rakesh Patel · Health · 3 companies",t2:"Sent 9 days ago. Delivered, not opened.",rt:"9 days",rc:"hot"},
+    {c:"hot",t1:"Bhavesh Trivedi · Motor",t2:"Sent 6 days ago. Opened twice, no reply.",rt:"6 days",rc:"hot"},
+    {c:"warm",t1:"Jignesh Shah · Term life",t2:"Version 2 sent 4 days ago.",rt:"4 days"},
+    {c:"warm",t1:"Alpa Desai · Travel",t2:"Sent 3 days ago. Travels 12 Sep, so this one has a deadline.",rt:"3 days"}
+  ]}
+],n:["p_nudge","p_resched","p_lost"]},
+
+p_nudge:{k:"act",t:"Nudge all four",q:"Send a follow-up to all four",b:[
+  {b:"act",title:"Send follow-up to 4 customers",tag:"Bulk",kv:[
+    ["Channel","WhatsApp — approved follow-up template"],
+    ["Each message","Carries that customer's own quotation reference and companies"],
+    ["Alpa Desai","Gets the variant that mentions her 12 Sep travel date"],
+    ["Not included","Anyone who replied in the last 48 hours"]],
+    hint:"Four separate messages, not one broadcast.",
+    ok:"Send four", okDone:"Sent. Replies land in the same thread as the original quotation."}
+],n:["p_stalled","p_resched","p_pipeline"]},
+
+p_resched:{k:"act",t:"Reschedule a follow-up",q:"Push Rakesh's follow-up",b:[
+  {b:"choice",title:"Reschedule follow-up",tag:"Rakesh Patel",sub:"Currently: today, 11:00 · linked to quotation QTN-0331",
+   opts:["Tomorrow, 11:00","Thursday, 16:00","Next Monday","Pick a date"],
+   done:"Moved to {x}. The task, the reminder and the customer's message all shift together — nothing is left pointing at the old date."},
+  {b:"note",v:"Two taps. The same change by hand is open the CRM, find the lead, open the record, edit the date, save — and then remember the reminder is a separate object."}
+],n:["p_stalled","p_pipeline","p_quote"]},
+
+p_quote:{k:"read",t:"Build a quotation",q:"Health cover for a family — 2 adults, one child, 10 lakh floater, Surat",b:[
+  {b:"para",v:"Three products fit, across two companies. These are only the ones inside the agency's placement scope — nothing else is offered."},
+  {b:"rows",r:[
+    {c:"good",t1:"HDFC Ergo · Optima Secure",t2:"10L floater, 2A+1C. No room-rent cap. Pre-existing wait 36 months.",rt:"Best fit",rc:"good"},
+    {c:"good",t1:"HDFC Ergo · Optima Secure",t2:"10L with restore, 2x cover from year 2.",rt:"Strong"},
+    {c:"cool",t1:"Bajaj Allianz · Health Guard",t2:"10L floater, lower premium band, room-rent sub-limit.",rt:"Budget"}
+  ]},
+  {b:"note",v:"Placement scope: Jagad holds active agency records with HDFC Ergo, Niva Bupa and Bajaj Allianz for Health. Companies outside that scope are never suggested, however well known they are — the list comes from the Companies master, not from general knowledge."}
+],n:["p_monthly","p_compose","p_resched"]},
+
+p_compose:{k:"read",t:"Fill the comparison",q:"Compare all three",b:[
+  {b:"para",v:"Composer open. Benefit rows come from the catalog mapping for each product — 14 rows, prefilled with configured defaults."},
+  {b:"table",h:["Benefit","HDFC Optima","Niva Bupa ReAssure","Bajaj Health Guard"],cls:["","n","n","n"],r:[
+    ["Sum insured","₹10,00,000","₹10,00,000","₹10,00,000"],
+    ["Room rent","No cap","No cap","1% of SI"],
+    ["Restore benefit","Yes","Yes, 2x","No"],
+    ["Pre-existing wait","36 months","36 months","48 months"],
+    ["Day-care","All listed","All listed","All listed"],
+    ["Maternity","After 36 mo","After 48 mo","Not covered"]]},
+  {b:"choice",title:"Premium mode",tag:"Ask before you fill",sub:"Two of the three allow instalments. The mode changes the figures you are about to type.",
+   opts:["Annual","Half-yearly","Quarterly","Monthly"],
+   done:"Set to {x}. The figures below are that mode's payable amount — not an annual premium divided by twelve."},
+  {b:"stop",title:"Final payable premium",body:"Eight further benefit rows are filled below. <b>The premium is not something I can fill.</b> This platform records money, it does not calculate it — the insurer's figure is the only valid one. Type each company's payable premium for the chosen mode and the document will generate.",
+   inputs:["HDFC Optima","Niva Bupa","Bajaj Health Guard"]},
+  {b:"note",v:"A deliberate hard stop, not a gap. The same rule holds for endorsement deltas, refunds and settlements everywhere in the system."}
+],n:["p_monthly","p_quotepdf","p_resched"]},
+
+p_quotepdf:{k:"doc",t:"Generate the quotation",q:"Generate the quotation document",b:[
+  {b:"file",dk:"quote",name:"Quotation — Rakesh Patel — 3 companies.pdf",meta:"Side-by-side comparison · 14 benefit rows · agency letterhead · header shows 2 adults, 1 child, DOBs, floater",note:"Premium figures are the ones you typed.",
+   done:"Generated as QTN-0332 and attached to the inquiry.",share:1},
+  {b:"note",v:"Single-company and side-by-side layouts both come from the same fill. Uploading a quotation the insurer sent stays available as a fallback."}
+],n:["p_won","p_resched","p_stalled"]},
+
+p_won:{k:"act",t:"Mark won",q:"Customer agreed — mark it won",b:[
+  {b:"act",title:"Mark won and open the deal",tag:"Sales",kv:[
+    ["Customer","Rakesh Patel"],["Chosen","HDFC Ergo · Optima Secure"],
+    ["Deal","System application number issued on save"],
+    ["Line items","Policy, quotation reference, final amount with breakdown"],
+    ["Stays linked","Kiran Solanki, the agent who sourced him — for the life of the customer"],
+    ["Next","Back-office picks it up for KYC"]],
+    hint:"Creates the deal the policy form draws from.",
+    ok:"Mark won", okDone:"Won. Deal APP-0774 created and queued to back-office for KYC."}
+],n:["p_pipeline","p_resched"]},
+
+p_lost:{k:"act",t:"Mark lost",q:"Mark Bhavesh's quotation lost",b:[
+  {b:"act",title:"Mark lost",tag:"Reason required",kv:[
+    ["Customer","Bhavesh Trivedi · Motor"],
+    ["Reason","Went with the insurer directly at a lower premium"],
+    ["Reportable","Yes — feeds the lost-reason analysis"],
+    ["Keeps","Quotation versions stay on file, unchanged"]],
+    hint:"The reason is mandatory. That is what makes lost-reason reporting worth reading.",
+    ok:"Mark lost", okDone:"Closed as lost. Reason recorded."}
+],n:["p_stalled","p_pipeline"]},
+
+p_escalate:{k:"act",t:"Escalate",q:"Escalate INQ-1036",b:[
+  {b:"act",title:"Escalate inquiry",tag:"INQ-1036",kv:[
+    ["Why","Assigned 22 hours ago, never confirmed. TAT breaches in 3h 10m."],
+    ["To","You, as sales owner, with the full assignment history"],
+    ["Also","Rohit is notified, so it is not a surprise"]],
+    hint:"Escalation carries the history, not just the item.",
+    ok:"Escalate", okDone:"Escalated with full history. Rohit notified."}
+],n:["p_tatrisk","p_assign"]},
+
+/* ---------------- AGENT ---------------- */
+g_leads:{k:"read",t:"My leads",q:"Show my leads",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Dinesh Bhai · Health",t2:"Added yesterday. Wants family cover, has not been called.",rt:"Call today",rc:"hot"},
+    {c:"warm",t1:"Manish Rathod · Motor",t2:"Quotation shared. Comparing with one other agency.",rt:"In progress"},
+    {c:"warm",t1:"Rakesh Patel · Health",t2:"Quotation sent 9 days ago, no reply.",rt:"Quiet"},
+    {c:"good",t1:"Suresh Kumar · Health",t2:"Policy issued 12 Aug. Your share is in the current payout cycle.",rt:"Won",rc:"good"}
+  ]}
+],n:["g_360","g_resched","g_add"]},
+
+g_360:{k:"read",t:"Open a customer",q:"Rakesh Patel",b:[
+  {b:"kv",title:"Rakesh Patel · 98xxxxxxx · Surat",tag:"Customer since 2021",kv:[
+    ["Policies","<b>3 active</b> — Health 10L floater · Motor · Term life 1Cr"],
+    ["Claims","<b>1 open</b> — CLM-0412, with insurer, 6 days"],
+    ["Renewal","Motor expires 12 Sep — 19 days"],
+    ["Last touch","4 Aug — renewal reminder sent"],
+    ["Household","Wife and one child on the floater"],
+    ["Gap","Second vehicle on the profile has no motor policy"]]},
+  {b:"para",v:"The second vehicle is the obvious opening, and the motor renewal in 19 days is the natural moment to raise it."},
+  {b:"note",v:"You see this because he is your customer. Type any other name and nothing comes back — the scope is enforced by your permissions, not by the assistant being polite about it."}
+],n:["g_policypdf","g_claim","g_resched"]},
+
+g_add:{k:"act",t:"Add an inquiry",q:"New lead — Dinesh Bhai, 99xxxxxxx, health cover for his family",b:[
+  {b:"act",title:"Create inquiry",tag:"Field capture",kv:[
+    ["Name","Dinesh Bhai"],["Mobile","99xxxxxxx"],
+    ["Interest","Health · family"],["Source","You"],
+    ["Then","Routes to the Health group and starts its clock"]],
+    hint:"Name and mobile is enough. The rest fills in later.",
+    ok:"Create lead", okDone:"Created INQ-1046. It stays linked to you for commission, for the life of this customer."},
+  {b:"note",v:"You stay attached permanently. Every repeat purchase this customer ever makes keeps your share intact."}
+],n:["g_resched","g_leads","g_wallet"]},
+
+g_resched:{k:"act",t:"Reschedule a visit",q:"I can't make the 4pm visit today",b:[
+  {b:"choice",title:"Reschedule visit",tag:"Dinesh Bhai",sub:"Currently: today, 16:00 · Adajan",
+   opts:["Tomorrow, 16:00","Tomorrow, 11:00","Saturday morning","Pick a date"],
+   done:"Moved to {x}. Dinesh has been messaged, and your reminder moved with it."},
+  {b:"note",v:"On a bike between two meetings, this is the difference between the visit being rescheduled and the visit being forgotten."}
+],n:["g_leads","g_360","g_add"]},
+
+g_policypdf:{k:"doc",t:"Send policy copy",q:"Send Rakesh his health policy copy",b:[
+  {b:"file",dk:"schedule",name:"Policy Schedule — Rakesh Patel — HDFC Ergo.pdf",meta:"2026-27 term · 4 pages · insurer copy from the vault",note:"Sending to 98xxxxxxx on WhatsApp.",
+   done:"Sent. Also saved in his own document tab.",share:1},
+  {b:"note",v:"Customers ask for this constantly. It used to mean finding the file, downloading it, and forwarding it from your own phone."}
+],n:["g_360","g_claim","g_leads"]},
+
+g_claim:{k:"act",t:"Raise a claim for a customer",q:"Raise a claim for Rakesh",b:[
+  {b:"act",title:"Raise claim",tag:"On behalf of customer",kv:[
+    ["Policy","Health · HDFC Ergo · 10L floater — active"],
+    ["Hospital","Kiran Hospital, Surat"],
+    ["Type","Cashless"],
+    ["On save","Claim number issued, intimation email goes to the insurer's claim desk, you are copied"],
+    ["Customer gets","The claim number and a document upload link"]],
+    hint:"A claim on a lapsed policy is stopped here and routed to you instead.",
+    ok:"Raise claim", okDone:"CLM-0418 raised. Intimation sent to HDFC Ergo. Rakesh has the number."}
+],n:["g_360","g_policypdf"]},
+
+g_wallet:{k:"read",t:"My wallet",q:"Show my wallet",b:[
+  {b:"kv",title:"Wallet · Kiran Solanki",tag:"Current cycle",kv:[
+    ["Balance","<b>₹4,200</b>"],
+    ["Pending","₹1,850 across 2 policies — releases at the next payout"],
+    ["Paid this year","₹18,600"],
+    ["Next cycle","1 September"]]},
+  {b:"table",h:["Policy","Customer","Your share"],cls:["","","n"],r:[
+    ["POL-4402 · Health","Suresh Kumar","₹1,100"],
+    ["POL-4388 · Motor","Manish Rathod","₹750"]]},
+  {b:"note",v:"Read-only. Payouts run in the commission module on the configured cycle."}
+],n:["g_leads","g_360"]},
+
+/* ---------------- BACK-OFFICE ---------------- */
+b_drafts:{k:"read",t:"My drafts",q:"Show my incomplete drafts",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"POL-DRAFT-0219 · Niva Bupa",t2:"Nominee details and one KYC document missing. Started 4 days ago.",rt:"4 days",rc:"hot"},
+    {c:"warm",t1:"POL-DRAFT-0224 · IFFCO Tokio Motor",t2:"RC copy uploaded, chassis number not filled.",rt:"2 days"},
+    {c:"cool",t1:"POL-DRAFT-0227 · IFFCO Tokio",t2:"Awaiting the insurer's policy number.",rt:"Today"}
+  ]}
+],n:["b_missing","b_kyc","b_stuck"]},
+
+b_missing:{k:"read",t:"What's missing on a file",q:"What is missing on the Mehta file?",b:[
+  {b:"kv",title:"Mehta family · Health · POL-DRAFT-0219",tag:"3 items open",kv:[
+    ["Complete","Proposal form, 2 of 3 KYC sets, payment record, medical reports"],
+    ["Missing","<b>Child's Aadhaar</b> · <b>Nominee relationship</b> · <b>Insurer policy number</b>"],
+    ["Blocking","Issuance cannot complete without the policy number"],
+    ["Last touched","Yesterday, 16:40 — by you"]]},
+  {b:"para",v:"The first two are collectable from the customer today. The third has to come from the insurer."},
+  {b:"note",v:"Answering this by hand means opening the draft, the KYC tab, the document vault and the proposal — four places, one question."}
+],n:["b_consent","b_chase","b_drafts"]},
+
+b_kyc:{k:"read",t:"KYC pending",q:"Which files are short on KYC?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Rakesh Patel",t2:"Aadhaar received. PAN and address proof outstanding. Consent link sent, not opened.",rt:"Blocks issuance",rc:"hot"},
+    {c:"warm",t1:"Mehta family",t2:"Two of three members complete. Child's document pending.",rt:"Partial"},
+    {c:"warm",t1:"Jignesh Shah",t2:"All documents in, verification not marked done.",rt:"Verify only"},
+    {c:"cool",t1:"Alpa Desai",t2:"Consent link opened, upload in progress.",rt:"In progress"}
+  ]},
+  {b:"note",v:"Aadhaar is masked to the last four digits at the moment of extraction. The full number is never stored, shown or exported."}
+],n:["b_consent","b_missing","b_drafts"]},
+
+b_consent:{k:"act",t:"Resend consent link",q:"Resend the consent link to Rakesh",b:[
+  {b:"act",title:"Send consent link",tag:"Communication",kv:[
+    ["To","Rakesh Patel · 98xxxxxxx"],
+    ["Channel","WhatsApp — approved template"],
+    ["Link","Tokenised, expires in 48 hours, no login"],
+    ["Collects","PAN and address proof, with consent capture"]],
+    hint:"The send is recorded against the consent ledger.",
+    ok:"Send link", okDone:"Sent. Consent status updates the moment he submits."}
+],n:["b_kyc","b_missing","b_pack"]},
+
+b_ocr:{k:"read",t:"OCR review queue",q:"What is waiting in OCR review?",b:[
+  {b:"rows",r:[
+    {c:"good",t1:"6 rows extracted cleanly",t2:"Policy number, insured name, premium and expiry all matched.",rt:"Ready",rc:"good"},
+    {c:"warm",t1:"1 row · low confidence on premium",t2:"Scanned notice, figure partly obscured. Flagged for your eyes.",rt:"Check"},
+    {c:"hot",t1:"1 row · no policy match",t2:"Policy number not in the system. Link it manually or reject.",rt:"Blocked",rc:"hot"}
+  ]},
+  {b:"note",v:"Extracted values stay visually flagged until a person confirms them. Nothing read by OCR is ever committed silently."}
+],n:["b_stuck","b_upload","b_drafts"]},
+
+b_stuck:{k:"read",t:"Stuck at issuance",q:"Which policies are stuck at issuance?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Bhavesh Trivedi · Motor · Bajaj Allianz",t2:"Payment recorded 5 days ago. No policy number. Two emails sent.",rt:"5 days",rc:"hot"},
+    {c:"warm",t1:"Nilesh Bhatt · Health · IFFCO Tokio",t2:"Proposal submitted 4 days ago, insurer asked for a medical.",rt:"4 days"},
+    {c:"warm",t1:"Falguni Shah · Travel · Tata AIG",t2:"Awaiting confirmation. Travel date is 12 Sep.",rt:"3 days"}
+  ]}
+],n:["b_chase","b_collect","b_drafts"]},
+
+b_chase:{k:"act",t:"Chase the insurer",q:"Draft a follow-up to Bajaj Allianz on Bhavesh's policy",b:[
+  {b:"act",title:"Email draft — for your review",tag:"Communication",kv:[
+    ["To","Bajaj Allianz · SME desk (from the Companies master)"],
+    ["Subject","Pending issuance — proposal PRP-0884, Bhavesh Trivedi"],
+    ["Body","Payment was recorded on 19 August against proposal PRP-0884. The policy number is still awaited. Kindly confirm the status or advise what is pending from our side."],
+    ["Attached","Payment receipt, proposal copy"]],
+    hint:"Drafted, not sent. Edit anything before it goes.",
+    ok:"Send email", okDone:"Sent and logged on the proposal timeline."}
+],n:["b_stuck","b_collect","b_pack"]},
+
+b_collect:{k:"act",t:"Record a collection",q:"Collected ₹8,400 cash from Bhavesh",b:[
+  {b:"act",title:"Record collection",tag:"Money — entered by you",kv:[
+    ["Amount","₹8,400 — <b>as you typed it</b>"],
+    ["From","Bhavesh Trivedi"],["Mode","Cash"],
+    ["Against","Motor policy renewal, proposal PRP-0884"],
+    ["Receipt","Generated and sent to the customer on save"]],
+    hint:"The figure is yours. The assistant records it and never suggests one.",
+    ok:"Record collection", okDone:"Recorded. Receipt RCP-0912 sent to Bhavesh."}
+],n:["b_stuck","b_pack","b_drafts"]},
+
+b_upload:{k:"act",t:"Upload a document",q:"Upload this document",b:[
+  {b:"act",title:"Upload and classify",tag:"Vault",kv:[
+    ["File","scan_2026_08_24.pdf"],
+    ["Read as","Policy schedule · HDFC Ergo · POL-4419"],
+    ["Linked to","Rakesh Patel · Health policy"],
+    ["Retention","Regulated record — 10 year class"]],
+    hint:"The document was read to classify it. Correct the type if it is wrong.",
+    ok:"Save to vault", okDone:"Saved and linked. Retention class applied."}
+],n:["b_ocr","b_pack","b_drafts"]},
+
+b_pack:{k:"doc",t:"Policy pack",q:"Make the policy pack for Rakesh",b:[
+  {b:"file",dk:"pack",name:"Policy Pack — Rakesh Patel — HDFC Ergo.pdf",meta:"Policy schedule, proposal copy, receipt, KYC acknowledgement · 11 pages · covering letter",note:"Assembled from the vault, in the order the customer reads them.",
+   done:"Generated and sent on WhatsApp. Copy saved to his documents.",share:1},
+  {b:"note",v:"Assembling this by hand is four downloads, a merge, and a covering letter someone retypes each time."}
+],n:["b_drafts","b_consent","b_stuck"]},
+
+/* ---------------- CLAIMS ---------------- */
+c_mine:{k:"read",t:"My claims",q:"Show my claims",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"CLM-0398 · Niva Bupa · ₹1,84,000",t2:"With insurer 34 days. Two follow-ups logged, no response.",rt:"34 days",rc:"hot"},
+    {c:"hot",t1:"CLM-0402 · ICICI Lombard · ₹62,500",t2:"Insurer query open 31 days. Reply not drafted.",rt:"Query",rc:"hot"},
+    {c:"warm",t1:"CLM-0411 · Bajaj Allianz · ₹96,000",t2:"Discharge summary missing from the checklist.",rt:"18 days"},
+    {c:"cool",t1:"CLM-0412 · HDFC Ergo · ₹1,20,000",t2:"Cashless. Documents received through the upload link.",rt:"6 days"}
+  ]}
+],n:["c_summ","c_query","c_docs"]},
+
+c_summ:{k:"read",t:"Summarise a claim",q:"Summarise CLM-0412",b:[
+  {b:"kv",title:"CLM-0412 · Rakesh Patel · HDFC Ergo",tag:"14 documents read",kv:[
+    ["Claim","Cashless · ₹1,20,000 claimed · admitted 12 Aug, discharged 16 Aug"],
+    ["Hospital","Kiran Hospital, Surat · Dr. Shah"],
+    ["Reason","Dengue with thrombocytopenia. Four nights, no ICU."],
+    ["Policy","Health floater 10L, active since 2021, no claim this period"],
+    ["Insurer position","Pre-authorisation approved at ₹95,000. Final bill ₹1,20,000."],
+    ["Gap","₹25,000 — consumables and one non-payable item"],
+    ["Next","Insurer expects the itemised bill and the pharmacy list"]]},
+  {b:"note",v:"Read from the documents on file. Summaries are for reading, not deciding — the insurer and TPA decide the claim; this platform coordinates and records it."}
+],n:["c_summpdf","c_link","c_query"]},
+
+c_query:{k:"act",t:"Answer the insurer query",q:"Draft the reply to the ICICI Lombard query",b:[
+  {b:"para",v:"CLM-0402. The insurer asked why treatment ran four days beyond the initial estimate. Draft in English for them, Gujarati for the customer."},
+  {b:"act",title:"Query response — draft",tag:"Two languages",kv:[
+    ["To insurer","Treatment was extended on the treating doctor's advice following a delayed platelet recovery. The revised discharge summary and daily progress notes are attached in support."],
+    ["To customer","તમારા કેસમાં વીમા કંપનીએ સારવાર લંબાવવાનું કારણ પૂછ્યું છે. અમે ડૉક્ટરની સલાહ અને રિપોર્ટ મોકલી દીધા છે. કંપનીનો જવાબ આવતાં તરત જ તમને જણાવીશું."],
+    ["Attached","Revised discharge summary, daily progress notes"]],
+    hint:"Both drafts are editable. Send after you have read them.",
+    ok:"Send both", okDone:"Sent to insurer and customer. The query loop status is now visible to Rakesh in his own panel."},
+  {b:"note",v:"Writing the customer's half in their own language is a real task someone does by hand today, on every query, in three languages."}
+],n:["c_resched","c_mine","c_summpdf"]},
+
+c_docs:{k:"read",t:"Missing documents",q:"What documents are missing across my claims?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"CLM-0411 · Discharge summary",t2:"Checklist raised 18 days ago. Customer flagged for on-field collection.",rt:"Blocking",rc:"hot"},
+    {c:"warm",t1:"CLM-0412 · Itemised bill, pharmacy list",t2:"Upload link sent — opened, not completed.",rt:"Chase"},
+    {c:"cool",t1:"CLM-0402 · Progress notes",t2:"Received this morning, ready to attach.",rt:"Received"}
+  ]}
+],n:["c_link","c_summ","c_mine"]},
+
+c_link:{k:"act",t:"Send an upload link",q:"Send an upload link for the itemised bill",b:[
+  {b:"act",title:"Send document upload link",tag:"Cashless",kv:[
+    ["To","Rakesh Patel · 98xxxxxxx"],
+    ["Asking for","Itemised hospital bill, pharmacy list"],
+    ["Link","Tokenised, expires in 72 hours, no login required"],
+    ["On upload","Documents attach to CLM-0412 and you are notified"]],
+    hint:"Built for someone who has just left hospital — no app, no password.",
+    ok:"Send link", okDone:"Sent on WhatsApp. You will be notified on upload."}
+],n:["c_docs","c_resched","c_summpdf"]},
+
+c_resched:{k:"act",t:"Reschedule the follow-up",q:"Follow up with ICICI Lombard later this week",b:[
+  {b:"choice",title:"Reschedule insurer follow-up",tag:"CLM-0402 · ICICI Lombard",sub:"Currently: tomorrow, 10:00",
+   opts:["Thursday, 10:00","Friday, 15:00","Monday, 10:00","Pick a date"],
+   done:"Moved to {x}. If the insurer replies before then, the follow-up cancels itself."},
+  {b:"note",v:"That last part matters. A reminder that does not clear itself is how a team ends up chasing an insurer who already answered."}
+],n:["c_escal","c_mine","c_aged"]},
+
+c_escal:{k:"act",t:"Escalate to the insurer",q:"Escalate CLM-0398",b:[
+  {b:"act",title:"Escalate claim",tag:"CLM-0398 · 34 days",kv:[
+    ["To","Niva Bupa — claims escalation desk, from the Companies master"],
+    ["Carries","Claim number, both insurer references, dates of the two prior follow-ups, the full document list"],
+    ["Copied","The agent, and Vivek"],
+    ["Customer told","Yes — a plain-language update, not the escalation email"]],
+    hint:"Escalation sends the history, so nobody has to reconstruct it.",
+    ok:"Escalate", okDone:"Escalated. Customer updated in plain language; the agent is copied."}
+],n:["c_aged","c_summpdf","c_mine"]},
+
+c_aged:{k:"read",t:"Aged claims",q:"Which claims have aged past 30 days?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"CLM-0398 · Niva Bupa · 34 days",t2:"Last insurer contact 21 days ago. Customer has called twice this week.",rt:"Escalate",rc:"hot"},
+    {c:"hot",t1:"CLM-0402 · ICICI Lombard · 31 days",t2:"Aging is on our side — the query reply has not gone out.",rt:"Ours",rc:"hot"}
+  ]},
+  {b:"para",v:"Clear CLM-0402 first. It is waiting on us, not on the insurer."}
+],n:["c_query","c_escal","c_settle"]},
+
+c_summpdf:{k:"doc",t:"Claim summary",q:"Make a claim summary document",b:[
+  {b:"file",dk:"claimsum",name:"Claim Summary — CLM-0412 — Rakesh Patel.pdf",meta:"Timeline, document index, insurer correspondence, current position · 5 pages",note:"For the insurer desk, or for the customer's own record.",
+   done:"Generated and attached to the claim.",share:1},
+  {b:"note",v:"The same document doubles as the handover note when a claim moves between team members."}
+],n:["c_escal","c_mine","c_settle"]},
+
+c_settle:{k:"act",t:"Record settlement",q:"Record settlement on CLM-0412",b:[
+  {b:"stop",title:"Settlement amount",body:"Everything around it is filled — claim, policy, insurer, dates, claimed amount. <b>The settled figure and the deduction have to be typed by you</b>, from the insurer's advice. The platform records money; it does not decide it.",
+   inputs:["Settled amount","Deduction"]},
+  {b:"note",v:"A claim closes only with a settlement record and a mandatory company remark. Both are enforced by the module, not by the assistant."}
+],n:["c_mine","c_summpdf"]},
+
+/* ---------------- RENEWALS ---------------- */
+r_due:{k:"read",t:"Due this week",q:"Which renewals are due this week?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Bhavesh Trivedi · Motor · 28 Aug",t2:"Two reminders sent, no response. Last year ₹8,400.",rt:"4 days",rc:"hot"},
+    {c:"warm",t1:"Nilesh Bhatt · Health · 30 Aug",t2:"Insurer notice received. ₹24,600, up from ₹22,100.",rt:"6 days"},
+    {c:"warm",t1:"Falguni Shah · Travel · 31 Aug",t2:"No reminder sent yet.",rt:"7 days"},
+    {c:"cool",t1:"Ketan Modi · Health · 2 Sep",t2:"Already confirmed he intends to renew.",rt:"9 days",rc:"good"}
+  ]}
+],n:["r_silent","r_send","r_noticepdf"]},
+
+r_silent:{k:"read",t:"No response yet",q:"Who has not responded to two reminders?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Bhavesh Trivedi · Motor",t2:"Reminders 14 and 21 Aug. Both delivered, neither read.",rt:"4 days left",rc:"hot"},
+    {c:"hot",t1:"Jayesh Kapadia · Health",t2:"Reminders 10 and 18 Aug. Read, no reply.",rt:"9 days left",rc:"hot"},
+    {c:"warm",t1:"Pooja Rana · Motor",t2:"One reminder. Delivery failed once — the number may be stale.",rt:"12 days left"}
+  ]},
+  {b:"para",v:"Pooja's number looks bad. That is a call, not a third message."}
+],n:["r_resched","r_send","r_lapsed"]},
+
+r_ocr:{k:"read",t:"Notice ingest",q:"What came in from the insurer overnight?",b:[
+  {b:"para",v:"Niva Bupa sent a batch of <b>8 renewal notices</b>, each read through the Niva Bupa template."},
+  {b:"rows",r:[
+    {c:"good",t1:"6 matched cleanly",t2:"Policy number, insured name, renewal premium and expiry all matched.",rt:"Ready",rc:"good"},
+    {c:"warm",t1:"1 low confidence",t2:"Premium partly obscured on a scanned page. Needs your eyes.",rt:"Check"},
+    {c:"hot",t1:"1 unmatched",t2:"Policy number not found. Link manually or reject.",rt:"Blocked",rc:"hot"}
+  ]},
+  {b:"note",v:"The unmatched row cannot be included in a send-all. That guard sits in the module and the assistant cannot override it."}
+],n:["r_send","r_due","r_noticepdf"]},
+
+r_send:{k:"act",t:"Send the matched batch",q:"Send the 6 matched notices",b:[
+  {b:"act",title:"Send renewal notices",tag:"Bulk · 6 customers",kv:[
+    ["Sending","Each customer's own notice PDF, individually"],
+    ["Channel","WhatsApp — approved renewal template"],
+    ["Also creates","One renewal request per policy, into the pull queue"],
+    ["Excluded","2 rows — one low confidence, one unmatched"],
+    ["Message shows","This year's amount and the change from last year"]],
+    hint:"Six sends. The two flagged rows stay behind.",
+    ok:"Send all six", okDone:"Six notices sent, six renewal requests created, delivery logged per customer."},
+  {b:"note",v:"By hand this is open each row, download the notice, find the customer, attach, send — six times, and the seventh one gets sent to the wrong person eventually."}
+],n:["r_resched","r_ocr","r_due"]},
+
+r_resched:{k:"act",t:"Reschedule a reminder",q:"Push Bhavesh's next reminder",b:[
+  {b:"choice",title:"Reschedule reminder",tag:"Bhavesh Trivedi · Motor",sub:"Currently: tomorrow, 10:00 · policy expires 28 Aug",
+   opts:["This evening, 18:00","Tomorrow, 18:00","26 Aug, 10:00","Pick a date"],
+   done:"Moved to {x}. Still inside the expiry window, so the lapse rule does not fire early."},
+  {b:"note",v:"The assistant checks the new date against the expiry before accepting it. A reminder scheduled after the policy dies is worse than none."}
+],n:["r_silent","r_send","r_lapsed"]},
+
+r_noticepdf:{k:"doc",t:"Renewal notice",q:"Make the renewal notice for Nilesh",b:[
+  {b:"file",dk:"notice",name:"Renewal Notice — Nilesh Bhatt — IFFCO Tokio.pdf",meta:"Year-wise amounts, what changed, agency letterhead · design 2 of 3",note:"Shows ₹22,100 last year against ₹24,600 this year, and why.",
+   done:"Generated and sent on WhatsApp.",share:1},
+  {b:"note",v:"Showing last year's figure next to this year's is what stops the phone call that starts with why has it gone up."}
+],n:["r_due","r_send","r_resched"]},
+
+r_lapsed:{k:"read",t:"Lapsed last week",q:"Which policies lapsed last week?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Hitesh Parmar · Motor · lapsed 18 Aug",t2:"₹7,900 last year. Two reminders, no contact. The vehicle is now uninsured.",rt:"6 days",rc:"hot"},
+    {c:"hot",t1:"Nita Shah · Health · lapsed 19 Aug",t2:"₹19,400. Grace period ends 2 Sep — continuity still saveable.",rt:"Grace open",rc:"hot"},
+    {c:"warm",t1:"Deepak Joshi · Motor · lapsed 20 Aug",t2:"Told the agent he sold the vehicle. Needs confirming.",rt:"Verify"},
+    {c:"warm",t1:"Alka Vyas · Travel · lapsed 21 Aug",t2:"Single trip, likely intentional.",rt:"Likely closed"},
+    {c:"cool",t1:"Sanjay Patel · Health · lapsed 22 Aug",t2:"Moved to another agency per his last message.",rt:"Lost"}
+  ]},
+  {b:"para",v:"Nita Shah is the urgent one. Renewing inside the grace period keeps her waiting-period continuity — after 2 September it resets to zero."}
+],n:["r_grace","r_winback","r_resched"]},
+
+r_winback:{k:"act",t:"Build a win-back list",q:"Build a win-back list from the lapses",b:[
+  {b:"act",title:"Create win-back list",tag:"Campaign",kv:[
+    ["Includes","3 of 5 — Hitesh, Nita, Deepak"],
+    ["Excludes","Alka (single trip), Sanjay (moved agency)"],
+    ["Priority","Nita first — grace closes 2 Sep"],
+    ["Assigned","Renewals pool, pull mode"]],
+    hint:"Add the excluded two back before saving if you disagree.",
+    ok:"Create list", okDone:"Created with 3 policies, queued to the renewals pool."}
+],n:["r_lapsed","r_due"]},
+
+/* ---------------- PREMIUM MODE / INSTALMENTS ---------------- */
+p_monthly:{k:"read",t:"Monthly option",q:"Can he pay monthly?",b:[
+  {b:"para",v:"Two of the three allow instalments. Motor never does — the mode is a feature of the insurer's product, so it differs per column."},
+  {b:"table",h:["Product","Modes allowed","Grace","Annual equivalent"],cls:["","","",""],r:[
+    ["HDFC Ergo · Optima Secure","Annual · Half-yearly · Quarterly · Monthly","15 days monthly","Slightly higher on monthly"],
+    ["Niva Bupa · ReAssure 2.0","Annual · Half-yearly · Monthly","15 days monthly","Slightly higher on monthly"],
+    ["Bajaj Allianz · Health Guard","Annual only on this variant","30 days","—"]]},
+  {b:"note",v:"<b>Grace is shorter on monthly — 15 days, against 30 on every other mode.</b> Half the recovery window if a payment misses. Worth saying out loud at the point of sale, not at the point of lapse."},
+  {b:"para",v:"The instalment amount itself comes from the insurer. Enter it per column the same way as the annual figure."}
+],n:["p_compose","p_quotepdf","p_resched"]},
+
+/* ---------------- ADMIN: mode mix ---------------- */
+a_modemix:{k:"read",t:"Premium mode mix",q:"How much of the book is on instalments?",b:[
+  {b:"table",h:["Mode","Policies","Share","Payment events / yr"],cls:["","n","n","n"],r:[
+    ["Annual","612","68%","612"],
+    ["Monthly","141","16%","1,692"],
+    ["Quarterly","98","11%","392"],
+    ["Half-yearly","47","5%","94"]]},
+  {b:"para",v:"Instalment policies are <b>32% of the book but 82% of the payment events</b> — 2,178 collection moments a year against 612 for the annual half."},
+  {b:"rows",r:[
+    {c:"hot",t1:"Monthly mode carries a 15-day grace",t2:"Against 30 days on every other mode. Recovery time on a missed monthly instalment is half.",rt:"Risk",rc:"hot"},
+    {c:"warm",t1:"Most monthly policies run on a bank mandate",t2:"A bounced mandate is silent unless someone is watching for it.",rt:"Watch"},
+    {c:"good",t1:"Instalments widen the market",t2:"Health at ₹2,100 a month sells where ₹24,600 in one payment does not.",rt:"Upside",rc:"good"}
+  ]},
+  {b:"note",v:"This is the part a yearly-renewal system misses entirely. Twelve due dates and one expiry date are different objects, and only one of them is currently tracked."}
+],n:["a_why","a_report","a_rule"]},
+
+/* ---------------- RENEWALS: instalments ---------------- */
+r_instal:{k:"read",t:"Instalments due",q:"Which instalments fall due this week?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Jayesh Kapadia · Health · HDFC Ergo",t2:"Monthly ₹2,150 · due 26 Aug · mandate bounced last month",rt:"Bounced",rc:"hot"},
+    {c:"warm",t1:"Ketan Modi · Health · Niva Bupa",t2:"Monthly ₹1,890 · due 27 Aug · mandate active",rt:"Auto"},
+    {c:"warm",t1:"Rakesh Patel · Life · LIC",t2:"Quarterly ₹6,400 · due 28 Aug · NACH",rt:"Auto"},
+    {c:"cool",t1:"Falguni Shah · Health · Tata AIG",t2:"Monthly ₹1,240 · due 30 Aug · mandate active",rt:"Auto"},
+    {c:"cool",t1:"Manish Rathod · Life · LIC",t2:"Monthly ₹980 · due 1 Sep · salary savings scheme",rt:"Auto"}
+  ]},
+  {b:"para",v:"Four collect themselves. Jayesh is the one that needs a person — his mandate failed and the clock is short."},
+  {b:"note",v:"An instalment due date is not a renewal date. These five policies are all in force and none of them is expiring — they just owe a payment this week."}
+],n:["r_mandate","r_grace","r_due"]},
+
+r_mandate:{k:"act",t:"Chase a failed mandate",q:"Chase Jayesh's failed mandate",b:[
+  {b:"kv",title:"Jayesh Kapadia · HDFC Ergo · Health",tag:"Grace closing",kv:[
+    ["Mode","Monthly · ₹2,150"],
+    ["Failed","24 Aug — insufficient balance, second failure in three months"],
+    ["Grace","<b>15 days from due date</b> — closes 8 September"],
+    ["At risk if missed","Sum insured continuity, No Claim Bonus, and the waiting periods already served"],
+    ["Insurer allows","Direct payment while the mandate is pending re-presentation"]]},
+  {b:"act",title:"Send payment link and alert",tag:"Two actions",kv:[
+    ["To customer","Payment link for this month's instalment, valid until 8 September"],
+    ["Message says","Plainly: the bank payment did not go through, and what happens if it is not paid by the 8th"],
+    ["Also","Agent notified, and a follow-up task set for 1 September if still unpaid"]],
+    hint:"The amount is the insurer's instalment figure already on the policy.",
+    ok:"Send and set follow-up", okDone:"Link sent. Follow-up set for 1 September. Agent notified."},
+  {b:"note",v:"Two failures in three months is a pattern, not an accident. Worth a conversation about moving him to quarterly."}
+],n:["r_grace","r_instal","r_due"]},
+
+r_grace:{k:"read",t:"Inside grace period",q:"Who is inside a grace period right now?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Jayesh Kapadia · Health · monthly",t2:"Mandate failed 24 Aug. 15-day grace closes 8 Sep.",rt:"15 days",rc:"hot"},
+    {c:"hot",t1:"Nita Shah · Health · annual",t2:"Lapsed 19 Aug. 30-day grace closes 2 Sep. Continuity still saveable.",rt:"30 days",rc:"hot"},
+    {c:"warm",t1:"Deepak Joshi · Motor · annual",t2:"Expired 20 Aug. Motor has no grace — cover has already stopped.",rt:"No grace"}
+  ]},
+  {b:"note",v:"Three different clocks on one screen. Renewing inside grace protects sum insured, NCB, waiting periods and moratorium. After it closes, those reset — which is the real cost, not the premium."}
+],n:["r_mandate","r_winback","r_lapsed"]},
+
+/* ---------------- BACK-OFFICE: mandate ---------------- */
+b_mandate:{k:"act",t:"Register a mandate",q:"Set up the monthly mandate for Rakesh",b:[
+  {b:"act",title:"Register e-mandate",tag:"Monthly mode",kv:[
+    ["Customer","Rakesh Patel · HDFC Ergo · Optima Secure"],
+    ["Mode","Monthly — <b>instalment amount entered by you from the insurer's schedule</b>"],
+    ["Debit date","5th of each month"],
+    ["Mandate","e-NACH, set up through the insurer's link"],
+    ["System will watch","Every debit. A failure raises a task the same day, inside the 15-day grace"]],
+    hint:"The platform records the mandate and watches it. It never sets the amount.",
+    ok:"Register mandate", okDone:"Recorded. First debit 5 September. Failures will raise a same-day task."}
+],n:["b_collect","b_drafts","b_pack"]},
+
+/* ---------------- AGENT: dues in own book ---------------- */
+g_due:{k:"read",t:"Premiums due in my book",q:"What is due in my book this week?",b:[
+  {b:"rows",r:[
+    {c:"hot",t1:"Jayesh Kapadia · Health · monthly",t2:"₹2,150 · mandate bounced. Renewals team is on it, but he is your customer.",rt:"Bounced",rc:"hot"},
+    {c:"warm",t1:"Rakesh Patel · Life · LIC quarterly",t2:"₹6,400 due 28 Aug · NACH active",rt:"28 Aug"},
+    {c:"cool",t1:"Suresh Kumar · Health · annual",t2:"₹18,200 renews 12 Mar 2027",rt:"Later"}
+  ]},
+  {b:"para",v:"One call to Jayesh today is worth more than any of the follow-ups on your list — his waiting periods reset if this is not cleared by 8 September."}
+],n:["g_360","g_resched","g_leads"]},
+/* ---- added from the FR-derived action inventory ---- */
+a_user:{k:"act",t:"Add a user",q:"Add Meera to the renewals team",b:[
+  {b:"act",title:"Create user",tag:"FR-01",kv:[
+    ["Name","Meera Joshi"],["Type","Staff · Renewals"],
+    ["Template","Renewals team — cloned, unchanged"],
+    ["Scope","Team · renewal pool only"],
+    ["2FA","TOTP required at first sign-in"]],
+    hint:"Permission changes are audited separately from the user record.",
+    ok:"Create user", okDone:"Created. Enrolment link sent; she sets up TOTP on first sign-in."}
+],n:["a_audit","a_master","a_rule"]},
+
+a_master:{k:"act",t:"Add a master value",q:"Add a new endorsement type",b:[
+  {b:"act",title:"Add master value",tag:"FR-02",kv:[
+    ["Master","Endorsement Type"],["Value","Nominee change"],
+    ["Class","Non-financial"],["Used by","Endorsement form — appears immediately"],
+    ["Versioning","Existing records keep the version they were created against"]],
+    hint:"Deactivation only if the value is already in use — never deletion.",
+    ok:"Add value", okDone:"Added. Available on the endorsement form now."}
+],n:["a_product","a_user","a_rule"]},
+
+a_product:{k:"act",t:"Add a product",q:"Add Niva Bupa's new health product",b:[
+  {b:"act",title:"Create product and map benefits",tag:"FR-05",kv:[
+    ["Company","Niva Bupa — Health line"],
+    ["Product","Aspire · family floater"],
+    ["Checklist","Cloned from ReAssure 2.0 — 7 documents"],
+    ["Benefit map","14 catalog items, same as ReAssure 2.0"],
+    ["Commission %","<b>Left blank — you set it on the agency record</b>"]],
+    hint:"The benefit map is what makes it appear in the quotation composer.",
+    ok:"Create product", okDone:"Created. It appears in the composer once an agency has it in scope."}
+],n:["a_master","a_audit","a_comm"]},
+
+a_audit:{k:"read",t:"Audit trail",q:"Who changed Rakesh's policy last month?",b:[
+  {b:"rows",r:[
+    {c:"cool",t1:"Premium component edited",t2:"Priya Desai · 14 Aug 11:20 · GST 1,890 → 1,940 · reason recorded",rt:"Edit"},
+    {c:"cool",t1:"Document uploaded",t2:"Priya Desai · 14 Aug 11:24 · policy schedule",rt:"Upload"},
+    {c:"warm",t1:"Permission grant changed",t2:"Vivek Jagad · 2 Aug 09:05 · Priya given collection-verify",rt:"Access"}
+  ]},
+  {b:"note",v:"Append-only, retained a year minimum. Actions the Assistant took are attributed to the person who confirmed them, not to the Assistant."}
+],n:["a_retention","a_user","a_comm"]},
+
+a_retention:{k:"read",t:"Retention due",q:"What is coming up for retention or consent?",b:[
+  {b:"rows",r:[
+    {c:"warm",t1:"41 policies reach 10-year retention this quarter",t2:"IRDAI class — lock-and-retain, not deletion.",rt:"Review"},
+    {c:"cool",t1:"6 consent records expiring",t2:"Renewal reminders to those customers pause until re-consent.",rt:"6 records"},
+    {c:"cool",t1:"2 processor contracts due for review",t2:"WhatsApp BSP and OCR vendor.",rt:"Contracts"}
+  ]}
+],n:["a_audit","a_report","a_rule"]},
+
+p_revise:{k:"act",t:"Revise a quotation",q:"Mehta wants 15 lakh instead of 10",b:[
+  {b:"act",title:"Create revision",tag:"Version 2",kv:[
+    ["From","QTN-0329 v1 · 10L floater · 2 companies"],
+    ["Change","Sum insured 10L → 15L across both columns"],
+    ["Reason","<b>Required</b> — customer asked for higher cover"],
+    ["Version 1","Kept, unchanged and immutable"],
+    ["Premium","Blank again — the new figures come from the insurer"]],
+    hint:"Every revision keeps its predecessor. Nothing is overwritten.",
+    ok:"Create v2", okDone:"QTN-0329 v2 created. v1 remains on file."}
+],n:["p_quotepdf","p_stalled","p_resched"]},
+
+b_complete:{k:"act",t:"Complete a draft",q:"Finish the Mehta draft",b:[
+  {b:"act",title:"Complete and submit draft",tag:"POL-DRAFT-0219",kv:[
+    ["Now complete","Child's Aadhaar received and masked to last four"],
+    ["Nominee relationship","Spouse — from the consent submission"],
+    ["Still missing","<b>Insurer policy number</b> — comes from Niva Bupa"],
+    ["On save","Moves to issuance queue; the policy number gate stays"]],
+    hint:"KYC is complete, so the issuance gate opens.",
+    ok:"Submit draft", okDone:"Submitted to issuance. Waiting on the insurer's policy number."}
+],n:["b_stuck","b_endorse","b_pack"]},
+
+b_endorse:{k:"act",t:"Raise an endorsement",q:"Rakesh changed his address",b:[
+  {b:"para",v:"Non-financial correction. It applies to all three of his policies, so it needs three endorsements — one per insurer."},
+  {b:"act",title:"Raise endorsement",tag:"Non-financial",kv:[
+    ["Type","Address change"],
+    ["Policies","Health · Motor · Term life"],
+    ["Pre-filled","Everything from each policy; only the address is editable"],
+    ["Proof","Address proof already on file from the consent link"],
+    ["No commission delta","Non-financial — nothing changes on the ledger"]],
+    hint:"Financial endorsements take a different form and touch the ledger.",
+    ok:"Raise three", okDone:"Three endorsements raised. Each versions its policy on approval."}
+],n:["b_complete","b_collect","b_pack"]},
+
+c_intimate:{k:"act",t:"Intimate a new claim",q:"New claim for Nilesh Bhatt",b:[
+  {b:"act",title:"Intimate claim",tag:"FR-11",kv:[
+    ["Policy","Health · IFFCO Tokio — <b>active, verified</b>"],
+    ["Type","Reimbursement"],
+    ["Compulsory fields","Filled from the policy — insurer requires six"],
+    ["Intimation","Email to IFFCO Tokio's claim desk, agent copied"],
+    ["Checklist","Raised per company and product — 9 documents"]],
+    hint:"A claim on a lapsed policy stops here and routes to the agent instead.",
+    ok:"Intimate", okDone:"CLM-0419 raised. Intimation sent, checklist issued to the customer."}
+],n:["c_docs","c_mine","c_summpdf"]},
+
+c_analytics:{k:"read",t:"Settlement analysis",q:"Which insurer settles fastest, and who deducts most?",b:[
+  {b:"table",h:["Insurer","Claims","Median days","Avg deduction"],cls:["","n","n","n"],r:[
+    ["HDFC Ergo","31","<span class='up'>17</span>","6.2%"],
+    ["Niva Bupa","28","22","9.4%"],
+    ["ICICI Lombard","19","<span class='dn'>29</span>","<span class='dn'>14.1%</span>"],
+    ["Tata AIG","12","20","7.8%"]]},
+  {b:"para",v:"ICICI Lombard is slowest and deducts most. Worth feeding into the company remark so it shows at placement time, not just at claim time."}
+],n:["c_mine","c_escal","c_aged"]},
+
+r_link:{k:"act",t:"Link an unmatched notice",q:"Link the unmatched row",b:[
+  {b:"act",title:"Link notice to policy",tag:"Manual",kv:[
+    ["Notice","Niva Bupa · policy no. NB/2024/88213 · ₹31,400"],
+    ["No automatic match","That number is not on any policy in the system"],
+    ["Closest","Ramesh Bhatt · Niva Bupa health · similar expiry, different number"],
+    ["If you link it","The notice attaches and joins the next batch"],
+    ["If you reject it","It stays out of every send, permanently"]],
+    hint:"The system will not guess this one. Confirm the match yourself.",
+    ok:"Link to Ramesh Bhatt", okDone:"Linked. It joins the next batch send."}
+],n:["r_send","r_ocr","r_due"]},
+
+g_gap:{k:"read",t:"Coverage gaps in my book",q:"Where are the gaps in my customers' cover?",b:[
+  {b:"rows",r:[
+    {c:"warm",t1:"Rakesh Patel · second vehicle uninsured",t2:"Two vehicles on his profile, one motor policy. Motor renewal in 19 days is the moment to raise it.",rt:"Motor"},
+    {c:"warm",t1:"Suresh Kumar · no term cover",t2:"Health only, married with one child, aged 38.",rt:"Life"},
+    {c:"cool",t1:"Manish Rathod · health floater excludes parents",t2:"Parents live with him per the household record.",rt:"Health"}
+  ]},
+  {b:"note",v:"Read from the household and vehicle records already on file. Nothing here is guessed."}
+],n:["g_360","g_add","g_leads"]}
+};
+
+const KEYS=[
+ [/rakesh|patel/i,"g_360"],
+ [/audit|who changed/i,"a_audit"],
+ [/add.*(user|staff)/i,"a_user"],
+ [/gap|cross.?sell/i,"g_gap"],
+ [/endorse|address chang/i,"b_endorse"],
+ [/revis/i,"p_revise"],
+ [/monthly|instal|instalment|installment|emi|mode/i,"p_monthly"],
+ [/mandate|nach|bounce|failed payment/i,"r_mandate"],
+ [/grace/i,"r_grace"],
+ [/due this week|premium due/i,"r_instal"],
+ [/commission by|by agency/i,"a_comm"],
+ [/why.*(drop|down|fell)/i,"a_why"],
+ [/monthly report|business report/i,"a_report"],
+ [/statement/i,"a_stmt"],
+ [/45 day|change.*rule|reminder rule/i,"a_rule"],
+ [/unassigned/i,"p_unassigned"],
+ [/tat|breach/i,"p_tatrisk"],
+ [/pipeline/i,"p_pipeline"],
+ [/stalled|gone quiet|no reply/i,"p_stalled"],
+ [/reschedul|push|postpone|move.*(follow|visit|reminder)/i,"p_resched"],
+ [/quotation|quote|compare/i,"p_quote"],
+ [/wallet|payout/i,"g_wallet"],
+ [/my lead|leads/i,"g_leads"],
+ [/policy copy|send.*policy/i,"g_policypdf"],
+ [/draft/i,"b_drafts"],
+ [/kyc/i,"b_kyc"],
+ [/ocr|notice/i,"b_ocr"],
+ [/stuck|issuance/i,"b_stuck"],
+ [/collect|cash|payment/i,"b_collect"],
+ [/pack/i,"b_pack"],
+ [/summar/i,"c_summ"],
+ [/query|gujarati/i,"c_query"],
+ [/escalat/i,"c_escal"],
+ [/settle/i,"c_settle"],
+ [/lapsed|win.?back/i,"r_lapsed"],
+ [/renewal|due this week/i,"r_due"],
+ [/claim/i,"c_mine"]
+];
+
+const AIITEM=["AI Assistant","spark",null,1];
+
+const NAV={
+ admin:[
+  ["Assistant",[AIITEM]],
+  ["Front office",[["Sales & inquiries","inbox","18"],["Quotations","doc","7"],["Customers","users"],["Customer panel","shield"]]],
+  ["Operations",[["Policy lifecycle","doc"],["Claims","alert","12"],["Renewals","clock","34"],["Endorsements","edit"],["Back-office","grid"],["Tasks & activity","check"]]],
+  ["Money",[["Commission","coin"]]],
+  ["Records",[["Document vault + OCR","folder"],["Reports & dashboards","chart"]]],
+  ["Configuration",[["Users, roles & 2FA","users"],["Masters","gear"],["Form builder (SKU)","doc"],["Companies","building"],["Products","shield"],["Agency & agents","users"],["Communication templates","inbox"],["Integrations","plug"],["Automation engine","spark"],["Compliance spine","lock"]]]
+ ],
+ sales:[
+  ["Assistant",[AIITEM]],
+  ["Front office",[["Pipeline","grid","18"],["Inquiries","inbox","7"],["Quotations","doc","7"],["Deals","check","2"],["Customers","users"]]],
+  ["My work",[["Tasks & activity","clock","9"],["Team","users"],["Reports","chart"]]],
+  ["Reference",[["Companies","building"],["Products","shield"],["Document vault","folder"]]]
+ ],
+ agent:[
+  ["Assistant",[AIITEM]],
+  ["My book",[["My customers","users","14"],["My leads","inbox","6"],["Visits","clock","2"]]],
+  ["Money",[["My wallet","wallet"]]],
+  ["Reference",[["Products","shield"],["Documents","folder"]]]
+ ],
+ backoffice:[
+  ["Assistant",[AIITEM]],
+  ["My queue",[["Work queue","grid","21"],["Policy drafts","doc","6"],["KYC","lock","4"],["Issuance","check","3"],["Collections","coin","3"]]],
+  ["Servicing",[["Endorsements","edit"],["Renewals","clock"],["Claims support","alert"]]],
+  ["Records",[["Document vault + OCR","folder","8"],["Customers","users"],["Reports","chart"]]]
+ ],
+ claims:[
+  ["Assistant",[AIITEM]],
+  ["Claims",[["Claim queue","inbox","4"],["My claims","alert","7"],["Insurer queries","edit","2"],["Settlements","coin"],["Checklists","check","3"]]],
+  ["Reference",[["Policies","doc"],["Customers","users"],["Document vault","folder"],["Companies","building"]]]
+ ],
+ renewals:[
+  ["Assistant",[AIITEM]],
+  ["Renewals",[["Renewal pool","grid","34"],["Due this week","clock","4"],["Instalments due","coin","5"],["Notice ingest","inbox","8"],["Reminders","edit","12"],["Lapsed","alert","5"]]],
+  ["Reference",[["Policies","doc"],["Customers","users"],["Document vault","folder"]]]
+ ]
+};
+
+const PUSH={
+ admin:{b:[
+  {b:"para",v:"Two claims crossed 30 days this morning — <b>CLM-0398</b> at 34 days and <b>CLM-0402</b> at 31. CLM-0402 is waiting on us, not the insurer."},
+  {b:"note",v:"Raised because both passed the aging threshold overnight, not because anyone asked."}],
+  n:["a_claimage","a_report","a_why"]},
+ sales:{b:[
+  {b:"para",v:"<b>INQ-1036</b> breaches its TAT in under three hours. It is assigned to Rohit but was never confirmed, so it looks handled and is not."}],
+  n:["p_escalate","p_tatrisk","p_assign"]},
+ agent:{b:[
+  {b:"para",v:"<b>Jayesh Kapadia's</b> bank mandate failed this morning. His grace period closes on 8 September — after that his waiting periods reset to zero."}],
+  n:["g_due","g_360","g_resched"]},
+ backoffice:{b:[
+  {b:"para",v:"The overnight OCR batch finished. <b>Six rows matched cleanly</b>, one needs your eyes on the premium, one has no policy match and cannot be sent."}],
+  n:["b_ocr","b_stuck","b_missing"]},
+ claims:{b:[
+  {b:"para",v:"<b>ICICI Lombard</b> sent the progress notes you asked for on CLM-0402. The query reply can go out now — it has been open 31 days."}],
+  n:["c_query","c_aged","c_mine"]},
+ renewals:{b:[
+  {b:"para",v:"<b>Jayesh Kapadia's</b> monthly mandate bounced. Monthly mode carries a 15-day grace, so this one closes 8 September rather than the usual 30."}],
+  n:["r_mandate","r_grace","r_instal"]}
+};
+
+/* ============================================================
+   DOCUMENTS — rendered as pages in the drawer
+   Each is what the module actually produces on agency letterhead.
+   ============================================================ */
+const DOCS = {
+
+quote:{ title:"Quotation", file:"Quotation — Rakesh Patel — 3 companies.pdf", pages:2,
+ head:{ref:"QTN-0332", date:"24 August 2026", to:"Rakesh Patel"},
+ body:[
+  {t:"h", v:"Health Insurance — Comparison"},
+  {t:"meta", r:[["Proposer","Rakesh Patel · 98xxxxxxx · Surat"],
+               ["Members","2 adults · 1 child"],
+               ["Dates of birth","12 Mar 1984 · 08 Jul 1988 · 21 Nov 2018"],
+               ["Cover type","Family floater"],["Sum insured","₹10,00,000"],
+               ["Portability","Yes — existing cover ported"]]},
+  {t:"tbl", h:["Benefit","HDFC Optima","Niva Bupa","Bajaj Health Guard"],
+   r:[["Sum insured","₹10,00,000","₹10,00,000","₹10,00,000"],
+      ["Room rent","No cap","No cap","1% of SI"],
+      ["Restore benefit","Yes","Yes, 2x","No"],
+      ["Pre-existing wait","36 months","36 months","48 months"],
+      ["Day-care procedures","All listed","All listed","All listed"],
+      ["Maternity","After 36 mo","After 48 mo","Not covered"],
+      ["Pre-hospitalisation","60 days","60 days","30 days"],
+      ["Post-hospitalisation","180 days","180 days","60 days"],
+      ["Annual health check","Yes","Yes","After 2 years"],
+      ["Ambulance","₹2,000 / event","Actual","₹1,500 / event"],
+      ["AYUSH cover","Up to SI","Up to SI","Up to 25%"],
+      ["Domiciliary","Covered","Covered","Not covered"],
+      ["Co-payment","Nil","Nil","10% above 60"],
+      ["No-claim bonus","50% / year","50% / year","25% / year"]]},
+  {t:"prem", label:"Final payable premium", note:"Entered from each insurer's quote",
+   r:[["HDFC Optima","₹24,780"],["Niva Bupa","₹26,150"],["Bajaj Health Guard","₹21,400"]]},
+  {t:"p", v:"Premium figures are as quoted by the respective insurers and are valid for 15 days from the date of this document. Benefits shown are indicative; the policy wording of the chosen insurer prevails."},
+  {t:"sign", by:"Nikunj Shah", role:"Sales"}
+]},
+
+schedule:{ title:"Policy Schedule", file:"Policy Schedule — Rakesh Patel — HDFC Ergo.pdf", pages:4,
+ head:{ref:"POL-4419", date:"04 March 2026", to:"Rakesh Patel"},
+ body:[
+  {t:"h", v:"HDFC Ergo · Optima Secure — Family Floater"},
+  {t:"meta", r:[["Insurer policy no.","2825 1049 7731 00"],["System reference","POL-4419"],
+               ["Period of insurance","04 Mar 2026 to 03 Mar 2027"],
+               ["Sum insured","₹10,00,000 floater"],
+               ["Premium mode","Monthly · ₹2,050 · e-NACH, 5th of each month"],
+               ["Nominee","Spouse"]]},
+  {t:"tbl", h:["Insured person","Relationship","Date of birth","Age"],
+   r:[["Rakesh Patel","Self","12 Mar 1984","42"],
+      ["Priyanka Patel","Spouse","08 Jul 1988","38"],
+      ["Aarav Patel","Son","21 Nov 2018","8"]]},
+  {t:"tbl", h:["Premium component","Amount"],
+   r:[["Net premium","₹20,847"],["GST at 18%","₹3,752"],["Total annual","₹24,599"],["Monthly instalment","₹2,050"]]},
+  {t:"p", v:"Agency: Jagad Insurance · Individual agency code JI-0001. In case of a claim, contact your agent or the agency claim desk before approaching the hospital."},
+  {t:"sign", by:"Jagad Insurance", role:"Placement agency"}
+]},
+
+pack:{ title:"Policy Pack", file:"Policy Pack — Rakesh Patel — HDFC Ergo.pdf", pages:11,
+ head:{ref:"PACK-0119", date:"24 August 2026", to:"Rakesh Patel"},
+ body:[
+  {t:"h", v:"Your policy documents"},
+  {t:"p", v:"Dear Mr. Patel, please find enclosed the complete set of documents for your health policy. Keep this pack safe — you will need the policy number at the time of a claim."},
+  {t:"tbl", h:["#","Document","Pages"],
+   r:[["1","Covering letter","1"],["2","Policy schedule — HDFC Ergo","4"],
+      ["3","Proposal form copy","3"],["4","Premium receipt","1"],
+      ["5","KYC acknowledgement","1"],["6","Claim intimation card","1"]]},
+  {t:"meta", r:[["Policy number","2825 1049 7731 00"],
+               ["Claim intimation","HDFC Ergo claim desk — number on the card at page 11"],
+               ["Your agent","Kiran Solanki · 97xxxxxxx"],
+               ["Agency desk","Jagad Insurance, Surat"]]},
+  {t:"p", v:"Cashless treatment is available at network hospitals. For reimbursement claims, intimate within 48 hours of admission."},
+  {t:"sign", by:"Priya Desai", role:"Back-office"}
+]},
+
+claimsum:{ title:"Claim Summary", file:"Claim Summary — CLM-0412 — Rakesh Patel.pdf", pages:5,
+ head:{ref:"CLM-0412", date:"24 August 2026", to:"HDFC Ergo — Claims desk"},
+ body:[
+  {t:"h", v:"Claim summary and current position"},
+  {t:"meta", r:[["Insured","Rakesh Patel · policy 2825 1049 7731 00"],
+               ["Claim type","Cashless"],["Hospital","Kiran Hospital, Surat"],
+               ["Admitted","12 August 2026"],["Discharged","16 August 2026"],
+               ["Diagnosis","Dengue with thrombocytopenia"],
+               ["Amount claimed","₹1,20,000"],["Pre-authorised","₹95,000"]]},
+  {t:"tbl", h:["Date","Event","By"],
+   r:[["12 Aug","Pre-authorisation requested","Kiran Hospital"],
+      ["12 Aug","Approved at ₹95,000","HDFC Ergo"],
+      ["16 Aug","Discharged; final bill ₹1,20,000","Kiran Hospital"],
+      ["16 Aug","Claim raised, checklist issued","Jagad Insurance"],
+      ["18 Aug","Discharge summary received","Customer"],
+      ["24 Aug","Itemised bill and pharmacy list requested","Jagad Insurance"]]},
+  {t:"tbl", h:["Document","Status"],
+   r:[["Discharge summary","Received"],["Pre-auth approval","Received"],
+      ["Final hospital bill","Received"],["Itemised bill","Awaited"],
+      ["Pharmacy list","Awaited"],["ID and policy copy","Received"]]},
+  {t:"p", v:"Gap between pre-authorisation and final bill is ₹25,000, comprising consumables and one non-payable item. The itemised bill has been requested from the insured and will follow."},
+  {t:"sign", by:"Amit Rana", role:"Claims"}
+]},
+
+notice:{ title:"Renewal Notice", file:"Renewal Notice — Nilesh Bhatt — IFFCO Tokio.pdf", pages:1,
+ head:{ref:"REN-0884", date:"24 August 2026", to:"Nilesh Bhatt"},
+ body:[
+  {t:"h", v:"Your health policy is due for renewal"},
+  {t:"meta", r:[["Policy number","IT/HLT/2025/44821"],["Insurer","IFFCO Tokio"],
+               ["Expiry date","30 August 2026"],["Sum insured","₹5,00,000"],
+               ["Cover type","Individual"]]},
+  {t:"tbl", h:["Year","Premium","Change"],
+   r:[["2024-25","₹20,600","—"],["2025-26","₹22,100","+7.3%"],["2026-27","₹24,600","+11.3%"]]},
+  {t:"p", v:"This year's increase reflects age-band movement and a revision in the insurer's base rate. Your no-claim bonus of 25% has been carried forward and is already applied to the figure above."},
+  {t:"p", v:"To renew, reply to this message or call your agent. Renewing before 30 August keeps your waiting periods and no-claim bonus intact. A 30-day grace period applies after expiry."},
+  {t:"sign", by:"Sneha Patel", role:"Renewals"}
+]},
+
+report:{ title:"Business Report", file:"Jagad — Business Report, August 2026.pdf", pages:9,
+ head:{ref:"RPT-0826", date:"24 August 2026", to:"Vivek Jagad"},
+ body:[
+  {t:"h", v:"Business summary — August 2026, month to date"},
+  {t:"tbl", h:["Measure","MTD","Last month","Change"],
+   r:[["Policies issued","47","52","-9.6%"],["Premium booked","₹8,20,400","₹8,74,100","-6.1%"],
+      ["Commission booked","₹94,180","₹1,02,800","-8.4%"],
+      ["New customers","19","23","-17.4%"],["Renewal conversion","71%","75%","-4 pts"]]},
+  {t:"tbl", h:["Line","Policies","Premium","Commission"],
+   r:[["Health","24","₹4,62,000","₹52,400"],["Motor","13","₹1,18,900","₹14,200"],
+      ["Life","7","₹2,10,500","₹23,100"],["Travel","3","₹29,000","₹4,480"]]},
+  {t:"tbl", h:["Agency channel","Q2","Q3","Change"],
+   r:[["Own code — Health","₹1,84,200","₹2,06,400","+12.1%"],
+      ["Own code — Motor","₹1,42,800","₹98,600","-30.9%"],
+      ["Broker — Shreeji","₹96,400","₹1,11,300","+15.5%"],
+      ["Broker — Anand Ins.","₹74,100","₹58,900","-20.5%"],
+      ["Own code — Life","₹68,300","₹71,200","+4.2%"]]},
+  {t:"p", v:"Commission fell 8.4% against last month. Two drivers account for most of it: motor renewals down 31 policies, and Anand Insurance moving pay-in from 12% to 9% on 14 placed policies from 1 August. Health new business grew by 22 policies and partly offsets both."},
+  {t:"p", v:"Twelve claims remain open, of which two have aged past 30 days. CLM-0402 is awaiting a response from our side, not the insurer's."},
+  {t:"sign", by:"Generated by Assistant", role:"Figures read from the ledgers at generation time"}
+]},
+
+stmt:{ title:"Commission Statement", file:"Commission Statement — Q3 FY26-27.pdf", pages:3,
+ head:{ref:"CST-Q3-2627", date:"24 August 2026", to:"Accounts"},
+ body:[
+  {t:"h", v:"Commission statement — Q3 FY 2026-27"},
+  {t:"meta", r:[["Agency","Jagad Insurance"],["GSTIN","24AABCJ1234K1ZP"],
+               ["Period","01 Jul 2026 to 30 Sep 2026"],["Basis","Accrual on issuance"]]},
+  {t:"tbl", h:["Channel","Pay-in","Agent pay-out","Net"],
+   r:[["Own code — Health","₹2,06,400","₹61,920","₹1,44,480"],
+      ["Own code — Motor","₹98,600","₹29,580","₹69,020"],
+      ["Own code — Life","₹71,200","₹21,360","₹49,840"],
+      ["Broker — Shreeji","₹1,11,300","₹33,390","₹77,910"],
+      ["Broker — Anand Ins.","₹58,900","₹17,670","₹41,230"]]},
+  {t:"tbl", h:["Tax","Rate","Amount"],
+   r:[["Taxable value","—","₹5,46,400"],["CGST","9%","₹49,176"],["SGST","9%","₹49,176"],["Total","—","₹6,44,752"]]},
+  {t:"p", v:"Sub-agent shares are carved from the agent pay-out shown above and are detailed in the wallet ledger on page 3. This statement is a record of amounts entered against issued policies; it is not an invoice."},
+  {t:"sign", by:"Jagad Insurance", role:"Accounts export"}
+]}
+};
+
+const KINDS=[
+ ["Ask","#7b8794","",  "Fetch something you would otherwise navigate to. Nothing changes; it just arrives faster than opening four screens.",
+  ["Show my follow-ups today","What is missing on the Mehta file","Rakesh Patel","Which instalments fall due this week","Who is inside a grace period"]],
+ ["Analyse","#b7791f","", "A question a report cannot answer, because the answer is a reason rather than a number. Every figure is read from the ledgers.",
+  ["Why did commission drop in Q3","Which agent converts renewals best","Which insurer settles slowest","How much of the book is on instalments"]],
+ ["Act","#2E6FB0","Act","Change something in the system. Every one of these shows what it is about to do and waits for you to confirm. Cancel writes nothing.",
+  ["Assign these four inquiries","Push Rakesh's follow-up to Thursday","Send the six matched notices","Record ₹8,400 collected from Bhavesh","Chase a failed mandate","Escalate CLM-0398","Mark it won"]],
+ ["Produce","#5b4bb5","PDF","Generate a document from data already in the system, on agency letterhead, ready to send.",
+  ["Quotation, single or side-by-side","Policy pack for a customer","Claim summary","Renewal notice with year-wise amounts","Monthly business report","Commission statement"]]
+];
+
+const BA=[
+ ["Reschedule a follow-up","Open the CRM, search the lead, open the record, edit the date, save — then remember the reminder is a separate object","Two taps. Task, reminder and customer message all move together","~3 min"],
+ ["Send a quotation","Open the composer, select products, type every benefit row, generate, download, find the customer, attach, send","One request fills the matrix from the catalog. You type the premium and send","~15 min"],
+ ["Answer \"where is my claim\"","Open the claim, read through a dozen documents, piece the position together","One summary with the current position and what is outstanding","~10 min"],
+ ["Chase an insurer","Find the desk contact, write the mail, look up the references, attach the proofs","Draft ready with references and attachments, waiting on your read","~6 min"],
+ ["Send a renewal batch","Open each row, download the notice, find the customer, attach, send, repeat","Review the matched rows, send all — each customer gets their own notice","~40 min"],
+ ["Explain a commission drop","Pull three reports, cross-check by channel, by agent, by month","One answer naming the three drivers, with the numbers behind each","~30 min"],
+ ["Give a customer their policy copy","Find the file in the vault, download, forward from your own phone","One request, sent on WhatsApp and saved to their documents","~4 min"]
+];
+
+const NEVER=[
+ ["Produce a money figure","No premium, settlement, refund or endorsement delta is ever calculated or suggested. Staff type it; the platform adds up what was typed."],
+ ["Write to the commission ledger","Read and analyse, from any role including admin. Changes stay in the commission module with their own approval trail."],
+ ["Send or save without confirming","Every action shows what it will do and waits. Cancel writes nothing."],
+ ["Cross a permission boundary","It runs as you. An agent asking about a customer they did not source gets nothing back."],
+ ["Commit what OCR read","Extracted values stay flagged until a person confirms them. An unmatched row cannot be included in a bulk send."],
+ ["Decide a claim","The insurer and TPA decide. The platform coordinates, records and chases."]
+];
+
+const RSUM=[
+ ["ADMIN","#37424f","Why numbers moved, channel and agent comparisons, claims aging, premium mode mix, audit trail","Adjust a rule, add users and masters, add a product, rebalance workload","Business report, commission statement"],
+ ["SALES","#2E6FB0","Unassigned work, TAT at risk, stalled quotations, pipeline by stage","Assign, reschedule, nudge, escalate, revise, mark won or lost","Quotation — single or side-by-side"],
+ ["AGENT","#0d8a8a","Own leads and customers, customer 360, coverage gaps, dues, wallet","Add an inquiry, reschedule a visit, raise a claim","Policy copy for a customer"],
+ ["BACK-OFFICE","#7c3fa0","Drafts, KYC gaps, OCR queue, what is missing on a file","Complete a draft, raise an endorsement, chase the insurer, record a collection","Policy pack"],
+ ["CLAIMS","#c04545","Claim summary from documents, aged claims, missing papers, settlement analysis","Intimate, send an upload link, answer a query in two languages, escalate","Claim summary"],
+ ["RENEWALS","#c9711b","Due, silent, lapsed, instalments due, who is inside grace","Send a batch, chase a mandate, link an unmatched notice, build win-back","Renewal notice"]
+];
+
+/* ============================================================
+   Assistant — application layer
+   ============================================================ */
+Object.assign(ICON, EXTRA_ICONS);
+const ic = n => `<svg class="ic" viewBox="0 0 16 16" fill="currentColor">${ICON[n]||ICON.grid}</svg>`;
+
+let cur = "admin", seq = 0, view = "chat", pushTimer = null, pushed = {};
+
+const el = h => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstElementChild };
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const qq = s => String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+const feed = () => document.getElementById('feed');
+const down = () => { const f = feed(); f.scrollTop = f.scrollHeight };
+
+const WHO  = `<div class="who"><span class="d"></span>Assistant</div>`;
+const WHOP = `<div class="who"><span class="d"></span>Assistant · noticed just now</div>`;
+const TICK = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8.4l3.2 3.2L13 5" stroke="#2c7a4b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/* ── sidebar ───────────────────────────────────────────── */
+function sidebar(){
+  const r = ROLES[cur];
+  const tree = (NAV[cur]||[]).map((g,gi) =>
+    `<div class="sec ${gi===0?'first':''}">${g[0]}</div>` +
+    g[1].map(n => `<div class="item ${n[3]&&view==='chat'?'on':''} ${n[3]?'link':''}" ${n[3]?`onclick="show('chat')"`:''}>${ic(n[1])}<span>${n[0]}</span>${n[2]?`<span class="ct">${n[2]}</span>`:''}</div>`).join('')
+  ).join('');
+
+  document.getElementById('side').innerHTML =
+   `<div class="brand"><div class="m"><svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.6l5.4 2v4.6c0 3.2-2.2 5.5-5.4 6.7C4.8 13.7 2.6 11.4 2.6 8.2V3.6z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <div class="n">Jagad Insurance</div></div>
+    <button class="newbtn" onclick="fresh()">${ic('plus')}<span>New conversation</span></button>
+    <div class="scroll">${tree}
+      <div class="sec">Help</div>
+      <div class="item link ${view==='cap'?'on':''}" onclick="show('cap')">${ic('book')}<span>What Assistant can do</span></div>
+    </div>
+    <div class="foot"><div class="av">${r.av}</div><div><div class="nm">${r.who}</div><div class="rl">${r.role}</div></div></div>
+    <div class="swap"><label>View as</label>
+      <select id="psel" aria-label="Switch persona">
+        ${Object.entries(ROLES).map(([id,x]) => `<option value="${id}" ${id===cur?'selected':''}>${x.who} — ${x.label.charAt(0)+x.label.slice(1).toLowerCase()}</option>`).join('')}
+      </select></div>`;
+  document.getElementById('psel').onchange = e => { cur = e.target.value; fresh() };
+}
+
+function header(){
+  const r = ROLES[cur];
+  document.documentElement.style.setProperty('--role', r.raw);
+  document.getElementById('ctitle').textContent = 'New conversation';
+  document.getElementById('csub').textContent = r.who + ' · ' + r.role;
+  const t = document.getElementById('pselTop');
+  t.innerHTML = Object.entries(ROLES).map(([id,x]) => `<option value="${id}" ${id===cur?'selected':''}>${x.who} — ${x.label.charAt(0)+x.label.slice(1).toLowerCase()}</option>`).join('');
+  t.onchange = e => { cur = e.target.value; fresh() };
+}
+
+/* ── suggestions ───────────────────────────────────────── */
+function sugs(ids){
+  const s = document.getElementById('sug'); s.innerHTML = '';
+  (ids||[]).forEach((id,i) => {
+    const d = C[id]; if(!d) return;
+    const cls = d.k === 'act' ? 'act' : (d.k === 'doc' ? 'doc2' : 'read');
+    const mt  = d.k === 'act' ? 'Act' : (d.k === 'doc' ? 'PDF' : '');
+    const b = el(`<button class="chip ${cls}" style="animation-delay:${i*30}ms">${esc(d.t)}${mt?`<span class="mt">${mt}</span>`:''}</button>`);
+    b.onclick = () => fire(id); s.appendChild(b);
+  });
+}
+
+/* ── block renderer ────────────────────────────────────── */
+function blk(b){
+  if(b.b === 'para') return `<p>${b.v}</p>`;
+  if(b.b === 'note') return `<div class="blk"><div class="note">${b.v}</div></div>`;
+  if(b.b === 'rows') return `<div class="blk"><div class="rows">` + b.r.map(x =>
+      `<div class="row ${x.c||''}"><span class="mk"></span><div class="mn"><div class="t1">${x.t1}</div><div class="t2">${x.t2}</div></div>${x.rt?`<div class="rt ${x.rc||''}">${x.rt}</div>`:''}</div>`).join('') + `</div></div>`;
+  if(b.b === 'table') return `<div class="blk"><div class="sx"><table class="dt"><thead><tr>` +
+      b.h.map((h,i)=>`<th class="${b.cls[i]||''}">${h}</th>`).join('') + `</tr></thead><tbody>` +
+      b.r.map(r=>`<tr>`+r.map((c,i)=>`<td class="${b.cls[i]||''}">${c}</td>`).join('')+`</tr>`).join('') +
+      `</tbody></table></div></div>`;
+  if(b.b === 'kv') return `<div class="blk"><div class="h">${b.title}${b.tag?`<span class="tg">${b.tag}</span>`:''}</div><dl class="kv">` +
+      b.kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('') + `</dl></div>`;
+  if(b.b === 'act'){
+    const id = 'g'+(++seq);
+    return `<div class="blk" id="${id}"><div class="h">${b.title}${b.tag?`<span class="tg">${b.tag}</span>`:''}</div><dl class="kv">` +
+      b.kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('') + `</dl>` +
+      `<div class="gate"><span class="hint">${b.hint}</span>` +
+      `<button class="btn" onclick="no('${id}')">Cancel</button>` +
+      `<button class="btn pri" onclick="yes('${id}','${qq(b.okDone)}')">${b.ok}</button></div></div>`;
+  }
+  if(b.b === 'choice'){
+    const id = 'g'+(++seq);
+    return `<div class="blk" id="${id}"><div class="h">${b.title}${b.tag?`<span class="tg">${b.tag}</span>`:''}</div>` +
+      `<div class="note" style="border-top:none">${b.sub}</div>` +
+      `<div class="opts"><span class="ol">Pick one</span>` +
+      b.opts.map(o=>`<button class="opt" onclick="pick('${id}','${qq(o)}','${qq(b.done)}')">${o}</button>`).join('') + `</div></div>`;
+  }
+  if(b.b === 'file'){
+    const id = 'g'+(++seq);
+    noteDoc(b.dk);
+    return `<div class="blk" id="${id}"><div class="h">Document ready<span class="tg">Generated</span></div>` +
+      `<div class="doc"><div class="doci"><i></i><i></i><i></i></div>` +
+      `<div><div class="docn">${b.name}</div><div class="docm">${b.meta}<br>${b.note}</div></div></div>` +
+      `<div class="gate"><span class="hint">Nothing is sent until you send it.</span>` +
+      `<button class="btn" onclick="openDoc('${b.dk||''}')">Open</button>` +
+      `<button class="btn pri" onclick="yes('${id}','${qq(b.done)}')">${b.share?'Share on WhatsApp':'Save and send'}</button></div></div>`;
+  }
+  if(b.b === 'stop') return `<div class="blk stop"><div class="h">${b.title}<span class="tg">Entered by you</span></div>` +
+      `<div class="stopb">${b.body}</div><div class="prem"><span class="pl">Type the figure</span>` +
+      b.inputs.map(p=>`<input class="pin" placeholder="${p}">`).join('') + `</div></div>`;
+  return '';
+}
+function yes(id,msg){ const n=document.getElementById(id); if(!n)return;
+  n.querySelector('.gate').outerHTML = `<div class="done">${TICK}<span>${msg}</span></div>`; down() }
+function no(id){ const n=document.getElementById(id); if(!n)return;
+  n.querySelector('.gate').outerHTML = `<div class="note"><b>Cancelled.</b> Nothing was written.</div>` }
+function pick(id,label,tpl){ const n=document.getElementById(id); if(!n)return;
+  n.querySelector('.opts').outerHTML = `<div class="done">${TICK}<span>${tpl.replace('{x}',label)}</span></div>`; down() }
+
+
+/* ============================================================
+   DOCUMENT DRAWER — renders what the module produced
+   ============================================================ */
+let made = [], openKey = null, mode = 'doc', maxed = false, drawW = 440;
+const DRAW_MIN = 330, DRAW_DEF = 440;
+
+const LOGO = `<div class="lm"><svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+  <path d="M8 1.6l5.4 2v4.6c0 3.2-2.2 5.5-5.4 6.7C4.8 13.7 2.6 11.4 2.6 8.2V3.6z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
+
+function pageHTML(d){
+  const parts = d.body.map(s => {
+    if(s.t === 'h')    return `<h4>${s.v}</h4>`;
+    if(s.t === 'p')    return `<p>${s.v}</p>`;
+    if(s.t === 'meta') return `<dl class="mt">${s.r.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+    if(s.t === 'tbl')  return `<div class="ptw"><table><thead><tr>${s.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead>` +
+      `<tbody>${s.r.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if(s.t === 'prem') return `<div class="pr"><div class="prh"><span>${s.label}</span><span>${s.note}</span></div>` +
+      s.r.map(([k,v])=>`<div class="prr"><span>${k}</span><span>${v}</span></div>`).join('') + `</div>`;
+    if(s.t === 'sign') return `<div class="sg"><b>${s.by}</b>${s.role}</div>`;
+    return '';
+  }).join('');
+  return `<div class="page">
+    <div class="lh">${LOGO}
+      <div><div class="ln">Jagad Insurance</div><div class="la">Since 1998 · Surat, Gujarat<br>Insurance agency · IRDAI registered</div></div>
+      <div class="lr"><b>${d.head.ref}</b><br>${d.head.date}<br>${d.head.to}</div>
+    </div>${parts}</div>
+    <div class="pgn">Page 1 of ${d.pages}</div>`;
+}
+
+function applyW(){
+  const d = document.getElementById('draw');
+  if(maxed || !d.classList.contains('open')) return;
+  d.style.flexBasis = drawW + 'px'; d.style.width = drawW + 'px';
+}
+function startDrag(e){
+  e.preventDefault();
+  const d = document.getElementById('draw'), g = d.querySelector('.grip');
+  d.classList.add('dragging'); document.body.classList.add('rz'); g.classList.add('on');
+  const move = ev => {
+    const x = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const side = document.getElementById('side');
+    const sw = (side && getComputedStyle(side).display !== 'none') ? side.getBoundingClientRect().width : 0;
+    const max = Math.max(DRAW_MIN, window.innerWidth - sw - 420);
+    drawW = Math.min(max, Math.max(DRAW_MIN, window.innerWidth - x));
+    applyW();
+  };
+  const up = () => {
+    d.classList.remove('dragging'); document.body.classList.remove('rz'); g.classList.remove('on');
+    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
+    window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up);
+  };
+  window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  window.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', up);
+}
+function resetW(){ drawW = DRAW_DEF; applyW() }
+window.addEventListener('resize', () => {
+  const side = document.getElementById('side');
+  const sw = (side && getComputedStyle(side).display !== 'none') ? side.getBoundingClientRect().width : 0;
+  const max = Math.max(DRAW_MIN, window.innerWidth - sw - 420);
+  if(drawW > max){ drawW = max; applyW() }
+});
+
+function drawerHead(title, sub, showBack){
+  return `<div class="grip" onmousedown="startDrag(event)" ontouchstart="startDrag(event)" ondblclick="resetW()" title="Drag to resize"></div>
+    <div class="dh">
+    ${showBack ? `<button class="ib" onclick="openIndex()" title="All documents">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}
+    <div style="min-width:0"><div class="dt">${title}</div><div class="dm">${sub}</div></div>
+    <div class="sp">
+      <button class="ib ${maxed?'on':''}" onclick="toggleMax()" title="${maxed?'Exit full screen':'Full screen'}">
+        ${maxed
+          ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6.4 2.2v4.2H2.2M9.6 13.8V9.6h4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+          : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M9.8 2.2h4v4M6.2 13.8h-4v-4M13.8 2.2l-4.6 4.6M2.2 13.8l4.6-4.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+      </button>
+      <button class="ib" onclick="closeDrawer()" title="Close">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    </div></div>`;
+}
+
+function openDoc(key){
+  const d = DOCS[key]; if(!d) return;
+  openKey = key; mode = 'doc';
+  const dr = document.getElementById('draw');
+  dr.innerHTML = drawerHead(d.title, d.file, made.length > 1) + `<div class="dbody">${pageHTML(d)}</div>`;
+  dr.classList.add('open'); applyW();
+}
+
+function openIndex(){
+  mode = 'index';
+  const dr = document.getElementById('draw');
+  const list = made.length
+    ? `<div class="dix">${made.map(k => { const d = DOCS[k];
+        return `<div class="dcard" onclick="openDoc('${k}')"><div class="mini"></div>
+          <div style="min-width:0"><div class="dn">${d.title}</div><div class="dd">${d.pages} page${d.pages>1?'s':''} · ${d.head.ref}</div></div></div>`;
+      }).join('')}</div>`
+    : `<div class="dempty">Documents produced in this conversation appear here.</div>`;
+  dr.innerHTML = drawerHead('Documents', made.length + ' in this conversation', false) + `<div class="dbody">${list}</div>`;
+  dr.classList.add('open'); applyW();
+}
+
+function toggleMax(){
+  maxed = !maxed;
+  const d = document.getElementById('draw');
+  d.classList.toggle('max', maxed);
+  if(maxed){ d.style.flexBasis = ''; d.style.width = '' }
+  mode === 'index' ? openIndex() : openDoc(openKey);
+}
+function closeDrawer(){
+  const d = document.getElementById('draw');
+  d.classList.remove('open','max'); d.style.flexBasis = ''; d.style.width = '';
+  maxed = false; openKey = null;
+}
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  if(maxed) toggleMax(); else closeDrawer();
+});
+
+function noteDoc(key){
+  if(!key || !DOCS[key]) return;
+  if(!made.includes(key)) made.push(key);
+  const c = document.getElementById('dcount');
+  c.style.display = made.length ? 'flex' : 'none';
+  document.getElementById('dn').textContent = made.length;
+}
+
+/* ── turns ─────────────────────────────────────────────── */
+function user(t){ feed().appendChild(el(`<div class="turn u"><div class="b">${esc(t)}</div></div>`)); down() }
+function typing(){ const t = el(`<div class="turn"><div class="typing"><i></i><i></i><i></i></div></div>`); feed().appendChild(t); down(); return t }
+
+function answer(d){
+  document.getElementById('sug').innerHTML = '';
+  const t = typing();
+  setTimeout(() => {
+    t.remove();
+    feed().appendChild(el(`<div class="turn">${WHO}<div class="body">${d.b.map(blk).join('')}</div></div>`));
+    down(); sugs(d.n || ROLES[cur].chips);
+  }, 420);
+}
+function fire(id){ const d = C[id]; if(!d) return; clearTimeout(pushTimer);
+  const h=document.getElementById('ctitle'); if(h.textContent==='New conversation') h.textContent=d.t;
+  user(d.q); answer(d) }
+
+function send(){
+  const i = document.getElementById('ta'), v = i.value.trim(); if(!v) return;
+  i.value = ''; clearTimeout(pushTimer);
+  const h=document.getElementById('ctitle'); if(h.textContent==='New conversation') h.textContent=v.length>46?v.slice(0,46)+'…':v;
+  user(v);
+  for(const [re,id] of KEYS){ if(re.test(v) && C[id]){ answer(C[id]); return } }
+  const t = typing();
+  setTimeout(() => { t.remove();
+    feed().appendChild(el(`<div class="turn">${WHO}<div class="body"><p>I can look that up, but this build answers a fixed set of examples. Try <span class="mono">Rakesh Patel</span>, <span class="mono">reschedule</span>, or <span class="mono">why did commission drop</span>.</p></div></div>`));
+    down(); sugs(ROLES[cur].chips) }, 380);
+}
+document.getElementById('ta').addEventListener('keydown', e => { if(e.key === 'Enter') send() });
+
+/* ── proactive ─────────────────────────────────────────── */
+function arm(){
+  clearTimeout(pushTimer);
+  if(pushed[cur]) return;
+  const d = PUSH[cur]; if(!d) return;
+  pushTimer = setTimeout(() => {
+    if(view !== 'chat') return;
+    pushed[cur] = 1;
+    feed().appendChild(el(`<div class="turn push">${WHOP}<div class="body">${d.b.map(blk).join('')}</div></div>`));
+    down(); sugs(d.n || ROLES[cur].chips);
+  }, 6500);
+}
+
+/* ── views ─────────────────────────────────────────────── */
+function fresh(){
+  view = 'chat'; pushed[cur] = 0;
+  made = []; closeDrawer();
+  document.getElementById('dcount').style.display = 'none';
+  document.getElementById('main').querySelectorAll('.top,.sug,.comp').forEach(n => n.style.display = '');
+  document.getElementById('feed').style.display = '';
+  document.getElementById('cap').style.display = 'none';
+  sidebar(); header();
+  const r = ROLES[cur];
+  feed().innerHTML = `<div class="turn">${WHO}<div class="body"><p>${r.open}</p></div></div>`;
+  sugs(r.chips); arm();
+}
+function show(v){
+  view = v; const chat = v === 'chat';
+  document.getElementById('main').querySelectorAll('.top,.sug,.comp').forEach(n => n.style.display = chat ? '' : 'none');
+  document.getElementById('feed').style.display = chat ? '' : 'none';
+  document.getElementById('cap').style.display = chat ? 'none' : 'block';
+  sidebar();
+  if(!chat){ clearTimeout(pushTimer); capabilities() } else { arm() }
+}
+
+/* ── capabilities ──────────────────────────────────────── */
+function capabilities(){
+  document.getElementById('cap').innerHTML = `<div class="capin">
+    <h2>What Assistant does</h2>
+    <p class="lead">Four kinds of request. It opens showing your work, raises things you have not asked about, offers the likely next move, and takes typing only when you want something unusual.</p>
+
+    <div class="cg">
+      <div class="ch"><h3>Four kinds of request</h3><span class="s">the tag tells you which one you are about to use</span></div>
+      ${KINDS.map(k => `<div class="kind"><span class="bar" style="background:${k[1]}"></span><div>
+        <div class="kt">${k[0]}${k[2]?`<span class="mt" style="background:${k[1]}">${k[2]}</span>`:''}</div>
+        <div class="kd">${k[3]}</div><div class="ex">${k[4].map(e=>`<em>${e}</em>`).join('')}</div></div></div>`).join('')}
+    </div>
+
+    <div class="cg">
+      <div class="ch"><h3>What changes day to day</h3><span class="s">the same job, before and after</span></div>
+      <div class="sx"><table class="ba"><thead><tr><th>Job</th><th>Today</th><th>With Assistant</th><th class="sv">Saved</th></tr></thead>
+      <tbody>${BA.map(r=>`<tr><td>${r[0]}</td><td class="was">${r[1]}</td><td>${r[2]}</td><td class="sv">${r[3]}</td></tr>`).join('')}</tbody></table></div>
+      <div class="note">The saving is not in typing faster. It is in not navigating.</div>
+    </div>
+
+    <div class="cg">
+      <div class="ch"><h3>What it will not do</h3><span class="s">boundaries, not gaps</span></div>
+      ${NEVER.map(n=>`<div class="si"><span class="x"></span><div><b>${n[0]}.</b> ${n[1]}</div></div>`).join('')}
+    </div>
+
+    <div class="cg">
+      <div class="ch"><h3>By role</h3><span class="s">what each person asks for, changes, and produces</span></div>
+      <div class="sx"><table class="rl"><thead><tr><th>Role</th><th>Asks</th><th>Acts</th><th>Produces</th></tr></thead>
+      <tbody>${RSUM.map(r=>`<tr><td class="r"><span class="sw" style="background:${r[1]}"></span>${r[0]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+  </div>`;
+}
+
+fresh();
+
+</script>
+</body>
+</html>
