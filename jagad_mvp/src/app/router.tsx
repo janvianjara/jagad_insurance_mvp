@@ -1,7 +1,15 @@
 import { Suspense, lazy } from 'react'
+import type { ReactElement } from 'react'
 import { createBrowserRouter } from 'react-router'
 import type { RouteObject } from 'react-router'
 import { AppShell } from '../components/AppShell'
+import {
+  InquiryCaptureRoute,
+  InquiryDetailRoute,
+  InquiryQueueRoute,
+} from '../features/inquiries/routes'
+import { AssistantRoute } from '../features/assistant/AssistantRoute'
+import { ConfigMastersScreen, ConfigUsersScreen } from '../features/config/config-routes'
 import { RequireAccess } from './RequireAccess'
 import { ROUTE_MAP } from './route-map'
 import type { RouteSpec } from './route-map'
@@ -45,8 +53,18 @@ const SignalGallery = DEV ? lazy(() => import('../ui/signal/gallery/SignalGaller
 const DataGallery = DEV ? lazy(() => import('../ui/data/gallery/DataGallery')) : null
 const SurfaceGallery = DEV ? lazy(() => import('../ui/surface/gallery/SurfaceGallery')) : null
 
+const BUILT_SCREENS: Readonly<Record<string, () => ReactElement>> = {
+  '/assistant': () => <AssistantRoute />,
+  '/inquiries': () => <InquiryQueueRoute />,
+  '/inquiries/new': () => <InquiryCaptureRoute />,
+  '/inquiries/:id': () => <InquiryDetailRoute />,
+  '/config/users': () => <ConfigUsersScreen />,
+  '/config/masters': () => <ConfigMastersScreen />,
+}
+
 function guarded(spec: RouteSpec) {
-  const screen = <PlannedRoute spec={spec} />
+  const build = BUILT_SCREENS[spec.path]
+  const screen = build ? build() : <PlannedRoute spec={spec} />
   if (!spec.resource) return screen
   return <RequireAccess resource={spec.resource}>{screen}</RequireAccess>
 }

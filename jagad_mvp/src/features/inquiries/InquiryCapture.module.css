@@ -1,0 +1,35 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  max-inline-size: 60rem;
+  padding: var(--sp-5);
+}
+
+.refusal {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding-block-start: var(--sp-2);
+  border-block-start: 1px solid var(--hair);
+}
