@@ -1,0 +1,14 @@
+.datetime {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-ui);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.absent {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--ink-3);
+}

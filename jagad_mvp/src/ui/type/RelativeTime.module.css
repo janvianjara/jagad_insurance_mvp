@@ -1,0 +1,11 @@
+.relative {
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.absent {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--ink-3);
+}

@@ -1,0 +1,19 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.hint {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

@@ -1,0 +1,74 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 100%;
+  padding: 1px var(--sp-1) 1px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+}
+
+.tag[data-removable] {
+  padding-right: 2px;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove:hover {
+  background: var(--tone-line, var(--tone));
+  color: var(--ink-on-brand);
+}
+
+/* A close cross drawn from two bars, so the tag needs no glyph and no sprite
+   symbol that does not exist yet. */
+.removeGlyph {
+  position: relative;
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.removeGlyph::before,
+.removeGlyph::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 8px;
+  height: 1.5px;
+  border-radius: var(--radius-sm);
+  background: currentColor;
+}
+
+.removeGlyph::before {
+  transform: rotate(45deg);
+}
+
+.removeGlyph::after {
+  transform: rotate(-45deg);
+}

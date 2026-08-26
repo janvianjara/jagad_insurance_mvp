@@ -1,0 +1,56 @@
+.root {
+  position: relative;
+  width: 100%;
+}
+
+.list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--sp-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+}
+
+.option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--pad-y) var(--pad-x);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.option[data-active] {
+  background: var(--action-soft);
+}
+
+.option[aria-selected='true'] {
+  font-weight: var(--weight-medium);
+}
+
+.option[aria-disabled='true'] {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.optionHint {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.empty {
+  padding: var(--pad-y) var(--pad-x);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

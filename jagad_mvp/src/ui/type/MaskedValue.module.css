@@ -1,0 +1,26 @@
+.masked {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-ui);
+  color: var(--ink);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.caption {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-family: var(--font-sans);
+}
+
+.absent {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--ink-3);
+}

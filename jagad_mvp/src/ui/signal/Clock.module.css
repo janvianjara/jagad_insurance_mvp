@@ -1,0 +1,30 @@
+.clock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--tone);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+
+.clock[data-emphasis='strong'] {
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-xl);
+  background: var(--tone-soft);
+  font-weight: var(--weight-medium);
+}
+
+.label {
+  color: var(--ink-3);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A breached turnaround is the one thing on the row that should not be quiet. */
+.clock[data-breached] .value {
+  font-weight: var(--weight-semibold);
+}

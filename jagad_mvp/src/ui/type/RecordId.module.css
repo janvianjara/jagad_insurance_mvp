@@ -1,0 +1,64 @@
+.record {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-ui);
+}
+
+.record[data-layout='stacked'] {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.caption {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* The system number is ours and always exists, so it reads as the identity. */
+.system {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+/* The insurer number arrives later and from outside; it is deliberately quieter
+   so the two are never mistaken for one another at a glance. */
+.insurer {
+  color: var(--ink-2);
+}
+
+.divider {
+  color: var(--border-strong);
+}
+
+/*
+ * A missing insurer number is a fact about the record, not an empty cell: the
+ * policy has not come back from the insurer yet. It is drawn, in amber, as the
+ * pending state it is — never as blank space the eye slides past.
+ */
+.awaited {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-1);
+  border: 1px dashed var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}

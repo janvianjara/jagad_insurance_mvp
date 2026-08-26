@@ -1,0 +1,16 @@
+.truncated {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
+  font-size: var(--text-ui);
+  color: var(--ink);
+  line-height: var(--leading-normal);
+}
+
+.single {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

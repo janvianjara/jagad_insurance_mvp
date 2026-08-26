@@ -1,0 +1,43 @@
+/*
+ * One place where a tone name becomes a pair of custom properties. Every signal
+ * primitive adds `.tone` plus `data-tone`, then paints with `var(--tone)` and
+ * `var(--tone-soft)` — so a component's own stylesheet never repeats the six
+ * status branches, and a seventh tone would be added here once.
+ */
+
+.tone[data-tone='ok'] {
+  --tone: var(--ok);
+  --tone-soft: var(--ok-soft);
+}
+
+.tone[data-tone='warn'] {
+  --tone: var(--warn);
+  --tone-soft: var(--warn-soft);
+}
+
+.tone[data-tone='bad'] {
+  --tone: var(--bad);
+  --tone-soft: var(--bad-soft);
+}
+
+.tone[data-tone='info'] {
+  --tone: var(--info);
+  --tone-soft: var(--info-soft);
+}
+
+.tone[data-tone='idle'] {
+  --tone: var(--idle);
+  --tone-soft: var(--idle-soft);
+}
+
+.tone[data-tone='attn'] {
+  /* Lime is bright enough that ink on the tint reads better than lime on it. */
+  --tone: var(--jag-green-deep);
+  --tone-soft: var(--attn-soft);
+  --tone-line: var(--attn);
+}
+
+.tone[data-tone='neutral'] {
+  --tone: var(--ink-2);
+  --tone-soft: var(--sunken);
+}

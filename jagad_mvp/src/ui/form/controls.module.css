@@ -1,0 +1,150 @@
+/*
+ * The shared skin for every text-like control: Input, NumberInput, Select,
+ * Textarea, DatePicker and the Combobox entry field.
+ *
+ * Height, padding and font step all come from the density tokens, so the whole
+ * form shrinks with `data-density="compact"` without a second stylesheet.
+ */
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--pad-x);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  transition: border-color var(--motion-fast) var(--motion-ease);
+}
+
+.control:hover:not([data-disabled]) {
+  border-color: var(--border-strong);
+}
+
+/* The ring sits on the wrapper so an affix cannot clip it. The inner field
+   drops its own outline only because the wrapper has taken the job over. */
+.control:has(:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--action);
+}
+
+.control[data-invalid] {
+  border-color: var(--bad);
+}
+
+.control[data-disabled] {
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--control-h) - 2px);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+/* Ids, figures and dates are read down a column, so they take the mono face
+   with fixed-width figures wherever they appear. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.alignEnd {
+  text-align: right;
+}
+
+.affix {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* A control that carries its own border rather than sitting inside a wrapper:
+   the native select and the textarea. */
+.bare {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--pad-y) var(--pad-x);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+}
+
+.bare:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.bare[aria-invalid='true'] {
+  border-color: var(--bad);
+}
+
+.bare:disabled {
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* The chevron is drawn, not fetched: the icon sprite carries no chevron symbol
+   and this step does not own the sprite. */
+.chevronWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: var(--pad-x);
+  width: 7px;
+  height: 7px;
+  margin-top: -5px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.select {
+  height: var(--control-h);
+  padding-right: calc(var(--pad-x) * 2 + 10px);
+  appearance: none;
+  cursor: pointer;
+}
+
+.textarea {
+  min-height: calc(var(--control-h) * 2);
+  resize: vertical;
+}

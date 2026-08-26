@@ -1,0 +1,30 @@
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-ui);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* A negative figure is a refund, a reversal or a debit — never a styling
+   accident, so it takes the charter's red rather than a minus sign alone. */
+.money[data-sign='negative'] {
+  color: var(--bad);
+}
+
+.money[data-emphasis='strong'] {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+}
+
+.money[data-emphasis='quiet'] {
+  color: var(--ink-3);
+}
+
+/* An amount that has not been recorded yet is not zero. */
+.absent {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--ink-3);
+}

@@ -1,0 +1,48 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-stack);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-2);
+  /* Green as a section rule: brand, never action. */
+  border-bottom: 2px solid var(--jag-green);
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  line-height: var(--leading-tight);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 72ch;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}

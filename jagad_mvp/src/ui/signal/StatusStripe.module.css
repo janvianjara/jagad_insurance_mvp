@@ -1,0 +1,22 @@
+/*
+ * The severity stripe down the leading edge of a queue row. Three pixels of
+ * colour is the whole component: it has to be readable from across a desk while
+ * costing nothing in horizontal space.
+ */
+.stripe {
+  display: block;
+  flex: none;
+  background: var(--tone-line, var(--tone));
+  border-radius: var(--radius-sm);
+}
+
+.stripe[data-orientation='vertical'] {
+  width: 3px;
+  min-height: var(--row-h);
+  align-self: stretch;
+}
+
+.stripe[data-orientation='horizontal'] {
+  height: 3px;
+  width: 100%;
+}

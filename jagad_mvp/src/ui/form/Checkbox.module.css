@@ -1,0 +1,101 @@
+.root {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-height: var(--control-h);
+  padding: var(--pad-y) 0;
+  font-size: var(--text-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.root[data-disabled] {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* Kept in the accessibility tree and in the tab order — only its own painting
+   is hidden, because the box beside it is what gets drawn. */
+.native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  color: var(--action-ink);
+  transition: background var(--motion-fast) var(--motion-ease);
+}
+
+.native:checked + .box,
+.native:indeterminate + .box {
+  background: var(--action);
+  border-color: var(--action);
+}
+
+.native:focus-visible + .box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.native:disabled + .box {
+  background: var(--sunken);
+  border-color: var(--border);
+}
+
+.tick {
+  opacity: 0;
+}
+
+.native:checked + .box .tick {
+  opacity: 1;
+}
+
+/* Indeterminate is a third state, not a dimmer checked: a bulk selection where
+   some rows are picked reads as a bar, never as a tick. */
+.dash {
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  border-radius: var(--radius-sm);
+  background: currentColor;
+  opacity: 0;
+}
+
+.native:indeterminate + .box .dash {
+  opacity: 1;
+}
+
+.native:indeterminate + .box .tick {
+  opacity: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: var(--leading-tight);
+}
+
+.description {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.invalid .box {
+  border-color: var(--bad);
+}
