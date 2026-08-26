@@ -1,28 +1,200 @@
 /*
- * The only file under src/ where a raw colour literal may appear.
- * Enforced by scripts/check-tokens.mjs, run as part of `npm run check`.
- * Bootstrap subset only. The full token system (brand ramps, neutrals, spacing,
- * radius, shadow, motion, type, density) lands in playbook step P-01, plan §2.
+ * Jagad design system tokens — plan §2.
+ *
+ * This is the ONLY file under src/ where a raw colour literal may appear;
+ * scripts/check-tokens.mjs fails the build otherwise.
+ *
+ * Structure, in three layers, so a dark theme can be added later without
+ * renaming a single consumer token:
+ *   1. palette   — raw brand and neutral values (`--p-*`). Never used directly
+ *                  by a component.
+ *   2. semantic  — role tokens (surface, ink, status, brand) that map onto the
+ *                  palette. A future `[data-theme='dark']` block re-points ONLY
+ *                  this layer; component CSS keeps working untouched.
+ *   3. metrics   — space, radius, shadow, motion, type. Theme-independent.
+ *                  Density-sensitive metrics live in the `[data-density]` block.
+ *
+ * Colour language, UX charter U7 (plan §2, "the conflict this palette resolves"):
+ *   navy  = primary action and navigation
+ *   green = brand identity and positive status ONLY
+ *   lime  = attention, meaning something needs a person
+ *   amber / red / grey keep their charter meanings.
  */
+
 :root {
-  /* Brand */
-  --jag-green: #14683b;
-  --jag-lime: #a6cb3a;
-  --jag-navy: #1c2c6b;
-  --jag-blue: #4c7fc4;
+  /* ---------------------------------------------------------------- 1. palette
+     Brand hues read off the logo: deep forest green graduating to chartreuse in
+     the mark, navy under the wordmark, cornflower blue in the stacked bars. */
+  --p-green: #14683b;
+  --p-green-2: #1f8b4c;
+  --p-green-3: #0e4a2a;
+  --p-lime: #a6cb3a;
+  --p-lime-2: #c2de74;
+  --p-navy: #1c2c6b;
+  --p-navy-2: #2b408f;
+  --p-navy-3: #131e4a;
+  --p-blue: #4c7fc4;
+  --p-slate: #5c6a72;
 
-  /* Semantic status, UX charter U7 */
-  --ok: #14683b;
-  --warn: #b8801c;
-  --bad: #b03a31;
-  --info: #4c7fc4;
-  --idle: #7a867f;
-  --attn: #a6cb3a;
+  /* Status hues */
+  --p-amber: #b8801c;
+  --p-red: #b03a31;
+  --p-grey: #7a867f;
 
-  /* Green-biased neutrals */
-  --ground: #ffffff;
-  --surface: #f7f8f7;
-  --border: #dfe3e0;
-  --ink: #14181a;
-  --ink-2: #5c6a72;
+  /* Status tints — pill and stripe backgrounds */
+  --p-green-tint: #e4efe8;
+  --p-amber-tint: #f7eedc;
+  --p-red-tint: #f8e5e3;
+  --p-blue-tint: #e5edf8;
+  --p-grey-tint: #ecefed;
+  --p-lime-tint: #eef5da;
+  --p-navy-tint: #e6e9f3;
+
+  /* Neutrals — greys carry a faint green bias so they sit under the brand */
+  --p-white: #ffffff;
+  --p-n-50: #f6f8f6;
+  --p-n-100: #edf1ee;
+  --p-n-200: #e3e9e4;
+  --p-n-300: #dce2dd;
+  --p-n-400: #b6c0b9;
+  --p-n-600: #78857d;
+  --p-n-700: #4a5750;
+  --p-n-900: #131a16;
+  --p-black-a12: #131a161f;
+  --p-black-a20: #131a1633;
+  --p-black-a28: #131a1647;
+
+  /* -------------------------------------------------------------- 2. semantic
+     Brand */
+  --jag-green: var(--p-green);
+  --jag-green-2: var(--p-green-2);
+  --jag-green-deep: var(--p-green-3);
+  --jag-lime: var(--p-lime);
+  --jag-lime-2: var(--p-lime-2);
+  --jag-navy: var(--p-navy);
+  --jag-navy-2: var(--p-navy-2);
+  --jag-navy-deep: var(--p-navy-3);
+  --jag-blue: var(--p-blue);
+  --jag-slate: var(--p-slate);
+
+  /* Status, UX charter U7 */
+  --ok: var(--p-green);
+  --warn: var(--p-amber);
+  --bad: var(--p-red);
+  --info: var(--p-blue);
+  --idle: var(--p-grey);
+  --attn: var(--p-lime);
+
+  --ok-soft: var(--p-green-tint);
+  --warn-soft: var(--p-amber-tint);
+  --bad-soft: var(--p-red-tint);
+  --info-soft: var(--p-blue-tint);
+  --idle-soft: var(--p-grey-tint);
+  --attn-soft: var(--p-lime-tint);
+
+  /* Surfaces */
+  --ground: var(--p-white);
+  --surface: var(--p-n-50);
+  --sunken: var(--p-n-100);
+  --raised: var(--p-white);
+  --overlay: var(--p-black-a28);
+
+  /* Lines */
+  --border: var(--p-n-300);
+  --border-strong: var(--p-n-400);
+  --hair: var(--p-n-200);
+
+  /* Ink */
+  --ink: var(--p-n-900);
+  --ink-2: var(--p-n-700);
+  --ink-3: var(--p-n-600);
+  --ink-on-brand: var(--p-white);
+
+  /* Interaction */
+  --action: var(--jag-navy);
+  --action-hover: var(--jag-navy-2);
+  --action-ink: var(--p-white);
+  --action-soft: var(--p-navy-tint);
+  --focus-ring: var(--jag-lime);
+  --selection-bg: var(--p-lime-tint);
+
+  /* --------------------------------------------------------------- 3. metrics
+     Space — 4px base */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-9: 40px;
+  --sp-10: 48px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Elevation — three steps, no more */
+  --shadow-1: 0 1px 2px var(--p-black-a12);
+  --shadow-2: 0 2px 8px var(--p-black-a12), 0 1px 2px var(--p-black-a12);
+  --shadow-3: 0 12px 32px var(--p-black-a20), 0 2px 8px var(--p-black-a12);
+
+  /* Motion — two durations */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Type stacks. Source Serif 4 is for generated documents ONLY, never chrome. */
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, 'Courier New', monospace;
+  --font-doc: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+
+  /* Type scale */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-loose: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --tracking-cap: 0.08em;
+
+  /* Layout constants from the §3 shell */
+  --rail-w: 240px;
+  --drawer-min-w: 340px;
+  --drawer-max-w: 560px;
+
+  /* Density-sensitive metrics — comfortable is the default (U2) */
+  --row-h: 40px;
+  --control-h: 32px;
+  --pad-x: var(--sp-3);
+  --pad-y: var(--sp-2);
+  --text-ui: var(--text-base);
+  --text-reading: var(--text-md);
+  --gap-stack: var(--sp-3);
+}
+
+/* Density is a product feature, not a preference dialog: ops staff working a
+   queue all day get more rows on screen without a different stylesheet. */
+[data-density='compact'] {
+  --row-h: 30px;
+  --control-h: 26px;
+  --pad-x: var(--sp-2);
+  --pad-y: var(--sp-1);
+  --text-ui: var(--text-sm);
+  --text-reading: var(--text-base);
+  --gap-stack: var(--sp-2);
 }

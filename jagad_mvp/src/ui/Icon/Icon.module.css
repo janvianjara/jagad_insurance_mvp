@@ -1,0 +1,24 @@
+.icon {
+  display: inline-block;
+  width: var(--icon-size, 16px);
+  height: var(--icon-size, 16px);
+  flex: none;
+  color: inherit;
+  vertical-align: -2px;
+}
+
+.sm {
+  --icon-size: 14px;
+}
+
+.md {
+  --icon-size: 16px;
+}
+
+.lg {
+  --icon-size: 20px;
+}
+
+.xl {
+  --icon-size: 24px;
+}

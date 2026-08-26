@@ -1,0 +1,61 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--jag-navy);
+  text-decoration: none;
+}
+
+.logo {
+  height: var(--brand-size, 28px);
+  width: auto;
+}
+
+/* Wordmark fallback: used only until src/assets/brand/logo.svg is supplied. */
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-bold);
+  font-size: var(--brand-size, 28px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.wordmarkLead {
+  color: var(--jag-green);
+}
+
+.wordmarkTail {
+  color: var(--jag-navy);
+}
+
+.wordmarkDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--jag-lime);
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.sm {
+  --brand-size: 20px;
+}
+
+.md {
+  --brand-size: 28px;
+}
+
+.lg {
+  --brand-size: 40px;
+}
