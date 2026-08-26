@@ -28,6 +28,26 @@ const layerZones = [
   message: `${zone.target.replace('./', '')} may not import from ${zone.from.replace('./', '')}.`,
 }))
 
+// FR-22.13 / plan §14.1. The Assistant feature reads AssistantView projections
+// and nothing else. An entity type in scope is a route to a sensitive field,
+// which is exactly what the projection exists to remove. These carry their own
+// messages, so they sit outside the map above rather than inside it.
+const assistantZones = [
+  {
+    target: './src/features/assistant',
+    from: './src/data',
+    except: ['./assistant'],
+    message:
+      'src/features/assistant may import only src/data/assistant - the allow-listed projection, never an entity type (plan §14.1, FR-22.13).',
+  },
+  {
+    target: './src/features/assistant',
+    from: './src/domain',
+    message:
+      'src/features/assistant may not import domain types; everything it needs has an AssistantView in src/data/assistant (plan §14.1, FR-22.13).',
+  },
+]
+
 export default defineConfig([
   globalIgnores(['dist']),
   {
@@ -50,7 +70,7 @@ export default defineConfig([
       },
     },
     rules: {
-      'import/no-restricted-paths': ['error', { zones: layerZones }],
+      'import/no-restricted-paths': ['error', { zones: [...layerZones, ...assistantZones] }],
     },
   },
   {
