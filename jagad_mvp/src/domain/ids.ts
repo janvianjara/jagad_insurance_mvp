@@ -1,0 +1,117 @@
+/**
+ * Dual numbering — plan §8.
+ *
+ * Every numbered record carries two fields from the first commit: `systemNo`,
+ * which this platform generates and which is always present, and `insurerNo`,
+ * which arrives from the company later and often never. Conflating them is how a
+ * back office ends up unable to answer "which number did you quote me".
+ *
+ * Sequence generation goes through an injectable counter so a fixture set built
+ * from a fixed seed produces the same ids on every run (§8, fixture strategy).
+ */
+
+export const RECORD_PREFIXES = {
+  inquiry: 'INQ',
+  quotation: 'QTN',
+  deal: 'APP',
+  policy: 'POL',
+  /**
+   * A policy that has not been issued yet numbers differently, exactly as the
+   * prototype shows it (POL-DRAFT-0219). It is a distinct prefix rather than a
+   * flag because the number is read aloud on the phone.
+   */
+  policyDraft: 'POL-DRAFT',
+  claim: 'CLM',
+  endorsement: 'END',
+  task: 'TSK',
+} as const
+
+export type RecordKind = keyof typeof RECORD_PREFIXES
+export type RecordPrefix = (typeof RECORD_PREFIXES)[RecordKind]
+
+/** Four digits, as every number in the prototype and the canvas is written. */
+export const SEQUENCE_WIDTH = 4
+
+export type SystemNo = string
+
+/**
+ * Both numbers a record can carry. `insurerNo` is optional forever: plenty of
+ * records never receive one, and absence is information, not a gap to fill.
+ */
+export type RecordNumbers = {
+  readonly systemNo: SystemNo
+  readonly insurerNo?: string
+}
+
+export type IdCounter = {
+  /** Next sequence for this prefix. Prefixes count independently. */
+  next(prefix: RecordPrefix): number
+  /** Current sequence without advancing — for a preview that must not consume a number. */
+  peek(prefix: RecordPrefix): number
+}
+
+/**
+ * A counter seeded per prefix. Fixtures pass their starting points so the story
+ * cast keeps the numbers the client recognises from the prototype walkthrough
+ * (INQ-1036, POL-DRAFT-0219, CLM-0412) instead of restarting at one.
+ */
+export function createIdCounter(seeds: Partial<Record<RecordPrefix, number>> = {}): IdCounter {
+  const counts = new Map<RecordPrefix, number>(
+    Object.entries(seeds).map(([prefix, value]) => [prefix as RecordPrefix, value]),
+  )
+
+  return {
+    next(prefix) {
+      const value = (counts.get(prefix) ?? 0) + 1
+      counts.set(prefix, value)
+      return value
+    },
+    peek(prefix) {
+      return counts.get(prefix) ?? 0
+    },
+  }
+}
+
+/** The counter the running app uses. Tests and fixtures inject their own. */
+export const defaultIdCounter: IdCounter = createIdCounter()
+
+export function formatSystemNo(prefix: RecordPrefix, sequence: number): SystemNo {
+  if (!Number.isInteger(sequence) || sequence < 1) {
+    throw new RangeError(`Sequence must be a positive whole number, received ${sequence}.`)
+  }
+  return `${prefix}-${String(sequence).padStart(SEQUENCE_WIDTH, '0')}`
+}
+
+export function nextSystemNo(kind: RecordKind, counter: IdCounter = defaultIdCounter): SystemNo {
+  const prefix = RECORD_PREFIXES[kind]
+  return formatSystemNo(prefix, counter.next(prefix))
+}
+
+/**
+ * Reads a system number back apart. `POL-DRAFT-0219` is the reason this splits on
+ * the last separator rather than the first.
+ */
+export function parseSystemNo(systemNo: SystemNo): { prefix: RecordPrefix; sequence: number } | null {
+  const separator = systemNo.lastIndexOf('-')
+  if (separator < 1) return null
+
+  const prefix = systemNo.slice(0, separator)
+  const sequence = systemNo.slice(separator + 1)
+
+  if (!/^\d+$/.test(sequence)) return null
+  if (!isRecordPrefix(prefix)) return null
+
+  return { prefix, sequence: Number(sequence) }
+}
+
+export function isRecordPrefix(value: string): value is RecordPrefix {
+  return (Object.values(RECORD_PREFIXES) as string[]).includes(value)
+}
+
+export function kindOfPrefix(prefix: RecordPrefix): RecordKind {
+  const found = (Object.keys(RECORD_PREFIXES) as RecordKind[]).find(
+    (kind) => RECORD_PREFIXES[kind] === prefix,
+  )
+  if (!found) throw new Error(`Unknown record prefix: ${prefix}`)
+  return found
+}
