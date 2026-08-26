@@ -4,7 +4,7 @@ import { useSessionBoot } from '../../app/boot'
 import { DRAWER_KINDS, useDrawerStore, useSessionStore, useToastStore } from '../../app/store'
 import { Skeleton } from '../../ui/data'
 import { Drawer, ToasterContext, Toaster } from '../../ui/surface'
-import { AssistantDrawerPlaceholder } from './AssistantDrawerPlaceholder'
+import { AssistantPanel } from '../../features/assistant'
 import { DrawerSlotContext } from './drawer-slot'
 import { SideRail } from './SideRail'
 import styles from './AppShell.module.css'
@@ -19,7 +19,8 @@ import styles from './AppShell.module.css'
  *   - `data-density` is written to `<html>`, so one attribute changes row height
  *     across the whole product without a second stylesheet;
  *   - Cmd/Ctrl-K summons the Assistant drawer from anywhere, carrying the route
- *     the person was on as context;
+ *     the person was on as context (FR-22.10), and the panel inside it is the
+ *     Assistant feature's, reading the same projection the landing view does;
  *   - the toast stack is mounted once and published through the existing
  *     `ToasterContext`, so `useToaster()` works at any depth.
  *
@@ -113,7 +114,10 @@ export function AppShell() {
                 maximised={drawerMaximised}
                 onMaximisedChange={setMaximised}
               >
-                <AssistantDrawerPlaceholder target={drawerTarget} />
+                <AssistantPanel
+                  contextPath={drawerTarget.contextPath}
+                  contextLabel={drawerTarget.contextLabel}
+                />
               </Drawer>
             ) : null}
             <div ref={setDrawerSlot} className={styles.slot} />

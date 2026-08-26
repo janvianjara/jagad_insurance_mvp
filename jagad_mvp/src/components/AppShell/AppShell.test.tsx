@@ -157,11 +157,15 @@ describe('live counts', () => {
 })
 
 describe('routes', () => {
-  it('resolves a built-nowhere-yet route to the step that will build it', async () => {
-    renderApp('/inquiries')
+  it('resolves a built-nowhere-yet route to a stub that says which phase owns it', async () => {
+    // Deliberately a P2 route. An M0 route would be built out from under this
+    // test by the very next step, which is what happened when it pointed at
+    // /inquiries: the assertion was correct and went stale the moment P-11
+    // landed. A phase the M0 slice never reaches keeps the stub honest.
+    renderApp('/claims')
 
-    expect(await screen.findByText('Inquiries is not built yet')).toBeInTheDocument()
-    expect(screen.getByText(/playbook step P-11/)).toBeInTheDocument()
+    expect(await screen.findByText('Claims is not built yet')).toBeInTheDocument()
+    expect(screen.getByText(/Planned for phase P2/)).toBeInTheDocument()
   })
 
   it('renders the tokenised consent page with no shell and no session', async () => {

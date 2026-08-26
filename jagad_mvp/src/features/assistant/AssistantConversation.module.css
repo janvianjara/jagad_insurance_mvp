@@ -1,0 +1,117 @@
+.conversation {
+  display: grid;
+  gap: var(--sp-4);
+  align-content: start;
+  padding: var(--sp-4);
+  max-width: 68rem;
+}
+
+.feed {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.exchange {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.context {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.contextLabel {
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.contextValue {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ chips */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.chip {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--action);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-1) var(--sp-3);
+  min-height: var(--control-h);
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--action);
+  background: var(--action-soft);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.chip:disabled {
+  color: var(--ink-3);
+  border-color: var(--hair);
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------- composer */
+
+.composer {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.composerButton {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-height: var(--control-h);
+  padding: 0 var(--sp-3);
+  cursor: pointer;
+  text-align: start;
+}
+
+.composerButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.composerNote {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+  max-width: var(--text-reading);
+}
