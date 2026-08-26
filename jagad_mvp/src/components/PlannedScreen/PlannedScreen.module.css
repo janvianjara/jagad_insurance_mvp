@@ -1,0 +1,20 @@
+.body {
+  display: grid;
+  gap: var(--sp-4);
+  justify-items: center;
+  padding: var(--sp-9) var(--sp-6);
+}
+
+.phase {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.path {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

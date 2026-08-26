@@ -414,6 +414,9 @@ Sessions append one line here instead of widening their step. Format:
 - [ ] (found in P-06b) `Sparkline` is listed in plan §6's Data group but is in no step's scope — belongs to P-17 polish | P1
 - [ ] (found in P-06b) `rowPaginationFeature` and filtering are deliberately unregistered on DataTable because URL owns page and filter state; confirm this holds when `<WorkQueue>` lands — belongs to P-08 | M0
 - [ ] (found in P-07) plan §6's UI primitive table lists no `Button` in any group, so 21 files hand-roll `<button>`; add one to the Nav/action group and collapse them onto it — belongs to P-08 | M0
+- [ ] (found in P-04) field classification is split across two registries: `FIELD_CLASSES` (domain, 7 M0 entities) and `DATA_FIELD_CLASSES` (`src/data/repo/classification.ts`, 36 data-layer entities). Folding the second into the first is NOT possible — it carries 13 type imports from `src/data/repo`, so the move would invert the domain/data dependency. The union is therefore unified at the Assistant boundary test instead (P-05), which is the one place allowed to import both — belongs to P-05 | M0
+- [ ] (found in P-04) `RECORD_PREFIXES` has no customer or document prefix; fixtures format `CUS-0001` / `DOC-0001` locally via `localNo` in `src/data/fixtures/ids.ts` — belongs to P-14 | P1
+- [ ] (found in P-04) `NoticeBatch`, `NoticeMatch`, `OcrTemplate` and `Endorsement` entities are unmodelled, so canvas flow 5 rows 5.3-5.5 and all of flow 7 are not walkable — both are P2 and outside P-04's cluster list — belongs to P2 | P2
 
 ---
 

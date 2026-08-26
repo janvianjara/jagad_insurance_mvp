@@ -1,0 +1,51 @@
+/* Rail, main, drawer — the §3 diagram, as a grid. The drawer column is `auto`
+   because the drawer sets its own width from the size a person dragged it to. */
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--ground);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.pending {
+  padding: var(--sp-6);
+}
+
+.boot {
+  display: grid;
+  gap: var(--sp-3);
+  place-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--sp-8);
+  text-align: center;
+}
+
+.bootLabel {
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* The right-hand column of the §3 diagram. It holds the shell's own Assistant
+   panel and a slot the mounted screen portals its record drawer into, so both
+   sit beside the main column rather than inside it. */
+.drawers {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.slot {
+  display: contents;
+}

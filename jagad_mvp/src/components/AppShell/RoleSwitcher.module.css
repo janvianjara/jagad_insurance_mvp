@@ -1,0 +1,22 @@
+.footer {
+  flex: none;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--hair);
+  background: var(--ground);
+}
+
+.field {
+  gap: var(--sp-1);
+}
+
+.role {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.density {
+  justify-content: flex-start;
+}

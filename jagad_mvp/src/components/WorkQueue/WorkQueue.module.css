@@ -1,0 +1,28 @@
+.body {
+  display: grid;
+  gap: var(--gap-stack);
+  padding: var(--sp-4) var(--sp-6) var(--sp-8);
+  align-content: start;
+  min-width: 0;
+}
+
+/* The filter controls sit on one line in the action bar, each narrow enough
+   that six of them still fit before the bar wraps. */
+.control {
+  gap: 2px;
+  min-width: 14ch;
+  max-width: 24ch;
+}
+
+.total {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.gate {
+  border: none;
+  padding: 0;
+  background: transparent;
+}

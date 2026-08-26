@@ -1,0 +1,40 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--sp-6);
+  background: var(--surface);
+}
+
+.card {
+  display: grid;
+  gap: var(--sp-4);
+  justify-items: center;
+  width: min(56ch, 100%);
+  padding: var(--sp-8) var(--sp-6);
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-1);
+}
+
+.token {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.tokenLabel {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tokenValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}

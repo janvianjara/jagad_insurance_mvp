@@ -1,0 +1,91 @@
+/* The 240px rail. Navy carries navigation, so the active item is the one place
+   in the rail that takes the action colour; everything else is quiet ink. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--rail-w);
+  height: 100%;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  height: var(--sp-10);
+  padding-inline: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+  flex: none;
+}
+
+.nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-2);
+  display: grid;
+  gap: var(--sp-4);
+  align-content: start;
+}
+
+.section {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.sectionLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-inline: var(--sp-2);
+  margin: 0 0 var(--sp-1);
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--row-h);
+  padding-inline: var(--sp-2);
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.item:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.itemActive {
+  background: var(--action-soft);
+  color: var(--action);
+}
+
+.itemIcon {
+  flex: none;
+  color: currentColor;
+}
+
+.itemLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: none;
+}

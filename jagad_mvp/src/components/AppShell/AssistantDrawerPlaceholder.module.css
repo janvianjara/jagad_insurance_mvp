@@ -1,0 +1,35 @@
+.body {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  align-content: start;
+}
+
+.context {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.term {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  margin: 0;
+}
+
+.link {
+  font-size: var(--text-sm);
+  margin: 0;
+}

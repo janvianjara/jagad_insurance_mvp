@@ -1,0 +1,294 @@
+import { createPortal } from 'react-dom'
+import { useNavigate, useSearchParams } from 'react-router'
+import type { ReactNode } from 'react'
+import type { RowData, RowSelectionState, SortingState } from '@tanstack/react-table'
+import { useResource } from '../../lib/useResource'
+import { Button } from '../../ui/Button'
+import { DataTable, EmptyState, Pagination, SelectionBar } from '../../ui/data'
+import { Field, Input, Select } from '../../ui/form'
+import { Drawer } from '../../ui/surface'
+import { toneForSeverity } from '../../ui/tone'
+import { ActionBar } from '../AppShell/ActionBar'
+import { useDrawerSlot } from '../AppShell/drawer-slot'
+import { PageHeader } from '../AppShell/PageHeader'
+import { BulkActionGate } from './BulkActionGate'
+import { opensInDrawer } from './queue-config'
+import type { QueueConfig, QueueSelection } from './queue-config'
+import {
+  assertQueueFilterKeys,
+  isQueueNarrowed,
+  queryFromQueueState,
+  queueQueryKey,
+  readQueueState,
+  writeQueueState,
+} from './queue-url'
+import type { QueueUrlSchema, QueueUrlState } from './queue-url'
+import styles from './WorkQueue.module.css'
+
+export type WorkQueueProps<Row extends RowData> = {
+  config: QueueConfig<Row>
+  /** Screen-level actions for the page header — "New inquiry", an export. */
+  actions?: ReactNode
+  /** Anything that belongs above the table: a notification rail, pinned stats. */
+  children?: ReactNode
+}
+
+/**
+ * The list pattern, built once (plan §6).
+ *
+ * Filter bar, dense table, severity stripe, bulk actions, row to drawer or row
+ * to route. All fifteen queue screens in the plan are a `QueueConfig` handed to
+ * this component, which is the largest single speed lever in the build — and,
+ * more importantly, the reason the controls never move between modules.
+ *
+ * The URL owns filter, sort, page and selection. Every interaction below writes
+ * search parameters and reads its state back out of them, so there is no second
+ * copy to fall out of step: the back button works, a queue can be linked to, and
+ * `<DataTable>` can keep TanStack's pagination and filtering unregistered
+ * without losing anything.
+ *
+ * Two smaller rules, both learned from queues that get them wrong:
+ *   - narrowing the list clears the selection, because "four selected" after a
+ *     filter change means four rows nobody can see;
+ *   - a page that has not arrived shows skeleton rows rather than an empty
+ *     table, because an empty queue and a loading queue mean opposite things.
+ */
+export function WorkQueue<Row extends RowData>({ config, actions, children }: WorkQueueProps<Row>) {
+  const navigate = useNavigate()
+  const drawerSlot = useDrawerSlot()
+  const [params, setParams] = useSearchParams()
+
+  const filters = config.filters ?? []
+  const filterKeys = filters.map((filter) => filter.key)
+  assertQueueFilterKeys(filterKeys)
+
+  const schema: QueueUrlSchema = {
+    filterKeys,
+    sortable: config.sortable ?? [],
+    defaultSort: config.defaultSort ?? null,
+    ...(config.pageSize === undefined ? {} : { defaultPageSize: config.pageSize }),
+  }
+
+  const state = readQueueState(params, schema)
+  const query = queryFromQueueState(state)
+
+  const page = useResource(() => config.load(query), queueQueryKey(state))
+  const rows = page.data?.rows ?? []
+  const total = page.data?.total ?? 0
+
+  function apply(next: Partial<QueueUrlState>, options?: { replace?: boolean }) {
+    setParams(writeQueueState({ ...state, ...next }, schema), { replace: options?.replace ?? false })
+  }
+
+  /** Narrowing the list invalidates both the page number and the selection. */
+  function narrow(next: Partial<QueueUrlState>, options?: { replace?: boolean }) {
+    apply({ ...next, page: 1, selection: [], record: null }, options)
+  }
+
+  const sorting: SortingState = state.sort
+    ? [{ id: state.sort.field, desc: state.sort.direction === 'desc' }]
+    : []
+
+  const rowSelection: RowSelectionState = Object.fromEntries(
+    state.selection.map((id) => [id, true]),
+  )
+
+  const selectedRows = rows.filter((row) => state.selection.includes(config.getRowId(row)))
+  const selection: QueueSelection<Row> = { ids: state.selection, rows: selectedRows }
+
+  const openRecord =
+    state.record === null
+      ? null
+      : (rows.find((row) => config.getRowId(row) === state.record) ?? null)
+
+  const narrowed = isQueueNarrowed(state)
+
+  const recordDrawer =
+    opensInDrawer(config) && openRecord ? (
+      <Drawer
+        open
+        onClose={() => apply({ record: null })}
+        title={config.drawerTitle(openRecord)}
+        subtitle={config.drawerSubtitle?.(openRecord)}
+      >
+        {config.renderDrawer(openRecord)}
+      </Drawer>
+    ) : null
+
+  function openRow(row: Row) {
+    if (config.rowTarget === 'route') {
+      void navigate(config.rowHref(row))
+      return
+    }
+    apply({ record: config.getRowId(row) })
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={config.title}
+        description={config.description}
+        meta={
+          page.status === 'ready' ? (
+            <span className={styles.total}>
+              {total} {total === 1 ? config.noun : `${config.noun}s`}
+            </span>
+          ) : null
+        }
+        actions={actions}
+      />
+
+      <ActionBar
+        label={`${config.title} filters`}
+        end={
+          narrowed ? (
+            <Button size="sm" icon="close" onClick={() => narrow({ search: '', filters: {} })}>
+              Clear filters
+            </Button>
+          ) : null
+        }
+      >
+        <Field label="Search" className={styles.control}>
+          <Input
+            type="search"
+            value={state.search}
+            placeholder={config.searchPlaceholder ?? `Search ${config.noun}s`}
+            onChange={(event) => narrow({ search: event.target.value }, { replace: true })}
+          />
+        </Field>
+
+        {filters.map((filter) => (
+          <Field key={filter.key} label={filter.label} className={styles.control}>
+            <Select
+              value={state.filters[filter.key]?.[0] ?? ''}
+              placeholder={filter.anyLabel ?? `All ${filter.label.toLowerCase()}`}
+              options={filter.options.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onChange={(event) => {
+                const value = event.target.value
+                narrow({
+                  filters: value === '' ? omit(state.filters, filter.key) : { ...state.filters, [filter.key]: [value] },
+                })
+              }}
+            />
+          </Field>
+        ))}
+      </ActionBar>
+
+      <div className={styles.body}>
+        {children}
+
+        {config.bulkActions && config.bulkActions.length > 0 ? (
+          <SelectionBar
+            count={state.selection.length}
+            total={total}
+            noun={config.noun}
+            onClear={() => apply({ selection: [] })}
+          >
+            {config.bulkActions.map((action) => (
+              <BulkActionGate
+                key={action.key}
+                action={action}
+                selection={selection}
+                onDone={() => {
+                  apply({ selection: [] })
+                  page.reload()
+                }}
+              />
+            ))}
+          </SelectionBar>
+        ) : null}
+
+        <DataTable
+          data={[...rows]}
+          columns={config.columns}
+          getRowId={config.getRowId}
+          label={config.title}
+          loading={page.isLoading}
+          selectable={Boolean(config.bulkActions && config.bulkActions.length > 0)}
+          rowSelection={rowSelection}
+          onRowSelectionChange={(next) =>
+            apply({ selection: Object.keys(next).filter((id) => next[id]) })
+          }
+          sorting={sorting}
+          onSortingChange={(next) => {
+            const first = next[0]
+            // Re-ordering changes which rows sit on this page, so the page number
+            // resets; the selection is by id and survives.
+            apply({
+              sort: first ? { field: first.id, direction: first.desc ? 'desc' : 'asc' } : null,
+              page: 1,
+            })
+          }}
+          onOpenRow={openRow}
+          rowTone={
+            config.stripeMapping
+              ? (row) => {
+                  const severity = config.stripeMapping?.(row)
+                  return severity ? toneForSeverity(severity) : undefined
+                }
+              : undefined
+          }
+          error={
+            page.error ? (
+              <EmptyState
+                variant="error"
+                title="This queue could not be loaded"
+                explanation={page.error.message}
+                action={
+                  <Button variant="primary" size="sm" onClick={page.reload}>
+                    Try again
+                  </Button>
+                }
+              />
+            ) : null
+          }
+          empty={
+            narrowed ? (
+              <EmptyState
+                variant="filtered"
+                title={`No ${config.noun} matches these filters`}
+                explanation={`The queue is not empty — this view is narrowed. Clearing the filters shows everything you have access to.`}
+                action={
+                  <Button variant="primary" size="sm" onClick={() => narrow({ search: '', filters: {} })}>
+                    Show everything
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                variant="empty"
+                title={config.empty.title}
+                explanation={config.empty.explanation}
+              />
+            )
+          }
+        />
+
+        <Pagination
+          pageIndex={state.page - 1}
+          pageSize={state.pageSize}
+          totalRows={total}
+          noun={`${config.noun}s`}
+          onPageChange={(index) => apply({ page: index + 1, selection: [] })}
+          onPageSizeChange={(size) => narrow({ pageSize: size })}
+        />
+      </div>
+
+      {recordDrawer && drawerSlot ? createPortal(recordDrawer, drawerSlot) : recordDrawer}
+    </>
+  )
+}
+
+function omit(
+  filters: Readonly<Record<string, readonly string[]>>,
+  key: string,
+): Record<string, readonly string[]> {
+  const next: Record<string, readonly string[]> = {}
+  for (const [name, values] of Object.entries(filters)) {
+    if (name !== key) next[name] = values
+  }
+  return next
+}
