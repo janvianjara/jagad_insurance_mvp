@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jagad Insurance — System Workflow</title>
+<style>
+:root{
+  --customer:#2d8a4e; --subagent:#0d8a8a; --agent:#2E6FB0; --system:#b7791f; --backoffice:#7c3fa0;
+  --renewals:#c9711b; --claims:#c04545; --onfield:#8a6d1f;
+  --ink:#15181d; --ink2:#333a44; --muted:#7b8794; --faint:#a8b3bf; --line:#e7ebef; --paper:#fafbfc;
+  --accent:#4f46e5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);font-size:14px;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+/* ---- top bar ---- */
+.topbar{display:flex;align-items:center;gap:18px;padding:10px 20px;border-bottom:1px solid var(--line);background:#fff;z-index:30;flex:none;flex-wrap:wrap;row-gap:8px}
+.brand .eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}
+.brand h1{font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+.tabs{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.tabs button{font:inherit;font-size:13px;font-weight:650;color:var(--muted);background:none;border:none;border-radius:8px;padding:6px 16px;cursor:pointer}
+.tabs button.active{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(20,30,45,.1)}
+.tabs button .cnt{color:var(--faint);font-weight:600;margin-left:4px}
+.zoom{margin-left:auto;display:flex;gap:8px;align-items:center}
+.zoom button,.zoom .pct{font:inherit;font-size:13px;font-weight:650;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;cursor:pointer;color:var(--ink2)}
+.zoom .pct{cursor:default;min-width:62px;text-align:center}
+.zoom button:hover{border-color:var(--faint)}
+/* ---- canvas view ---- */
+#wfview{flex:1;position:relative;overflow:hidden;background:#fff}
+#viewport{position:absolute;inset:0;cursor:grab}
+#viewport.panning{cursor:grabbing}
+#canvas{position:absolute;top:0;left:0;transform-origin:0 0}
+#edgelayer{position:absolute;top:0;left:0;overflow:visible}
+.hint{position:absolute;top:14px;right:16px;z-index:20;font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:20px;padding:7px 15px;box-shadow:0 2px 8px rgba(20,30,45,.06)}
+/* lane bands + labels (inside canvas) */
+.laneband{position:absolute;left:0}
+.lanelabel{position:absolute;left:0;width:218px;padding:0 16px 0 22px;display:flex;flex-direction:column;justify-content:center}
+.lanelabel .nm{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:.05em;color:var(--ink2)}
+.lanelabel .nm .dot{width:9px;height:9px;border-radius:50%}
+.lanelabel .sub{font-size:11px;color:var(--muted);margin-top:3px;padding-left:17px}
+.colhead{position:absolute;top:0;height:52px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.coldiv{position:absolute;top:52px;width:0;border-left:1px dashed #e3e8ee}
+/* nodes */
+.nd{position:absolute;background:#fff;border:1px solid #dde3ea;border-radius:11px;padding:12px 14px;width:200px;box-shadow:0 1px 3px rgba(20,30,45,.06);font-size:12px;transition:opacity .15s,box-shadow .15s}
+.nd.dim{opacity:.14}
+.nd.hl{box-shadow:0 0 0 2px #4f46e5,0 6px 18px rgba(79,70,229,.18);z-index:5}
+#edgelayer path.dimmed{opacity:.08}
+#edgelayer path.lit{stroke:#4f46e5;stroke-width:2.4;opacity:1}
+#edgelayer text.dimmed{opacity:.06}
+.stickylayer{position:absolute;top:0;left:0;transform-origin:0 0;pointer-events:none}
+#laneLayer .lanelabel{background:rgba(255,255,255,.94);border-right:1px solid var(--line)}
+#colLayer .colhead{background:rgba(255,255,255,.96);border-bottom:1px solid var(--line)}
+#cornerMask{position:absolute;top:0;left:0;background:#fff;transform-origin:0 0;z-index:8;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.nd h5{font-size:12px;font-weight:700;line-height:1.3;color:var(--ink)}
+.nd p{font-size:10.5px;color:var(--muted);line-height:1.35;margin-top:3px}
+.nd .rolechip{display:inline-block;font-size:8.6px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:1.5px 6px;margin-bottom:5px;color:#fff}
+.nd.auto{background:#fdf8ec;border-color:#ecd9a4}
+.nd.auto h5::before{content:"AUTO";font-size:8px;font-weight:800;letter-spacing:.06em;color:var(--system);background:#fff;border:1px solid #ecd9a4;border-radius:3px;padding:1px 4px;margin-right:5px;vertical-align:1px}
+.nd.err{background:#fdf1ef;border-color:#efc9c2}
+.nd.err h5{color:#c0392b}
+.nd.ok{background:#eef7f0;border-color:#c0ddc7}
+.nd.loop{background:#fdf5ea;border-color:#f0d9b4}
+.nd.start{border-radius:26px;text-align:center;width:150px;background:var(--paper);border-color:#c9d4de}
+.nd.start h5{font-weight:750}
+.nd.dec{width:172px;height:96px;padding:0;background:none;border:none;box-shadow:none;display:flex;align-items:center;justify-content:center}
+.nd.dec .dwrap{position:absolute;inset:0;background:#fbf3d7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);filter:drop-shadow(0 1px 2px rgba(20,30,45,.12))}
+.nd.dec .dtxt{position:relative;z-index:2;text-align:center;width:120px}
+.nd.dec h5{font-size:11px}
+.nd.dec p{font-size:9.5px;margin-top:1px}
+.nd.note{background:var(--paper);border-style:dashed;box-shadow:none}
+/* edges */
+.elabel{font-size:10px;font-weight:700;fill:#6d7a88;paint-order:stroke;stroke:#fff;stroke-width:3.5px}
+/* legend + preconditions */
+.floaters{position:absolute;left:16px;bottom:16px;z-index:20;display:flex;gap:8px}
+.floaters button{font:inherit;font-size:12.5px;font-weight:650;color:var(--ink2);background:#fff;border:1px solid var(--line);border-radius:20px;padding:8px 15px;cursor:pointer;box-shadow:0 2px 8px rgba(20,30,45,.06)}
+.pop{position:absolute;left:16px;bottom:60px;z-index:25;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 8px 30px rgba(20,30,45,.14);width:290px;display:none}
+.pop.open{display:block}
+.pop h6{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.pop .li{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);margin-bottom:6px}
+.pop .sw{width:22px;height:13px;border-radius:4px;border:1px solid #dde3ea;flex:none}
+.pop .dm{width:15px;height:15px;background:#fbf3d7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);flex:none;margin:0 3px}
+/* minimap */
+#minimap{position:absolute;right:16px;bottom:16px;z-index:20;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 10px rgba(20,30,45,.1);overflow:hidden}
+#minimap svg{display:block}
+#miniview{fill:rgba(79,70,229,.12);stroke:#4f46e5;stroke-width:1}
+/* ---- scenarios view ---- */
+#scview{flex:1;overflow-y:auto;background:var(--paper);display:none;padding:26px 34px 80px}
+#scview h2{font-size:17px;font-weight:800;margin:26px 0 4px;color:var(--ink)}
+#scview h2:first-child{margin-top:0}
+#scview .story{font-size:12.5px;color:var(--muted);font-style:italic;margin-bottom:12px}
+table.gwt{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:8px}
+table.gwt th{background:var(--ink);color:#fff;text-align:left;font-size:11px;padding:8px 12px;font-weight:700}
+table.gwt td{padding:8px 12px;font-size:12px;border-top:1px solid var(--line);vertical-align:top;color:var(--ink2)}
+table.gwt td:first-child{font-weight:700;color:var(--faint);width:44px}
+table.gwt tr:nth-child(even) td{background:var(--paper)}
+@media(max-width:760px){.brand h1{font-size:14px}.tabs button{padding:6px 10px}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="eyebrow">Jagad Insurance System</div><h1>Business Workflow</h1></div>
+  <div class="tabs">
+    <button id="tabwf" class="active">Workflow</button>
+    <button id="tabsc">Scenarios <span class="cnt">· 48</span></button>
+  </div>
+  <div class="zoom" id="zoomctl">
+    <button id="zout" aria-label="Zoom out">−</button>
+    <span class="pct" id="zpct">100%</span>
+    <button id="zin" aria-label="Zoom in">+</button>
+    <button id="zfit">Fit</button>
+    <button id="z100">100%</button>
+  </div>
+</div>
+
+<div id="wfview">
+  <div class="hint">Drag to pan · scroll to zoom · lanes = your people · columns = stages</div>
+  <div id="viewport"><div id="canvas"></div></div>
+  <div class="floaters">
+    <button id="btnpre">Pre-conditions</button>
+    <button id="btnleg">Legend</button>
+  </div>
+  <div class="pop" id="poppre">
+    <h6>Assumed already set up</h6>
+    <div class="li">Companies, products &amp; commission rates configured</div>
+    <div class="li">WhatsApp / SMS / email connected</div>
+    <div class="li">Team roles &amp; permissions assigned</div>
+    <div class="li">Automation timers (TAT, renewal N-days) set by admin</div>
+  </div>
+  <div class="pop" id="popleg">
+    <h6>Reading the map</h6>
+    <div class="li"><span class="sw" style="background:#fff"></span>A person does this step</div>
+    <div class="li"><span class="sw" style="background:#fdf8ec;border-color:#ecd9a4"></span>System does it automatically</div>
+    <div class="li"><span class="dm"></span>A decision / fork</div>
+    <div class="li"><span class="sw" style="background:#eef7f0;border-color:#c0ddc7"></span>Good outcome</div>
+    <div class="li"><span class="sw" style="background:#fdf1ef;border-color:#efc9c2"></span>Blocked / lost / lapse</div>
+    <div class="li"><span class="sw" style="background:#fdf5ea;border-color:#f0d9b4"></span>Loop — repeats until settled</div>
+    <div class="li"><span class="sw" style="border-style:dashed"></span>Dashed line = information / trigger</div>
+  </div>
+  <div id="minimap"></div>
+</div>
+
+<div id="scview"></div>
+
+<script>
+/* ================= DATA ================= */
+const LANES=[
+ {id:"admin",     label:"ADMIN",      sub:"Configuration",    color:"#37424f"},
+ {id:"customer",  label:"CUSTOMER",   sub:"Requester",        color:"var(--customer)"},
+ {id:"subagent",  label:"SUB-AGENT",  sub:"Field sourcing",   color:"var(--subagent)"},
+ {id:"agent",     label:"AGENT",      sub:"Sales",            color:"var(--agent)"},
+ {id:"system",    label:"SYSTEM",     sub:"Automatic",        color:"var(--system)"},
+ {id:"backoffice",label:"BACK-OFFICE",sub:"Operations",       color:"var(--backoffice)"},
+ {id:"renewals",  label:"RENEWALS TEAM", sub:"Renewal pool",  color:"var(--renewals)"},
+ {id:"claims",    label:"CLAIMS TEAM",sub:"Claim files",      color:"var(--claims)"},
+ {id:"onfield",   label:"ON-FIELD",   sub:"Pickup & collect", color:"var(--onfield)"},
+];
+const COLS=[
+ {id:"c0",label:"0 · Admin Setup", slots:7},
+ {id:"c1",label:"1 · Inquiry & Assign", slots:4},
+ {id:"c2",label:"2 · Quotation → Deal", slots:7},
+ {id:"c3",label:"3 · KYC · Pay · Issue", slots:4},
+ {id:"c4",label:"4 · Renewal", slots:4},
+ {id:"c5",label:"5 · Claim", slots:5},
+ {id:"c6",label:"6 · Endorse & Cancel", slots:3},
+ {id:"c7",label:"7 · Commission", slots:2},
+];
+const GUT=224, HEAD=58, LH=224, SLOT=256, CPAD=54, NW=200;
+
+/* nodes: id, lane, col, slot, type, title, sub, dy? */
+const N=[
+ // C0 admin setup — complete configuration surface
+ ["g1","admin","c0",0,"proc","Users, roles & 2FA","permission templates · ABAC scopes · 2FA matrix · sensitive-data grants",-56],
+ ["g2","admin","c0",0,"proc","Masters & queue modes","sources · doc types · make-model · relationships · push/pull per module",56],
+ ["g3","admin","c0",1,"proc","Companies per line","GI (SME / Health / Motor) · LI · sales + claim contacts per category",-56],
+ ["g4","admin","c0",1,"proc","Policies & checklists","each company's products · doc checklist · long-term flag",56],
+ ["g5","admin","c0",2,"proc","SKU form builder","stages · fields · branching · reserved fields · preview · versioning",-56],
+ ["g6","admin","c0",2,"proc","Benefit catalog + map","question items w/ defaults · mapped per policy for the Composer",56],
+ ["g7","admin","c0",3,"proc","Agency Master","auto code · Individual (1 co) / Broker (N) · policy scope · commission %",-56],
+ ["g8","admin","c0",3,"proc","Agents & grants","agent % · sub-agent grant · share cap · direct-updates toggle",56],
+ ["g9","admin","c0",4,"proc","Claim & endorsement config","per-company statuses · intimation fields · claim forms · endorsement types",-56],
+ ["g10","admin","c0",4,"proc","Renewal & document config","N-days · PDF design · OCR notice templates per insurer · retention classes",56],
+ ["g11","admin","c0",5,"proc","Integrations & templates","WhatsApp BSP · SMTP · SMS (DLT) · all message templates + languages",-56],
+ ["g12","admin","c0",5,"proc","Automation & payout","TAT chains · reminders · cashless link recipe · payout cycle · consent texts",56],
+ ["a8","admin","c0",6,"ok","System ready to operate","config, not code — editable anytime"],
+ // C1 inquiry
+ ["n1","customer","c1",0,"start","Need arises","website form · walk-in · reference"],
+ ["n2","subagent","c1",0,"proc","Field entry (mobile)","name + mobile is enough"],
+ ["n3","agent","c1",0,"proc","Reference / ads entry","referrer recorded"],
+ ["n4","system","c1",1,"auto","Assigned by category","notified · TAT timer starts"],
+ ["n5","system","c1",2,"dec","Confirmed within TAT?",""],
+ ["n6","agent","c1",3,"ok","Accepted — owns it","timer stops · logged"],
+ ["n7","system","c1",3,"loop","Reassigned to next","same category group",-34],
+ ["n8","backoffice","c1",3,"err","Escalated to Sales Mgr","with full history"],
+ // C2 quotation — composer flow
+ ["n9","agent","c2",0,"proc","Select customer + policies","1–N companies for comparison"],
+ ["n9b","system","c2",1,"auto","Benefit questions render","matrix: rows = benefits · cols = companies · defaults pre-filled"],
+ ["n9c","agent","c2",2,"proc","Fill matrix + ad-hoc rows","back-office can add benefit + amount inline"],
+ ["n9d","agent","c2",3,"proc","Final premium per company","entered — never computed"],
+ ["n10","system","c2",4,"dec","Auto-share on?","admin setting"],
+ ["n11","system","c2",5,"auto","PDF generated & sent","single / side-by-side · logged",-34],
+ ["n12","agent","c2",5,"proc","PDF generated — shared personally","",30],
+ ["n13","customer","c2",6,"dec","Customer decision",""],
+ ["n14","agent","c2",5,"loop","Revision + reason","versions kept — repeats",-92],
+ ["n15","agent","c2",6,"err","Lost","reason compulsory",42],
+ ["n16","agent","c2",6,"ok","WON — Deal created","application no. + line items",-44],
+ // C3 kyc pay issue
+ ["n17","backoffice","c3",0,"proc","KYC — docs scanned","OCR fills · staff verify"],
+ ["n18","customer","c3",0,"proc","Consent link","self-fills health data + consent"],
+ ["n19","system","c3",1,"auto","Login created & sent","username + password on WhatsApp"],
+ ["n20","backoffice","c3",1,"dec","Who is paid?",""],
+ ["n21","backoffice","c3",2,"proc","Direct to company","record the reference only",-34],
+ ["n22","onfield","c3",2,"proc","Collection recorded","cash · cheque · DD · NEFT — no slip"],
+ ["n23","system","c3",2,"auto","Cheque bounce → task","follow-up can't be forgotten",44],
+ ["n24","backoffice","c3",3,"proc","Policy PDF uploaded","OCR fills · both numbers stored",-14],
+ ["n24b","backoffice","c3",3,"note","Placement scope-filtered","only the agency's companies / policies offered",62],
+ ["n25","system","c3",3,"ok","POLICY LIVE","customer messaged + feedback",58],
+ // C4 renewal
+ ["n26","system","c4",0,"auto","Renewal task auto-created","at expiry − N days (you set N)"],
+ ["n27","renewals","c4",0,"proc","Self-assigned from pool","whoever completes it, owns it"],
+ ["n28","system","c4",1,"auto","Customer reminded","with amount (year-wise) + offers"],
+ ["n29","renewals","c4",2,"dec","Renews?",""],
+ ["n30","renewals","c4",3,"ok","New term recorded","PDF version · commission recalc",-30],
+ ["n31","renewals","c4",3,"err","Lapse recorded","visible win-back list",44],
+ ["n32","backoffice","c4",0,"proc","Bulk-upload month's notices","all companies together",44],
+ ["n33","system","c4",1,"auto","OCR per company template","amounts year-wise + offers",64],
+ ["n34","backoffice","c4",2,"dec","Matched to policy?","",44],
+ ["n35","system","c4",3,"auto","Filled on policies + batch send","each customer gets own PDF",-64],
+ ["n36","backoffice","c4",3,"err","Unmatched — manual link","cannot auto-send",44],
+ // C5 claim
+ ["n37","customer","c5",0,"proc","Claim raised","panel · call · any channel"],
+ ["n38","system","c5",0,"dec","Policy active?"," "],
+ ["n39","system","c5",1,"err","Blocked — lapsed","agent notified to handle",-40],
+ ["n40","system","c5",1,"auto","Claim no. + company emailed","right contact · CC agent",42],
+ ["n41","claims","c5",1,"dec","Cashless or file?",""],
+ ["n42","system","c5",2,"auto","Tokenized upload link sent","login-free · expiring · configured channel",-64],
+ ["n42b","customer","c5",3,"proc","Uploads discharge summary","one tap from the link"],
+ ["n42c","system","c5",4,"ok","Summary on the claim","recorded · tracked",-58],
+ ["n43","claims","c5",2,"proc","Picked up · checklist raised","per company & product",34],
+ ["n44","onfield","c5",2,"auto","Pickup task auto-created","per customer's preference"],
+ ["n45","customer","c5",2,"proc","Customer submits docs","",58],
+ ["n46","claims","c5",3,"proc","File sent to company","claim-manager contact on record"],
+ ["n47","claims","c5",3,"loop","Query loop","explained in Guj / Hindi / Eng",-58],
+ ["n48","claims","c5",4,"proc","Settlement recorded","amount + deduction",-30],
+ ["n49","claims","c5",4,"ok","Closed + company remark","builds your insurer rating",48],
+ ["n50","system","c5",3,"note","Every status → customer","WhatsApp + panel · routes to agent if direct-updates is OFF",58],
+ // C6 endorsement
+ ["n51","backoffice","c6",0,"proc","Endorsement type chosen","form reshapes · pre-filled"],
+ ["n52","backoffice","c6",1,"proc","Non-financial correction","name · address · nominee…",-52],
+ ["n53","backoffice","c6",1,"proc","Financial change","member add · SI · transfer…",22],
+ ["n54","system","c6",1,"auto","Cancellation — refund check","claims-in-period auto-checked",84],
+ ["n55","backoffice","c6",2,"proc","Refund entered","insurer's figure · method noted",64],
+ ["n56","system","c6",2,"ok","Policy versioned","history · endorsement nos. · PDF",-20],
+ // C7 commission
+ ["n57","system","c7",0,"auto","Commission chain calculated","payer (company / broker) → agency % → agent % → sub-agent share (cap)"],
+ ["n58","subagent","c7",1,"proc","Wallet","sub-agents only — each sees own payouts"],
+ ["n59","backoffice","c7",1,"proc","Net profit · GST · reconcile","vs insurer / broker statements"],
+];
+/* edges: from,to,label,dash */
+const E=[
+ ["g1","g3",""],["g2","g4",""],["g3","g5",""],["g4","g6",""],["g5","g7",""],["g6","g8",""],["g7","g9",""],["g8","g10",""],["g9","g11",""],["g10","g12",""],["g11","a8",""],["g12","a8",""],
+ ["a8","n4","rules govern routing",1],
+ ["n1","n4","website / walk-in"],["n2","n4",""],["n3","n4",""],
+ ["n4","n5",""],["n5","n6","yes"],["n5","n7","no · TAT passes"],["n7","n5","re-check",1],["n7","n8","ignored again"],
+ ["n6","n9",""],["n9","n9b","per benefit map"],["n9b","n9c",""],["n9c","n9d",""],["n9d","n10",""],
+ ["n10","n11","on"],["n10","n12","off"],["n11","n13",""],["n12","n13",""],
+ ["n13","n14","wants changes"],["n14","n10","new version",1],["n13","n15","no"],["n13","n16","yes"],
+ ["n16","n17","no re-typing"],["n16","n18","sensitive data",1],["n17","n19","KYC done"],["n18","n19","",1],
+ ["n19","n20",""],["n20","n21","direct"],["n20","n22","via agency"],["n22","n23","if bounce",1],
+ ["n21","n24",""],["n22","n24",""],["n24","n25",""],["n24b","n24","",1],
+ ["n25","n26","auto-scheduled",1],["n26","n27",""],["n27","n28",""],["n28","n29",""],
+ ["n29","n30","yes"],["n29","n31","no"],
+ ["n32","n33",""],["n33","n34",""],["n34","n35","matched"],["n34","n36","unmatched"],
+ ["n35","n28","enriches reminders",1],
+ ["n25","n37","when something happens",1],
+ ["n37","n38",""],["n38","n39","no"],["n38","n40","yes"],["n40","n41",""],
+ ["n41","n42","cashless"],["n42","n42b","",1],["n42b","n42c",""],
+ ["n41","n43","file"],["n43","n44","pickup",1],["n43","n45","self-submit",1],
+ ["n44","n46",""],["n45","n46",""],["n43","n46",""],
+ ["n46","n47","company query",1],["n47","n46","answered",1],
+ ["n46","n48",""],["n48","n49",""],["n43","n50","",1],
+ ["n25","n51","mid-term change",1],
+ ["n51","n52",""],["n51","n53",""],["n51","n54",""],["n54","n55","eligible / not"],
+ ["n52","n56",""],["n53","n56",""],["n55","n56",""],
+ ["n25","n57","on issue",1],["n53","n57","premium delta",1],["n30","n57","renewal",1],
+ ["n57","n58",""],["n57","n59",""],
+];
+
+/* ================= LAYOUT ================= */
+const colX={}; let cx=GUT;
+COLS.forEach(c=>{colX[c.id]=cx; c.w=c.slots*SLOT+CPAD; cx+=c.w;});
+const CANW=cx+40, CANH=HEAD+LANES.length*LH+30;
+const laneY={}; LANES.forEach((l,i)=>laneY[l.id]=HEAD+i*LH);
+const nodes={};
+N.forEach(([id,lane,col,slot,type,title,sub,dy])=>{
+  const w=type==="dec"?172:(type==="start"?150:NW);
+  const h=type==="dec"?96:(sub?58:44);
+  const x=colX[col]+18+slot*SLOT;
+  const y=laneY[lane]+LH/2-h/2+(dy||0);
+  nodes[id]={id,lane,col,type,title,sub,x,y,w,h};
+});
+
+/* ================= RENDER ================= */
+const canvas=document.getElementById('canvas');
+canvas.style.width=CANW+'px'; canvas.style.height=CANH+'px';
+// lane bands + labels
+const laneLayer=document.createElement('div'); laneLayer.className='stickylayer'; laneLayer.id='laneLayer';
+laneLayer.style.cssText=`width:${GUT}px;height:${CANH}px;z-index:6`;
+const colLayer=document.createElement('div'); colLayer.className='stickylayer'; colLayer.id='colLayer';
+colLayer.style.cssText=`width:${CANW}px;height:${HEAD}px;z-index:7`;
+LANES.forEach((l,i)=>{
+  const b=document.createElement('div'); b.className='laneband';
+  b.style.cssText=`top:${laneY[l.id]}px;height:${LH}px;width:${CANW}px;background:${i%2? '#fbfcfd':'#fff'};border-top:1px solid #eef1f5`;
+  canvas.appendChild(b);
+  const lb=document.createElement('div'); lb.className='lanelabel';
+  lb.style.cssText=`top:${laneY[l.id]}px;height:${LH}px;width:${GUT}px`;
+  lb.innerHTML=`<div class="nm"><span class="dot" style="background:${l.color}"></span>${l.label}</div><div class="sub">${l.sub}</div>`;
+  laneLayer.appendChild(lb);
+});
+COLS.forEach(c=>{
+  const h=document.createElement('div'); h.className='colhead';
+  h.style.cssText=`left:${colX[c.id]}px;width:${c.w}px;height:${HEAD}px`;
+  h.textContent=c.label; colLayer.appendChild(h);
+  const d=document.createElement('div'); d.className='coldiv';
+  d.style.cssText=`left:${colX[c.id]}px;height:${CANH-HEAD}px`; canvas.appendChild(d);
+});
+const cornerMask=document.createElement('div'); cornerMask.id='cornerMask';
+cornerMask.style.cssText=`width:${GUT}px;height:${HEAD}px`;
+vpEl().appendChild(laneLayer); vpEl().appendChild(colLayer); vpEl().appendChild(cornerMask);
+function vpEl(){return document.getElementById('viewport')}
+// edge svg
+const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+svg.setAttribute('id','edgelayer'); svg.setAttribute('width',CANW); svg.setAttribute('height',CANH);
+svg.innerHTML=`<defs><marker id="ah" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 4L0 8z" fill="#9aa7b4"/></marker></defs>`;
+canvas.appendChild(svg);
+function anchor(a,b){
+  // choose sides based on relative centers
+  const acx=a.x+a.w/2, acy=a.y+a.h/2, bcx=b.x+b.w/2, bcy=b.y+b.h/2;
+  const dx=bcx-acx, dy=bcy-acy;
+  if(Math.abs(dx)>=Math.abs(dy)){
+    if(dx>=0) return [[a.x+a.w,acy],[b.x,bcy],'h'];
+    return [[a.x,acy],[b.x+b.w,bcy],'h'];
+  }else{
+    if(dy>=0) return [[acx,a.y+a.h],[bcx,b.y],'v'];
+    return [[acx,a.y],[bcx,b.y+b.h],'v'];
+  }
+}
+E.forEach(([f,t,label,dash])=>{
+  const a=nodes[f],b=nodes[t]; if(!a||!b) return;
+  const [[sx,sy],[tx,ty],axis]=anchor(a,b);
+  let d;
+  if(axis==='h'){const c=Math.max(36,Math.abs(tx-sx)/2.2)*(tx>=sx?1:-1);
+    d=`M${sx},${sy} C${sx+c},${sy} ${tx-c},${ty} ${tx},${ty}`;}
+  else{const c=Math.max(30,Math.abs(ty-sy)/2.2)*(ty>=sy?1:-1);
+    d=`M${sx},${sy} C${sx},${sy+c} ${tx},${ty-c} ${tx},${ty}`;}
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.dataset.f=f; p.dataset.t=t;
+  p.setAttribute('d',d); p.setAttribute('fill','none');
+  p.setAttribute('stroke','#9aa7b4'); p.setAttribute('stroke-width','1.4');
+  if(dash) p.setAttribute('stroke-dasharray','5 4');
+  p.setAttribute('marker-end','url(#ah)');
+  svg.appendChild(p);
+  if(label){
+    const mx=(sx+tx)/2, my=(sy+ty)/2-6;
+    const tEl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    tEl.setAttribute('x',mx); tEl.setAttribute('y',my); tEl.setAttribute('text-anchor','middle');
+    tEl.setAttribute('class','elabel'); tEl.dataset.f=f; tEl.dataset.t=t; tEl.textContent=label;
+    svg.appendChild(tEl);
+  }
+});
+// nodes (above edges)
+const roleColor=id=>getComputedStyle(document.documentElement).getPropertyValue('--'+id).trim();
+N.forEach(([id,lane])=>{
+  const n=nodes[id];
+  const el=document.createElement('div');
+  el.className='nd '+(n.type==='proc'?'':n.type);
+  el.style.cssText=`left:${n.x}px;top:${n.y}px;`+(n.type==='dec'?'':`width:${n.w}px;`);
+  if(n.type==='dec'){
+    el.innerHTML=`<div class="dwrap"></div><div class="dtxt"><h5>${n.title}</h5>${n.sub?`<p>${n.sub}</p>`:''}</div>`;
+  }else{
+    const chip=(n.type==='auto'||n.type==='note')?'':`<span class="rolechip" style="background:${roleColor(lane)}">${LANES.find(l=>l.id===lane).label.split(' ')[0]}</span> `;
+    el.innerHTML=`${chip}<h5>${n.title}</h5>${n.sub?`<p>${n.sub}</p>`:''}`;
+  }
+  el.dataset.id=id;
+  canvas.appendChild(el);
+});
+/* hover-highlight: node + its connections pop, rest dims */
+const ADJ={};
+E.forEach(([f,t])=>{(ADJ[f]=ADJ[f]||new Set()).add(t);(ADJ[t]=ADJ[t]||new Set()).add(f);});
+const allNd=[...canvas.querySelectorAll('.nd')];
+const allPaths=[...svg.querySelectorAll('path')];
+const allTexts=[...svg.querySelectorAll('text')];
+function clearHl(){allNd.forEach(x=>x.classList.remove('hl','dim'));
+  allPaths.forEach(x=>x.classList.remove('lit','dimmed'));
+  allTexts.forEach(x=>x.classList.remove('dimmed'));}
+allNd.forEach(el=>{
+  el.addEventListener('mouseenter',()=>{
+    const id=el.dataset.id, nb=ADJ[id]||new Set();
+    allNd.forEach(x=>x.classList.toggle('dim', x.dataset.id!==id && !nb.has(x.dataset.id)));
+    el.classList.add('hl');
+    allPaths.forEach(x=>{const on=x.dataset.f===id||x.dataset.t===id;
+      x.classList.toggle('lit',on); x.classList.toggle('dimmed',!on);});
+    allTexts.forEach(x=>{const on=x.dataset.f===id||x.dataset.t===id;
+      x.classList.toggle('dimmed',!on);});
+  });
+  el.addEventListener('mouseleave',clearHl);
+});
+
+/* ================= PAN / ZOOM ================= */
+const vp=document.getElementById('viewport');
+let scale=1, ox=0, oy=0;
+function apply(){canvas.style.transform=`translate(${ox}px,${oy}px) scale(${scale})`;
+ laneLayer.style.transform=`translate(0px,${oy}px) scale(${scale})`;
+ colLayer.style.transform=`translate(${ox}px,0px) scale(${scale})`;
+ cornerMask.style.transform=`scale(${scale})`;
+ document.getElementById('zpct').textContent=Math.round(scale*100)+'%'; drawMini();}
+function fit(){
+  const r=vp.getBoundingClientRect();
+  scale=Math.min(r.width/CANW,(r.height)/CANH)*0.97;
+  ox=(r.width-CANW*scale)/2; oy=(r.height-CANH*scale)/2; apply();
+}
+document.getElementById('zin').onclick=()=>{scale=Math.min(2,scale*1.2);apply()};
+document.getElementById('zout').onclick=()=>{scale=Math.max(.15,scale/1.2);apply()};
+document.getElementById('z100').onclick=()=>{scale=1;apply()};
+document.getElementById('zfit').onclick=fit;
+let panning=false,px=0,py=0;
+vp.addEventListener('pointerdown',e=>{panning=true;px=e.clientX-ox;py=e.clientY-oy;vp.classList.add('panning');vp.setPointerCapture(e.pointerId)});
+vp.addEventListener('pointermove',e=>{if(!panning)return;ox=e.clientX-px;oy=e.clientY-py;apply()});
+vp.addEventListener('pointerup',()=>{panning=false;vp.classList.remove('panning')});
+vp.addEventListener('wheel',e=>{e.preventDefault();
+  const r=vp.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const k=e.deltaY<0?1.12:1/1.12, ns=Math.min(2,Math.max(.15,scale*k));
+  ox=mx-(mx-ox)*(ns/scale); oy=my-(my-oy)*(ns/scale); scale=ns; apply();
+},{passive:false});
+
+/* ================= MINIMAP ================= */
+const MMW=230, MMH=Math.round(MMW*CANH/CANW);
+const mini=document.getElementById('minimap');
+mini.innerHTML=`<svg width="${MMW}" height="${MMH}" viewBox="0 0 ${CANW} ${CANH}">`+
+ Object.values(nodes).map(n=>{
+  const f={auto:'#f0dfae',err:'#f2c7bf',ok:'#bfdec6',loop:'#f0d9b4',dec:'#f3e6ac',note:'#e6e9ee'}[n.type]||'#ccd6df';
+  return `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="14" fill="${f}"/>`;
+ }).join('')+`<rect id="miniview" x="0" y="0" width="100" height="100"/></svg>`;
+function drawMini(){
+  const r=vp.getBoundingClientRect();
+  const mv=document.getElementById('miniview');
+  mv.setAttribute('x',(-ox)/scale); mv.setAttribute('y',(-oy)/scale);
+  mv.setAttribute('width',r.width/scale); mv.setAttribute('height',r.height/scale);
+}
+addEventListener('resize',()=>{fit()});
+
+/* ================= POPOVERS / TABS ================= */
+const pre=document.getElementById('poppre'), leg=document.getElementById('popleg');
+document.getElementById('btnpre').onclick=()=>{leg.classList.remove('open');pre.classList.toggle('open')};
+document.getElementById('btnleg').onclick=()=>{pre.classList.remove('open');leg.classList.toggle('open')};
+const wf=document.getElementById('wfview'), sc=document.getElementById('scview');
+const tw=document.getElementById('tabwf'), ts=document.getElementById('tabsc');
+tw.onclick=()=>{wf.style.display='block';sc.style.display='none';tw.classList.add('active');ts.classList.remove('active');document.getElementById('zoomctl').style.visibility='visible'};
+ts.onclick=()=>{wf.style.display='none';sc.style.display='block';ts.classList.add('active');tw.classList.remove('active');document.getElementById('zoomctl').style.visibility='hidden'};
+
+/* ================= SCENARIOS ================= */
+const FLOWS=[
+["Inquiry → TAT → Assignment","a sales manager — every inquiry auto-routed with a timer so no lead is silently dropped",[
+["Inquiry arrives from the website (Health)","Routing runs","Assigned to the matching person; notified; TAT timer starts"],
+["Assigned and waiting","Assignee confirms in time","Accepted; they own it; timer stops; logged"],
+["Assigned","TAT passes with no confirmation","Auto-reassigned to next in category; both notified; logged"],
+["Reassigned once, TAT lapses again","Escalation fires","Sales Manager gets it with full history"],
+["No category matches","Routing can't resolve","Lands in unrouted queue; admin alerted — never lost"],
+["Sub-agent in the field","Saves name + mobile only","Inquiry created, linked to them, enters routing"]]],
+["Quotation Loop → Deal","an agent — compare companies, revise with reasons, convert to a structured deal",[
+["Agent selects 3 policies across 2 companies","Composer opens","One matrix: union of mapped benefit rows, a column per company, defaults pre-filled"],
+["A needed benefit isn't in the catalog","Ad-hoc row added inline + amount","Appears on this quotation only; catalog untouched"],
+["Matrix complete","Final premium entered per company; PDF generated","Single or side-by-side branded quotation; premium entered, never computed"],
+["Auto-share ON","Quotation generated or uploaded","Customer receives on WhatsApp/SMS/mail; logged"],
+["Customer wants changes","Revision created","Reason compulsory; old versions immutable"],
+["Customer declines","Marked Lost","Reason compulsory; reportable"],
+["Customer agrees","Marked Won","Deal: application no. + line items; customer + sub-agent + agent linked"],
+["Deal exists","Policy entry begins","Line items pre-populate; empty deal blocked"]]],
+["KYC → Login → Payment → Issue","a back-office user — the paperwork stage where the system does the remembering",[
+["Won deal","KYC completed (staff + consent link)","Profile 100%; consent recorded"],
+["KYC completes","Credentials recipe fires","Username/password sent on WhatsApp"],
+["Customer pays company direct","Reference recorded","No money on agency books"],
+["Customer pays agency","Collection entry (any mode)","Record-only, no slip; cheque watched"],
+["Recorded cheque bounces","Marked bounced","Follow-up task auto-created"],
+["Company issues policy","PDF uploaded","OCR fills; staff confirm; both numbers stored; customer messaged"],
+["Entry half-done","Draft saved","Appears in completion queue with missing fields"]]],
+["Claim File Lifecycle","a claims-team member — intimation to settlement as a pipeline the customer can watch",[
+["Customer in their panel","Raises claim on active policy","Claim no. instantly; intimation email to company + CC agent"],
+["Policy lapsed","Validation runs","Blocked with clear message; agent notified"],
+["Claim in queue","Claims member picks up","Ownership transfers; sales agent informed, not owner"],
+["Type is cashless","Recorded","Tokenized upload link auto-sent on the configured channel"],
+["Cashless link received","Customer uploads discharge summary","Login-free, expiring link; document lands on the claim"],
+["File claim, customer flagged pickup","Checklist raised","On-field pickup task auto-created; handover tracked"],
+["Company raises query","Explanation written in customer's language","Shared to customer + hospital; loop visible"],
+["Company pays","Settlement recorded","Close needs settlement + company remark"],
+["Any status changes","Recipe fires","Customer WhatsApped with claim no.; panel matches"]]],
+["Renewal incl. Bulk Notices","a renewals member — renewals scheduled from issuance, enriched by monthly notices",[
+["Expiry is N days away","Renewal recipe fires","Task in pull queue; reminder sent with amount + offers"],
+["Tasks in pool","Member self-assigns","Ownership recorded"],
+["Month's notices arrive","Bulk upload","Each read by its company's template; rows to review"],
+["A notice can't match","Review flags it","Cannot auto-send; manual link or reject"],
+["Matches confirmed","Send-all clicked","Each customer gets own PDF; renewal request per policy"],
+["Backdate needed","Done with permission","Who/when/original date audit-logged"],
+["Renewal completes","Policy renews","New term + PDF version; commission recalculates"]]],
+["Admin Configuration","an admin — the whole system is configuration, not code",[
+["A new insurer partnership","Company + policies added per line","Available across quotation, placement, claims with its contacts"],
+["Client process differs per product","SKU form schemas built: stages, fields, branching","Every entry form renders their way; old records keep their original schema"],
+["A new placement code obtained","Agency added: type, companies, policy scope, commission %","Individual locks to one company; Broker allows many; placement filtered by scope"],
+["A new agent joins","Agent added: % set, sub-agent grant, cap, direct-updates toggle","Agent can build his own sub-agent team within the cap"],
+["A rule needs changing","Recipe edited (TAT, renewal days, templates)","Behavior changes immediately — no developer"]]],
+["Endorsement & Cancellation","a back-office user — the form reshapes by type; cancellation checks refunds first",[
+["Address correction","Non-financial type chosen","Correction fields only; no premium block"],
+["Member added to floater","Financial type chosen","Member picker + premium delta; commission adjusts"],
+["Cancel a 1-yr policy","System checks own claims","Claim this period → 'refund not eligible' instantly"],
+["Cancellation eligible","Refund entered manually","Insurer's figure; method noted; record-only"],
+["Endorsement approved","Version created","Immutable history; both endorsement numbers; new PDF"],
+["Change too large","Endorsement attempted","System suggests fresh issue instead"]]],
+];
+let sn=0;
+sc.innerHTML=FLOWS.map((f,i)=>{
+  const rows=f[2].map((r,j)=>{sn++;return `<tr><td>${i+1}.${j+1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`}).join('');
+  return `<h2>${i+1}. ${f[0]}</h2><p class="story">As ${f[1]}.</p>
+  <table class="gwt"><tr><th style="width:44px">#</th><th>Given</th><th>When</th><th>Then</th></tr>${rows}</table>`;
+}).join('');
+
+/* init */
+fit();
+</script>
+</body>
+</html>
