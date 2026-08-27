@@ -12,6 +12,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Scenario tests mount the entire product. The 5s default was tripping them
+    // under parallel load rather than catching real faults - see the same
+    // reasoning in src/test/setup.ts.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     css: false,
   },
 })
