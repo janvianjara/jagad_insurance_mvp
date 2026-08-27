@@ -1,0 +1,18 @@
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.note {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.expiry {
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+}

@@ -1,0 +1,103 @@
+/*
+ * Mobile first, and only mobile first.
+ *
+ * This page is opened from a WhatsApp message on a phone held one-handed in a
+ * hospital corridor (§11.1, D21). One column, full-width controls, comfortable
+ * targets — the desktop rendering is the same page with a maximum width, not a
+ * different layout.
+ */
+
+.page {
+  min-block-size: 100dvh;
+  padding: var(--sp-4);
+  background: var(--ground);
+  color: var(--ink);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.card {
+  inline-size: 100%;
+  max-inline-size: 34rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-reading);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+}
+
+.privacy {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-md);
+  background: var(--ok-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink);
+}
+
+.problem {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.loading {
+  margin: 0;
+  font-size: var(--text-reading);
+  color: var(--ink-3);
+}
+
+.expiredAt {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.footer {
+  margin: 0;
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hair);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+@media (min-width: 40rem) {
+  .page {
+    padding: var(--sp-8) var(--sp-5);
+  }
+
+  .card {
+    padding: var(--sp-7) var(--sp-6);
+  }
+}

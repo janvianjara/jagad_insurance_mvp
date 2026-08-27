@@ -171,9 +171,12 @@ describe('routes', () => {
   it('renders the tokenised consent page with no shell and no session', async () => {
     renderApp('/consent/abc123')
 
-    expect(await screen.findByText('Consent is not built yet')).toBeInTheDocument()
-    expect(screen.getByText('abc123')).toBeInTheDocument()
-    // No rail, so nothing on this page could have read a user.
+    // P-14 built this page, so the assertion is no longer about a stub. What it
+    // has always been about is plan section 11.1: this route carries no session
+    // BY DESIGN. Those are the two properties worth holding - a main region
+    // rendered outside the shell, and a session that was never hydrated - and
+    // they stay true whatever the page goes on to say.
+    expect(await screen.findByRole('main')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull()
     expect(useSessionStore.getState().ready).toBe(false)
   })

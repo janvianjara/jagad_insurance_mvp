@@ -1,0 +1,81 @@
+.file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.missing,
+.none,
+.blocked {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.blocked {
+  margin-block-start: var(--sp-2);
+  color: var(--ink-2);
+}
+
+.standing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+
+.identity {
+  margin-block-start: var(--sp-4);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-4);
+}
+
+.refusal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink);
+}
+
+.link {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+}
+
+.token,
+.expiry {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.token {
+  font-family: var(--font-mono);
+}
+
+.done {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-ui);
+  color: var(--ok);
+}

@@ -9,7 +9,18 @@ import {
   InquiryQueueRoute,
 } from '../features/inquiries/routes'
 import { AssistantRoute } from '../features/assistant/AssistantRoute'
-import { ConfigMastersScreen, ConfigUsersScreen } from '../features/config/config-routes'
+import {
+  ConfigAgenciesScreen,
+  ConfigAgentsScreen,
+  ConfigBenefitsScreen,
+  ConfigCompaniesScreen,
+  ConfigMastersScreen,
+  ConfigProductsScreen,
+  ConfigUsersScreen,
+} from '../features/config/config-routes'
+import { ConsentTokenRoute } from '../features/consent/routes'
+import { Customer360Route, CustomerListRoute } from '../features/customers/routes'
+import { KycQueueRoute } from '../features/kyc/routes'
 import { RequireAccess } from './RequireAccess'
 import { ROUTE_MAP } from './route-map'
 import type { RouteSpec } from './route-map'
@@ -60,6 +71,25 @@ const BUILT_SCREENS: Readonly<Record<string, () => ReactElement>> = {
   '/inquiries/:id': () => <InquiryDetailRoute />,
   '/config/users': () => <ConfigUsersScreen />,
   '/config/masters': () => <ConfigMastersScreen />,
+  '/config/companies': () => <ConfigCompaniesScreen />,
+  '/config/products': () => <ConfigProductsScreen />,
+  '/config/benefits': () => <ConfigBenefitsScreen />,
+  '/config/agencies': () => <ConfigAgenciesScreen />,
+  '/config/agents': () => <ConfigAgentsScreen />,
+  '/customers': () => <CustomerListRoute />,
+  // No /back-office/kyc/:id exists in the section 4 route map, so a KYC row opens
+  // the customer it is about, on its KYC tab, beside the household and timeline.
+  '/customers/:id': () => <Customer360Route />,
+  '/back-office/kyc': () => <KycQueueRoute />,
+}
+
+/**
+ * Screens outside the shell. They carry no session by design (plan section 11.1),
+ * so they get their own map and their own Suspense - they render outside the
+ * shell's outlet, and must not reach the session store or the app shell at all.
+ */
+const BUILT_BARE_SCREENS: Readonly<Record<string, () => ReactElement>> = {
+  '/consent/:token': () => <ConsentTokenRoute />,
 }
 
 function guarded(spec: RouteSpec) {
@@ -121,7 +151,11 @@ export function createAppRoutes(): RouteObject[] {
     },
     ...ROUTE_MAP.filter((spec) => spec.layout !== 'app').map((spec) => ({
       path: spec.path,
-      element: <StandaloneRoute spec={spec} />,
+      element: BUILT_BARE_SCREENS[spec.path] ? (
+        <Suspense fallback={<RoutePending />}>{BUILT_BARE_SCREENS[spec.path]()}</Suspense>
+      ) : (
+        <StandaloneRoute spec={spec} />
+      ),
     })),
     ...galleryRoutes(),
     { path: '*', element: <NoSuchRoute /> },
