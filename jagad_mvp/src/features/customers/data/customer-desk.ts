@@ -1,22 +1,26 @@
 /**
  * The desk the customer, KYC and consent screens write through.
  *
- * `src/data/repo` is read-plus-transitions in the MVP: `CustomerRepository` can
- * move KYC and consent through their machines, and it has no way to create a
- * credential row, a message-log row, or a note that a document arrived. P-11 hit
- * the same wall on `/inquiries/new` and solved it with a documented decorator
- * (`src/features/inquiries/data/intake.ts`); this file follows that pattern
- * exactly, and for the same reasons:
+ * `CustomerRepository` creates customers and moves KYC and consent through their
+ * machines. What it has no field for is the rest of what a KYC desk produces: a
+ * credential row, a message-log row, a note that a checklist item arrived, a
+ * person's verdict on an extraction, the values a customer typed into a consent
+ * form. This file holds those, and only those:
  *
  *   - a screen still talks to an interface, never to a fixture;
  *   - every state change still goes through a §9 machine — `advanceKyc` and
  *     `advanceConsent` are called unmodified, and a refusal comes back as the
  *     machine's own sentence rather than as an exception;
- *   - the rows this module owns are only the ones the repository cannot hold
- *     yet. Everything else is delegated untouched.
+ *   - the rows this module owns are only the ones no repository can hold.
+ *     Everything else is delegated untouched.
  *
- * When the write API lands, the four local maps below become repository calls
- * and the screens do not change.
+ * The five local maps were reviewed against `create` when it landed on the
+ * repositories, and every one of them stayed: `credentials` and `messages` are
+ * read-only on `CustomerRepository` and `ConfigRepository`, `receipts` and
+ * `reviews` are a checklist and an OCR verdict that no entity in §8 carries, and
+ * `submissions` holds what a customer typed under a pinned schema — sensitive by
+ * definition, and deliberately without a table. Moving any of them would mean
+ * inventing a repository field to hold it, which is the opposite of the fix.
  *
  * Two things are deliberately NOT delegated, and they are the interesting half:
  *

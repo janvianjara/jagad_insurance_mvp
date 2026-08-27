@@ -24,7 +24,7 @@ import type { Policy } from '../repo/policies'
 import type { Task } from '../repo/tasks'
 import { AGENCIES, AGENT_IDS, PRODUCTS, TEAM_IDS, USER_IDS } from './config-seed'
 import { addDays, isoDate, isoTime } from './clock'
-import { localNo, systemNo, volumeId } from './ids'
+import { systemNo, volumeId } from './ids'
 import { createPrng } from './prng'
 import type { Prng } from './prng'
 
@@ -200,7 +200,7 @@ export function buildVolume(
 
     return {
       id: volumeId('cus', sequence),
-      systemNo: localNo('CUS', CUSTOMER_SEQUENCE_START + sequence),
+      systemNo: systemNo('customer', CUSTOMER_SEQUENCE_START + sequence),
       householdId: null,
       status,
       source: prng.pick(CUSTOMER_SOURCE_POOL),

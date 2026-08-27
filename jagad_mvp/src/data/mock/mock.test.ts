@@ -640,3 +640,226 @@ describe('the store behind the repositories', () => {
     expect(intimated.ok).toBe(true)
   })
 })
+
+describe('creating records', () => {
+  it('numbers a captured inquiry off the platform sequence, not off the caller', async () => {
+    const repos = repositories()
+    const result = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'website',
+      categoryId: 'cat-health',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    // The fixture cast ends at INQ-1046, so a captured inquiry continues that
+    // series rather than starting a second one.
+    expect(result.record.systemNo).toBe('INQ-1047')
+    expect(result.record.id).toBe('inq-1047')
+    expect(result.record.status).toBe('new')
+    // Routing has not run yet, so nobody owns it and no clock is ticking.
+    expect(result.record.ownerId).toBeNull()
+    expect(result.record.tatDueAt).toBeNull()
+    expect(result.events.map((event) => event.name)).toEqual(['inquiry.created'])
+    expect(repos.store.events().map((event) => event.name)).toEqual(['inquiry.created'])
+
+    // It is an ordinary row in the ordinary table: readable, and movable through
+    // the same machine as every seeded inquiry.
+    expect(await repos.inquiries.get('inq-1047')).toEqual(result.record)
+    expect(await repos.inquiries.bySystemNo('INQ-1047')).toEqual(result.record)
+    const assigned = await repos.inquiries.assign('inq-1047', {
+      actorId: ACTOR,
+      nextOwnerId: 'usr-kiran-solanki',
+      nextOwnerCategoryGroupId: 'cat-health',
+      tatMinutes: 60,
+      routingMatchFound: true,
+    })
+    expect(assigned.ok).toBe(true)
+  })
+
+  it('refuses an inquiry with nobody to call back, and consumes no number doing it', async () => {
+    const repos = repositories()
+    const result = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '   ',
+      source: 'website',
+    })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/needs a mobile number/)
+    expect(repos.store.events()).toEqual([])
+
+    const next = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'website',
+    })
+    expect(next.ok).toBe(true)
+    if (next.ok) expect(next.record.systemNo).toBe('INQ-1047')
+  })
+
+  it('opens a customer with KYC pending, consent unsent and no Aadhaar anywhere', async () => {
+    const repos = repositories()
+    const before = await repos.customers.list({ pageSize: 1 })
+    const result = await repos.customers.create({
+      actorId: ACTOR,
+      fullName: 'Hetal Bhatt',
+      mobile: '98250 11111',
+      source: 'walk_in',
+      ownerId: ACTOR,
+      city: 'Surat',
+      state: 'Gujarat',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.record.systemNo).toMatch(/^CUS-\d{4,}$/)
+    expect(result.record.status).toBe('prospect')
+    expect(result.record.kycState).toBe('pending')
+    expect(result.record.consentState).toBe('not_sent')
+    expect(result.record.aadhaarNumber).toBeNull()
+    expect(result.record.aadhaarLast4).toBeNull()
+    expect(result.events.map((event) => event.name)).toEqual(['kyc.started'])
+
+    const after = await repos.customers.list({ pageSize: 1 })
+    expect(after.total).toBe(before.total + 1)
+  })
+
+  it('opens a quotation in draft at version one, with no columns and no figure', async () => {
+    const repos = repositories()
+    const result = await repos.quotations.create({
+      actorId: ACTOR,
+      customerId: 'cus-falguni-shah',
+      ownerId: ACTOR,
+      inquiryId: 'inq-1046',
+      premiumMode: 'annual',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.record.systemNo).toBe('QTN-0333')
+    expect(result.record.status).toBe('draft')
+    expect(result.record.version).toBe(1)
+    expect(result.record.finalPayablePremium).toBeNull()
+    expect(result.record.benefitRows).toEqual([])
+    expect(result.events.map((event) => event.name)).toEqual(['quotation.created'])
+    expect(await repos.quotations.lines(result.record.id)).toEqual([])
+  })
+
+  it('blocks a deal with no line items at birth, in the machine own words', async () => {
+    const repos = repositories()
+    const result = await repos.deals.create({
+      actorId: ACTOR,
+      quotationId: 'qtn-0332',
+      customerId: 'cus-falguni-shah',
+      ownerId: ACTOR,
+      lineItems: [],
+    })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/This deal has no line items/)
+    expect(result.guard).toBe('dealHasLineItems')
+    // A refusal writes nothing, emits nothing, and consumes no number.
+    expect(repos.store.events()).toEqual([])
+    expect(await repos.deals.bySystemNo('APP-0776')).toBeNull()
+
+    const withItems = await repos.deals.create({
+      actorId: ACTOR,
+      quotationId: 'qtn-0332',
+      customerId: 'cus-falguni-shah',
+      ownerId: ACTOR,
+      lineItems: [
+        {
+          id: 'dli-new-a',
+          companyId: 'cmp-tata-aig',
+          productId: 'prd-ta-tvg',
+          label: 'Tata AIG Travel Guard',
+        },
+      ],
+    })
+    expect(withItems.ok).toBe(true)
+    if (!withItems.ok) return
+    expect(withItems.record.systemNo).toBe('APP-0776')
+    expect(withItems.record.status).toBe('created')
+    expect(withItems.record.agencyId).toBeNull()
+    expect(withItems.events.map((event) => event.name)).toEqual(['deal.created'])
+  })
+
+  it('numbers an unissued policy under its own prefix and a direct entry under the issued one', async () => {
+    const repos = repositories()
+    const common = {
+      actorId: ACTOR,
+      customerId: 'cus-rakesh-patel',
+      companyId: 'cmp-hdfc-ergo',
+      productId: 'prd-he-ops',
+      agencyId: 'agy-jagad-hdfc',
+      formSchemaId: 'frm-policy-entry-v2',
+      schemaVersion: 2,
+      savedBy: ACTOR,
+      premiumMode: 'annual' as const,
+      retentionClass: 'health',
+    }
+
+    const proposal = await repos.policies.create({ ...common, entryPath: 'proposal' })
+    expect(proposal.ok).toBe(true)
+    if (!proposal.ok) return
+    expect(proposal.record.systemNo).toMatch(/^POL-DRAFT-\d{4,}$/)
+    expect(proposal.record.status).toBe('draft')
+    expect(proposal.record.insurerNo).toBeNull()
+    expect(proposal.record.finalPremium).toBeNull()
+    expect(proposal.record.paymentState).toBe('unpaid')
+    expect(proposal.events.map((event) => event.name)).toEqual(['policy.drafted'])
+
+    const direct = await repos.policies.create({
+      ...common,
+      entryPath: 'direct',
+      dealId: 'app-0774',
+      missingFields: ['nomineeName'],
+      finalPremium: money(28_532, 40),
+    })
+    expect(direct.ok).toBe(true)
+    if (!direct.ok) return
+    expect(direct.record.systemNo).toMatch(/^POL-\d{4,}$/)
+    // The figure is stored exactly as typed. Net and GST stay absent.
+    expect(direct.record.finalPremium).toEqual(money(28_532, 40))
+    expect(direct.record.netPremium).toBeNull()
+
+    // The entry draft is written by the same act, which is what lets `issue`
+    // read the path back and let a direct entry skip proposal.
+    const draft = await repos.policies.draft(direct.record.id)
+    expect(draft?.entryPath).toBe('direct')
+    expect(draft?.dealId).toBe('app-0774')
+    expect(draft?.missingFields).toEqual(['nomineeName'])
+    expect((await repos.policies.completionQueue()).rows.map((row) => row.policyId)).toContain(
+      direct.record.id,
+    )
+  })
+
+  it('numbers identically in two stores, so a creation never reaches for the wall clock', async () => {
+    const first = repositories()
+    const second = repositories()
+    const command = {
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'website' as const,
+    }
+
+    const one = await first.inquiries.create(command)
+    const two = await second.inquiries.create(command)
+
+    expect(one.ok && two.ok).toBe(true)
+    if (!one.ok || !two.ok) return
+    expect(one.record).toEqual(two.record)
+    expect(one.events[0].at).toBe(two.events[0].at)
+  })
+})

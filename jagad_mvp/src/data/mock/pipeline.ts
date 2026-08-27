@@ -19,6 +19,7 @@ import { addMinutes } from '../fixtures/clock'
 import {
   archiveQuotationVersion,
   consentMachine,
+  dealHasLineItems,
   dealMachine,
   inquiryMachine,
   kycMachine,
@@ -28,20 +29,22 @@ import type {
   AgencyScope,
   ConsentLink,
   ConsentState,
+  DealContext,
   KycConsentState,
   QuotationColumn,
   QuotationContext,
   QuotationVersion,
 } from '../../domain/workflows'
+import { CUSTOMER_STATUSES } from '../repo/customers'
 import type { ConsentRecord, Customer, CustomerRepository } from '../repo/customers'
-import type { DealRepository } from '../repo/deals'
+import type { Deal, DealRepository } from '../repo/deals'
 import type { Inquiry, InquiryRepository } from '../repo/inquiries'
 import type { Quotation, QuotationLine, QuotationRepository } from '../repo/quotations'
 import { notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
-import { move } from './move'
+import { create, move } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
 
@@ -113,6 +116,65 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     async credentials(customerId) {
       await wait()
       return rowsOf(t.customerCredentials).filter((entry) => entry.customerId === customerId)
+    },
+
+    async create(command) {
+      await wait()
+      const fullName = command.fullName.trim()
+      const mobile = command.mobile.trim()
+      if (fullName === '') {
+        return rejected('A customer needs a name. It is what every other record hangs off.')
+      }
+      if (mobile === '') {
+        return rejected(
+          'A customer needs a mobile number. Without one there is no way to reach them and no way to send a consent link.',
+        )
+      }
+
+      const now = at(command.now)
+
+      return create({
+        store,
+        table: t.customers,
+        entity: 'Customer',
+        kind: 'customer',
+        // The KYC file opens with the record, so the KYC machine is the one the
+        // customer is born into. Consent starts at its own machine's initial
+        // state rather than at a string written here.
+        machine: kycMachine,
+        event: 'kyc.started',
+        actorId: command.actorId,
+        detail: { source: command.source },
+        build: (born): Customer => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          householdId: command.householdId ?? null,
+          status: command.status ?? CUSTOMER_STATUSES.prospect,
+          source: command.source,
+          createdAt: now.toISOString(),
+          ownerId: command.ownerId,
+          agentId: command.agentId ?? null,
+          subAgentId: command.subAgentId ?? null,
+          kycState: born.status,
+          consentState: consentMachine.initial,
+          fullName,
+          mobile,
+          altMobile: command.altMobile ?? null,
+          email: command.email ?? null,
+          addressLine: command.addressLine ?? null,
+          city: command.city,
+          state: command.state,
+          pincode: command.pincode ?? null,
+          dateOfBirth: command.dateOfBirth ?? null,
+          // Never populated, here least of all: the field exists so the
+          // classification has something to forbid.
+          aadhaarNumber: null,
+          aadhaarLast4: null,
+          panNumber: command.panNumber ?? null,
+          bankAccountNumber: null,
+          bankIfsc: null,
+        }),
+      })
     },
 
     async advanceKyc(customerId, to, command) {
@@ -278,6 +340,62 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         INQUIRY_LIST_SPEC,
         query,
       )
+    },
+
+    async create(command) {
+      await wait()
+      const contactName = command.contactName.trim()
+      const contactMobile = command.contactMobile.trim()
+      if (contactName === '') {
+        return rejected(
+          'An inquiry needs a name. It is the only thing the person on the phone always has.',
+        )
+      }
+      if (contactMobile === '') {
+        return rejected(
+          'An inquiry needs a mobile number. Without one there is nobody to route the inquiry to.',
+        )
+      }
+
+      const now = at(command.now)
+
+      return create({
+        store,
+        table: t.inquiries,
+        entity: 'Inquiry',
+        kind: 'inquiry',
+        machine: inquiryMachine,
+        // `new` is the machine's initial state, so there is no transition to
+        // make. The event still goes out: the routing recipe triggers on it, and
+        // a creation nobody can observe is the silent drop §9 warns about.
+        event: 'inquiry.created',
+        actorId: command.actorId,
+        detail: { source: command.source, subAgentId: command.subAgentId ?? null },
+        build: (born): Inquiry => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          status: born.status,
+          source: command.source,
+          categoryId: command.categoryId ?? null,
+          productInterest: command.productInterest ?? [],
+          // Routing decides who owns this. An inquiry that arrived pre-owned
+          // would have skipped the recipe that makes the TAT clock meaningful.
+          ownerId: null,
+          teamId: null,
+          agentId: command.agentId ?? null,
+          subAgentId: command.subAgentId ?? null,
+          assignedAt: null,
+          tatDueAt: null,
+          assignmentHistory: [],
+          escalationLevel: 0,
+          createdAt: now.toISOString(),
+          customerId: command.customerId ?? null,
+          contactName,
+          contactMobile,
+          contactEmail: command.contactEmail ?? null,
+          notes: command.notes ?? null,
+        }),
+      })
     },
 
     async assign(id, command) {
@@ -590,6 +708,44 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       return linesOf(quotationId)
     },
 
+    async create(command) {
+      await wait()
+      const now = at(command.now)
+
+      return create({
+        store,
+        table: t.quotations,
+        entity: 'Quotation',
+        kind: 'quotation',
+        machine: quotationMachine,
+        event: 'quotation.created',
+        actorId: command.actorId,
+        detail: { customerId: command.customerId, inquiryId: command.inquiryId ?? null },
+        build: (born): Quotation => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          version: 1,
+          status: born.status,
+          customerId: command.customerId,
+          inquiryId: command.inquiryId ?? null,
+          ownerId: command.ownerId,
+          agentId: command.agentId ?? null,
+          // The matrix arrives at `compose`, along with the typed premiums the
+          // machine checks. A draft holds no columns and no figure.
+          companyIds: [],
+          productIds: [],
+          benefitRows: [],
+          premiumMode: command.premiumMode,
+          finalPayablePremium: null,
+          sharedAt: null,
+          revisionReason: null,
+          lostReason: null,
+          createdAt: now.toISOString(),
+          documentId: null,
+        }),
+      })
+    },
+
     async compose(id, command) {
       await wait()
       const quotation = t.quotations.get(id)
@@ -844,6 +1000,41 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         DEAL_LIST_SPEC,
         query,
       )
+    },
+
+    async create(command) {
+      await wait()
+      const now = at(command.now)
+
+      return create<Deal['status'], DealContext, Deal>({
+        store,
+        table: t.deals,
+        entity: 'Deal',
+        kind: 'deal',
+        machine: dealMachine,
+        // §9's zero-line-item block, applied at birth by the machine's own guard
+        // so the refusal carries the machine's own sentence. The agency scope is
+        // not checked here — placement is `setLineItems`, and that is where
+        // `placementInsideAgencyScope` runs.
+        entry: { guards: [dealHasLineItems], ctx: { lineItems: command.lineItems } },
+        event: 'deal.created',
+        actorId: command.actorId,
+        detail: { quotationId: command.quotationId, lineItems: command.lineItems.length },
+        build: (born): Deal => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          status: born.status,
+          quotationId: command.quotationId,
+          customerId: command.customerId,
+          ownerId: command.ownerId,
+          agentId: command.agentId ?? null,
+          subAgentId: command.subAgentId ?? null,
+          agencyId: null,
+          lineItems: command.lineItems,
+          createdAt: now.toISOString(),
+          consumedByPolicyId: null,
+        }),
+      })
     },
 
     async setLineItems(id, command) {

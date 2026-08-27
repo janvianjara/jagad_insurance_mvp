@@ -13,8 +13,10 @@
  * the failure mode §9 spends most of its length trying to prevent.
  */
 
-import type { DomainEvent } from '../../domain/events'
-import type { Machine } from '../../domain/workflows'
+import type { DomainEvent, DomainEventName } from '../../domain/events'
+import { nextSystemNo } from '../../domain/ids'
+import type { RecordKind, SystemNo } from '../../domain/ids'
+import type { Guard, Machine } from '../../domain/workflows'
 import { committed, notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import type { MockStore } from './store'
@@ -58,6 +60,86 @@ export function move<S extends string, Ctx, T>(
   const updated = apply(record, outcome.events)
   table.set(id, updated)
   return committed(updated, outcome.events)
+}
+
+/**
+ * The first write a record ever receives — the third sibling of `move` and
+ * `record`.
+ *
+ * A creation has no edge to travel along: the record is born in its machine's
+ * initial state, so there is no `from` and no transition to run. Three things
+ * still have to hold, and this function is where they hold:
+ *
+ *   - the status is `machine.initial` and nothing else. A caller supplies facts,
+ *     never a state, so there is no path here that assigns a status string;
+ *   - `systemNo` comes off the store's counter. It is not in the command shape
+ *     and cannot be — dual numbering (§8) is the platform's job, and a caller
+ *     that could choose a number could collide with one already read aloud;
+ *   - a §9 rule that applies at birth is named as an entry guard and runs before
+ *     anything is written, numbered or emitted, refusing with the machine's own
+ *     sentence exactly as `move` does. The deal's zero-line-item block is the
+ *     one the MVP has.
+ *
+ * `insurerNo` is deliberately absent from the shape below: it arrives from the
+ * company later, on a record that already exists, and often never arrives at all.
+ */
+export type CreateEntry<Ctx> = {
+  /** Guards from the machine's own module, so the sentence is the machine's. */
+  readonly guards: readonly Guard<Ctx>[]
+  readonly ctx: Ctx
+}
+
+/** What the platform, rather than the caller, decides about a new record. */
+export type Born<S extends string> = {
+  readonly id: string
+  readonly systemNo: SystemNo
+  /** The machine's initial state. The only status a creation may write. */
+  readonly status: S
+}
+
+export type CreateOptions<S extends string, Ctx, T> = {
+  readonly store: MockStore
+  readonly table: Map<string, T>
+  /** Entity name for the event subject and for the duplicate sentence. */
+  readonly entity: string
+  /** Which sequence the number comes from. §8 owns the prefixes. */
+  readonly kind: RecordKind
+  /** Only `initial` is read — this is how a create stays unable to pick a state. */
+  readonly machine: { readonly initial: S }
+  /** Omitted where the machine has nothing to say about birth. */
+  readonly entry?: CreateEntry<Ctx>
+  /** The P-02 event a creation emits. No edge carries it, so it is named here. */
+  readonly event: DomainEventName
+  readonly actorId: string
+  readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /** Builds the row. Receives the events, so a record can store the bus's stamp. */
+  readonly build: (born: Born<S>, events: readonly DomainEvent[]) => T
+}
+
+export function create<S extends string, Ctx, T>(
+  options: CreateOptions<S, Ctx, T>,
+): MutationResult<T> {
+  const { store, table, entity, kind, machine, entry, event, actorId, detail, build } = options
+
+  // Guards first. A refusal writes nothing, emits nothing, and — the part a
+  // creation adds to the posture — consumes no number.
+  for (const guard of entry?.guards ?? []) {
+    const verdict = guard(entry?.ctx as Ctx)
+    if (!verdict.ok) return rejected(verdict.reason, verdict.code, verdict.guard ?? guard.name)
+  }
+
+  const systemNo = nextSystemNo(kind, store.ids)
+  const id = systemNo.toLowerCase()
+  if (table.has(id)) {
+    return rejected(
+      `A ${entity} already holds the number ${systemNo}. The sequence has fallen behind what is on the books.`,
+    )
+  }
+
+  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail })
+  const row = build({ id, systemNo, status: machine.initial }, [emitted])
+  table.set(id, row)
+  return committed(row, [emitted])
 }
 
 /**

@@ -39,10 +39,12 @@ import type {
   RenewalState,
 } from '../../domain/workflows'
 import type { Claim, ClaimRepository } from '../repo/claims'
+import { PAYMENT_STATES } from '../repo/policies'
 import type {
   CollectionRecord,
   CollectionRepository,
   Policy,
+  PolicyEntryDraft,
   PolicyRepository,
   PolicyStepCommand,
   PremiumScheduleRepository,
@@ -52,7 +54,7 @@ import { notFound } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
-import { move, record } from './move'
+import { create, move, record } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
 
@@ -211,6 +213,78 @@ export function createContractRepositories(deps: ContractDeps): {
         (policy) =>
           policy.expiryDate !== null && policy.expiryDate >= from && policy.expiryDate <= to,
       )
+    },
+
+    async create(command) {
+      await wait()
+      const now = at(command.now)
+
+      const outcome = create({
+        store,
+        table: t.policies,
+        entity: 'Policy',
+        // §8 numbers an unissued policy under its own prefix, because the number
+        // is read aloud on the phone. A direct entry is a policy the insurer has
+        // already issued, so it takes the issued series from the start.
+        kind: command.entryPath === 'direct' ? 'policy' : 'policyDraft',
+        machine: policyMachine,
+        event: 'policy.drafted',
+        actorId: command.actorId,
+        detail: { entryPath: command.entryPath, dealId: command.dealId ?? null },
+        build: (born): Policy => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          // The company's own number arrives later, through `issue`, and often
+          // never arrives at all. Absence is information.
+          insurerNo: null,
+          customerId: command.customerId,
+          companyId: command.companyId,
+          productId: command.productId,
+          agencyId: command.agencyId,
+          agentId: command.agentId ?? null,
+          subAgentId: command.subAgentId ?? null,
+          status: born.status,
+          startDate: command.startDate ?? null,
+          expiryDate: command.expiryDate ?? null,
+          // Every figure exactly as typed. Nothing here is added up, and an
+          // absent one stays absent rather than becoming a zero.
+          sumInsured: command.sumInsured ?? null,
+          netPremium: command.netPremium ?? null,
+          gstAmount: command.gstAmount ?? null,
+          finalPremium: command.finalPremium ?? null,
+          premiumMode: command.premiumMode,
+          paymentState: PAYMENT_STATES.unpaid,
+          memberIds: command.memberIds ?? [],
+          retentionClass: command.retentionClass,
+          schemaVersion: command.schemaVersion,
+          // Sensitive fields are not collected by an entry command. They arrive
+          // through the flows that guard them.
+          proposerBankAccount: null,
+          nomineeAadhaarLast4: null,
+          medicalReportSummary: null,
+        }),
+      })
+
+      if (!outcome.ok) return outcome
+
+      // The entry draft is written by the same act, because `issue` reads the
+      // entry path back off it: a direct entry with no draft would look like a
+      // proposal and be refused by `directEntryPath`.
+      const draft: PolicyEntryDraft = {
+        // Derived from the policy's own id, so it is unique for the same reason.
+        id: `ped-${outcome.record.id.replace('pol-', '')}`,
+        policyId: outcome.record.id,
+        dealId: command.dealId ?? null,
+        entryPath: command.entryPath,
+        formSchemaId: command.formSchemaId,
+        schemaVersion: command.schemaVersion,
+        missingFields: command.missingFields ?? [],
+        savedBy: command.savedBy,
+        savedAt: now.toISOString(),
+      }
+      t.policyDrafts.set(draft.id, draft)
+
+      return outcome
     },
 
     async createProposal(id, command) {

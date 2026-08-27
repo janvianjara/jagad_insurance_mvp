@@ -142,6 +142,38 @@ export type CustomerCredential = {
   readonly active: boolean
 }
 
+/**
+ * Putting a customer on the books — canvas 3.1.
+ *
+ * Two absences are the interesting part. There is no `kycState` or
+ * `consentState`: both are born in their machine's initial state and move only
+ * through `advanceKyc` and `advanceConsent`. And there is no `aadhaarLast4` —
+ * `aadhaarMaskedToLast4` guards the KYC edge that records it, and a create that
+ * accepted the field would be a way around that guard. Bank details are absent
+ * for the same reason: nothing collects them at intake.
+ */
+export type CreateCustomerCommand = {
+  readonly actorId: string
+  readonly fullName: string
+  readonly mobile: string
+  readonly source: CustomerSource
+  readonly ownerId: string
+  readonly city: string
+  readonly state: string
+  /** Defaults to `prospect`: somebody who has not bought anything yet. */
+  readonly status?: CustomerStatus
+  readonly householdId?: string | null
+  readonly agentId?: string | null
+  readonly subAgentId?: string | null
+  readonly altMobile?: string | null
+  readonly email?: string | null
+  readonly addressLine?: string | null
+  readonly pincode?: string | null
+  readonly dateOfBirth?: string | null
+  readonly panNumber?: string | null
+  readonly now?: Date
+}
+
 /** Everything the KYC machine's guards need, supplied by the desk doing the work. */
 export type KycCommand = {
   readonly actorId: string
@@ -176,6 +208,13 @@ export type CustomerRepository = ReadRepository<Customer> & {
   members(customerId: string): Promise<readonly Member[]>
   consent(customerId: string): Promise<ConsentRecord | null>
   credentials(customerId: string): Promise<readonly CustomerCredential[]>
+
+  /**
+   * Puts a customer on the books, numbered, with KYC pending and no consent link
+   * out. Emits `kyc.started`: a customer record is the KYC file opening, and it
+   * is the event the timeline and the recipes already read.
+   */
+  create(command: CreateCustomerCommand): Promise<MutationResult<Customer>>
 
   /**
    * Moves KYC through `kycMachine`. Completion fires the credentials recipe as

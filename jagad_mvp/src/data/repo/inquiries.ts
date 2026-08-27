@@ -38,6 +38,30 @@ export type Inquiry = {
 }
 
 /**
+ * What the person taking the call supplies — canvas 1.6, where a name and a
+ * mobile number alone are enough to get an inquiry on the books.
+ *
+ * There is no `systemNo` and no `status`: the repository numbers the record and
+ * the machine's initial state is the only state it can be born in. There is no
+ * `ownerId` either — routing assigns, and an inquiry that arrives pre-owned has
+ * skipped the recipe that decides who owns it.
+ */
+export type CreateInquiryCommand = {
+  readonly actorId: string
+  readonly contactName: string
+  readonly contactMobile: string
+  readonly source: CustomerSource
+  readonly categoryId?: string | null
+  readonly customerId?: string | null
+  readonly agentId?: string | null
+  readonly subAgentId?: string | null
+  readonly contactEmail?: string | null
+  readonly notes?: string | null
+  readonly productInterest?: readonly string[]
+  readonly now?: Date
+}
+
+/**
  * The facts routing supplies. `tatMinutes` is required rather than defaulted:
  * §9 holds no default and an omitted TAT must refuse loudly.
  */
@@ -97,6 +121,8 @@ export type InquiryRepository = ReadRepository<Inquiry> & {
   /** Every inquiry whose TAT has already run out at `at`. Feeds the escalation sweep. */
   breachingTat(at: Date, query?: ListQuery): Promise<Page<Inquiry>>
 
+  /** Records a new inquiry in `new`, numbered and ready for routing. */
+  create(command: CreateInquiryCommand): Promise<MutationResult<Inquiry>>
   assign(id: string, command: AssignInquiryCommand): Promise<MutationResult<Inquiry>>
   accept(id: string, command: AcceptInquiryCommand): Promise<MutationResult<Inquiry>>
   reassign(id: string, command: ReassignInquiryCommand): Promise<MutationResult<Inquiry>>

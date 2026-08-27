@@ -7,8 +7,11 @@
  * so the story cast keeps the numbers the client recognises from the prototype
  * walkthrough and the generated set continues the same sequence.
  *
- * A customer, a collection and a renewal task also carry a readable number in the
- * prototype, and those prefixes are not in the domain registry because the
+ * A customer number joined that list once `customers.create` landed: the counter
+ * generates it, so it belongs in the registry rather than beside it.
+ *
+ * A document, a collection and a renewal task also carry a readable number in the
+ * prototype, and those prefixes stay out of the domain registry because the
  * platform does not generate them through the sequence counter. `localNo` formats
  * those at the same width so the two kinds sit together in a table without one
  * looking like a mistake.

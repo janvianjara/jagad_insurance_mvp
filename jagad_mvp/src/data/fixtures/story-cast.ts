@@ -97,7 +97,7 @@ type CustomerSeed = {
 function buildCustomer(seed: CustomerSeed): Customer {
   return {
     id: seed.id,
-    systemNo: localNo('CUS', seed.sequence),
+    systemNo: systemNo('customer', seed.sequence),
     householdId: seed.householdId ?? null,
     status: seed.status,
     source: seed.source,

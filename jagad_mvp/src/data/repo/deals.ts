@@ -26,6 +26,26 @@ export type Deal = {
   readonly consumedByPolicyId: string | null
 }
 
+/**
+ * Opening a deal off a won quotation — canvas 2.7.
+ *
+ * `lineItems` is required and must not be empty. §9's "a deal with zero line
+ * items is blocked with a clear message" is checked at birth by `dealHasLineItems`
+ * itself, so the refusal a screen renders is the machine's own sentence rather
+ * than a second wording invented here. The agency is not part of creation:
+ * placement is `setLineItems`, where the scope check lives.
+ */
+export type CreateDealCommand = {
+  readonly actorId: string
+  readonly quotationId: string
+  readonly customerId: string
+  readonly ownerId: string
+  readonly lineItems: readonly DealLineItem[]
+  readonly agentId?: string | null
+  readonly subAgentId?: string | null
+  readonly now?: Date
+}
+
 export type SetDealLineItemsCommand = {
   readonly actorId: string
   readonly agencyId: string
@@ -45,6 +65,8 @@ export type DealRepository = ReadRepository<Deal> & {
   /** Deals that have line items and no policy yet — the policy-entry worklist. */
   awaitingPolicyEntry(query?: ListQuery): Promise<Page<Deal>>
 
+  /** Opens a deal in `created`. Refuses an empty line-item list, per §9. */
+  create(command: CreateDealCommand): Promise<MutationResult<Deal>>
   setLineItems(id: string, command: SetDealLineItemsCommand): Promise<MutationResult<Deal>>
   consume(id: string, command: ConsumeDealCommand): Promise<MutationResult<Deal>>
 }

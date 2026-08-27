@@ -196,6 +196,50 @@ export type CollectionRecord = {
   readonly instalmentId: string | null
 }
 
+/**
+ * Entering a policy — canvas 3.6 and 3.7.
+ *
+ * The command carries the entry as well as the contract, because `PolicyEntryDraft`
+ * is written by the same act: the path, the deal it came from, the schema it was
+ * captured under and what is still missing are facts about the entry, and
+ * `issue` later reads the path back off that draft. A create that wrote only the
+ * policy would leave a direct entry looking like a proposal.
+ *
+ * The amounts are optional and are recorded exactly as typed. None of them is
+ * required to create, none is derived from another, and `finalPremium` is still
+ * checked by `finalPremiumPresentAndTyped` at issue — a policy entered without one
+ * is an ordinary half-finished entry, which is what the completion queue is for.
+ *
+ * `insurerNo` is absent: the company's own number arrives later, through `issue`.
+ */
+export type CreatePolicyCommand = {
+  readonly actorId: string
+  readonly customerId: string
+  readonly companyId: string
+  readonly productId: string
+  readonly agencyId: string
+  readonly agentId?: string | null
+  readonly subAgentId?: string | null
+  readonly entryPath: PolicyEntryPath
+  /** The deal this was entered from, when there was one. */
+  readonly dealId?: string | null
+  readonly formSchemaId: string
+  readonly schemaVersion: number
+  /** Field keys still empty, straight off the form. The queue sorts on the count. */
+  readonly missingFields?: readonly string[]
+  readonly savedBy: string
+  readonly premiumMode: PremiumMode
+  readonly retentionClass: string
+  readonly memberIds?: readonly string[]
+  readonly startDate?: string
+  readonly expiryDate?: string
+  readonly sumInsured?: Money
+  readonly netPremium?: Money
+  readonly gstAmount?: Money
+  readonly finalPremium?: Money
+  readonly now?: Date
+}
+
 export type IssuePolicyCommand = {
   readonly actorId: string
   /** Typed from the insurer's document. Presence is checked; the value is never produced. */
@@ -263,6 +307,12 @@ export type PolicyRepository = ReadRepository<Policy> & {
   /** Policies expiring inside the window. The renewals pool is built from this. */
   expiringBetween(from: string, to: string): Promise<readonly Policy[]>
 
+  /**
+   * Enters a policy in `draft` with its entry draft beside it. An unissued policy
+   * numbers under `POL-DRAFT`; a direct entry, which is a policy the insurer has
+   * already issued, numbers under `POL` (§8).
+   */
+  create(command: CreatePolicyCommand): Promise<MutationResult<Policy>>
   createProposal(id: string, command: PolicyStepCommand): Promise<MutationResult<Policy>>
   sendProposal(id: string, command: PolicyStepCommand): Promise<MutationResult<Policy>>
   issue(id: string, command: IssuePolicyCommand): Promise<MutationResult<Policy>>

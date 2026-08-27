@@ -16,6 +16,8 @@
 
 import { createEventBus } from '../../domain/events'
 import type { DomainEvent, EventBus } from '../../domain/events'
+import { createIdCounter, parseSystemNo } from '../../domain/ids'
+import type { IdCounter, RecordPrefix } from '../../domain/ids'
 import { FIXTURE_NOW, buildFixtures } from '../fixtures'
 import type { FixtureOptions, FixtureSet } from '../fixtures'
 
@@ -27,6 +29,14 @@ export type MockTables = {
 export type MockStore = {
   readonly tables: MockTables
   readonly bus: EventBus
+  /**
+   * The sequence a created record draws its `systemNo` from, seeded from the
+   * highest number each prefix already holds. A record captured at runtime
+   * therefore continues the platform's own series rather than starting a second
+   * one, and — because the seed is read off the fixtures — two stores built from
+   * the same fixture set number their creations identically.
+   */
+  readonly ids: IdCounter
   /** Injected so a fixture build, a test and the app can each pin their own clock. */
   now(): Date
   /** Every event emitted since the store was built, oldest first. */
@@ -62,6 +72,30 @@ function hydrate(fixtures: FixtureSet): MockTables {
   return tables as MockTables
 }
 
+/**
+ * The counter, seeded from what is already on the books.
+ *
+ * Every numbered row carries `systemNo`, and `parseSystemNo` splits it back into
+ * a prefix and a sequence, so one pass over the tables finds the high-water mark
+ * per prefix without a per-entity list to keep in step. `POL` and `POL-DRAFT`
+ * count independently, which is exactly what §8 asks for.
+ */
+function seedIdCounter(tables: MockTables): IdCounter {
+  const seeds: Partial<Record<RecordPrefix, number>> = {}
+
+  for (const table of Object.values(tables) as Map<string, unknown>[]) {
+    for (const row of table.values()) {
+      const value = (row as { readonly systemNo?: unknown }).systemNo
+      if (typeof value !== 'string') continue
+      const parsed = parseSystemNo(value)
+      if (!parsed) continue
+      seeds[parsed.prefix] = Math.max(seeds[parsed.prefix] ?? 0, parsed.sequence)
+    }
+  }
+
+  return createIdCounter(seeds)
+}
+
 export function createMockStore(options: MockStoreOptions = {}): MockStore {
   const fixtures = options.fixtures ?? buildFixtures(options.fixtureOptions)
   const now = options.now ?? (() => FIXTURE_NOW)
@@ -76,6 +110,7 @@ export function createMockStore(options: MockStoreOptions = {}): MockStore {
   return {
     tables,
     bus,
+    ids: seedIdCounter(tables),
     now,
     events() {
       return log

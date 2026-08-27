@@ -74,6 +74,25 @@ export type Quotation = {
   readonly documentId: string | null
 }
 
+/**
+ * Opening a quotation — canvas 2.1, the step before the matrix exists.
+ *
+ * No columns and no benefit rows: a quotation is born in `draft`, and `compose`
+ * is where the matrix arrives and where the machine starts caring about typed
+ * premiums. Nothing here carries an amount, because at this point there is none
+ * and the platform will not invent one.
+ */
+export type CreateQuotationCommand = {
+  readonly actorId: string
+  readonly customerId: string
+  readonly ownerId: string
+  /** The inquiry this came out of, when it came out of one. */
+  readonly inquiryId?: string | null
+  readonly agentId?: string | null
+  readonly premiumMode: PremiumMode
+  readonly now?: Date
+}
+
 export type ComposeQuotationCommand = {
   readonly actorId: string
   readonly benefitRows: readonly QuotationBenefitRow[]
@@ -124,6 +143,8 @@ export type QuotationRepository = ReadRepository<Quotation> & {
   /** Every column ever, including locked ones, so prior versions stay viewable. */
   allLines(quotationId: string): Promise<readonly QuotationLine[]>
 
+  /** Opens a quotation in `draft` at version 1, numbered. */
+  create(command: CreateQuotationCommand): Promise<MutationResult<Quotation>>
   compose(id: string, command: ComposeQuotationCommand): Promise<MutationResult<Quotation>>
   generate(id: string, command: GenerateQuotationCommand): Promise<MutationResult<Quotation>>
   share(id: string, command: ShareQuotationCommand): Promise<MutationResult<Quotation>>
