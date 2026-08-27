@@ -1,0 +1,166 @@
+.matrix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+/* Columns grow with the number of products, so the grid scrolls rather than
+   squeezing a benefit value into three characters. */
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-ui);
+  color: var(--ink);
+}
+
+/* Named for a screen reader, not printed twice above the grid. */
+.tableCaption {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-block-end: 1px solid var(--hair);
+  text-align: start;
+  vertical-align: top;
+}
+
+.rowHead {
+  min-inline-size: 14rem;
+  font-weight: var(--weight-medium);
+  background: var(--sunken);
+}
+
+.colHead {
+  min-inline-size: 13rem;
+  background: var(--sunken);
+  border-block-end: 1px solid var(--border);
+}
+
+.colLabel {
+  display: block;
+  font-weight: var(--weight-semibold);
+}
+
+.colMeta {
+  display: block;
+  margin-block-start: var(--sp-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.rowLabel {
+  display: block;
+}
+
+.rowMarks {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-block-start: var(--sp-1);
+}
+
+.cell {
+  min-inline-size: 13rem;
+}
+
+.readValue {
+  display: inline-block;
+  padding-block: var(--sp-1);
+}
+
+.absent {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.adHocRow th,
+.adHocRow td {
+  background: var(--ground);
+}
+
+.adHocEntry {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.adHocNote {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.modeRow th,
+.modeRow td,
+.premiumRow th,
+.premiumRow td {
+  border-block-start: 1px solid var(--border);
+  background: var(--ground);
+}
+
+.modeCell {
+  display: table-cell;
+}
+
+.modeNote {
+  margin: var(--sp-2) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.premiumRow th {
+  font-weight: var(--weight-semibold);
+}
+
+.premiumCell {
+  min-inline-size: 13rem;
+}
+
+/* The one place a figure enters. Marked so a demo viewer can see which columns
+   are still empty without reading the sentence below the grid. */
+.premiumCell[data-recorded='false'] {
+  box-shadow: inset 2px 0 0 0 var(--attn);
+}
+
+.stop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.stop[data-state='blocked'] {
+  background: var(--attn-soft);
+  color: var(--ink);
+}
+
+.stop[data-state='ready'] {
+  background: var(--ok-soft);
+  color: var(--ink);
+}

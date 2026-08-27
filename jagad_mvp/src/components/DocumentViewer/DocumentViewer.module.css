@@ -1,0 +1,332 @@
+/*
+ * The letterhead, and the chrome around it.
+ *
+ * Plan §2 draws one hard line through this file: Source Serif 4 (`--font-doc`)
+ * belongs to generated documents ONLY. So `var(--font-doc)` is declared exactly
+ * once, on `.letterhead`, and every part of the sheet inherits it from there.
+ * No control, no toolbar and no switch may take that face — the viewer's chrome
+ * is UI and reads as UI. `DocumentViewer.test.tsx` reads this file back and
+ * fails if a second rule ever claims the document face.
+ *
+ * Colour: the sheet is paper. Navy appears only as the masthead rule and the
+ * premium underline; green is brand and stays in the agency line. Nothing on a
+ * printed page carries meaning by hue alone, because it may be read in
+ * greyscale.
+ */
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------- chrome
+   Outside the sheet, in every sense: a sibling in the DOM, sans in the type. */
+
+.chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--hair);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+}
+
+.layoutSwitch {
+  display: inline-flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.chromeActions {
+  display: inline-flex;
+  gap: var(--sp-2);
+}
+
+/* -------------------------------------------------------------------- sheets */
+
+.sheets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+/* The one place the document face is declared. */
+.letterhead {
+  font-family: var(--font-doc);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+  padding: var(--sp-9) var(--sp-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: var(--text-reading);
+  line-height: var(--leading-loose);
+}
+
+/* ----------------------------------------------------------------- masthead */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 2px solid var(--jag-navy);
+}
+
+.agency {
+  margin: 0;
+  color: var(--jag-green);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.01em;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  text-align: right;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.version,
+.issued {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+}
+
+/* ------------------------------------------------------- reference header */
+
+.reference {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.customer {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.cover {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.persons {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.persons th,
+.persons td {
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) 0;
+  border-bottom: 1px solid var(--hair);
+  vertical-align: baseline;
+}
+
+.persons th {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.modeNote {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+/* -------------------------------------------------------------- comparison */
+
+.columns {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+/* Side by side: the blocks scroll inside their own frame, so a wide comparison
+   never makes the page itself scroll sideways. */
+.columns[data-spread] {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+}
+
+.columns[data-spread] .column {
+  flex: 1 0 260px;
+  min-width: 260px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+.columnHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.company {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.product {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.benefits {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.benefits td,
+.benefits th {
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--hair);
+  vertical-align: baseline;
+}
+
+.benefitLabel {
+  font-weight: var(--weight-regular);
+}
+
+.benefitValue {
+  padding-left: var(--sp-3);
+  font-weight: var(--weight-medium);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.adHoc {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
+.premium {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0;
+  padding-top: var(--sp-2);
+  border-top: 2px solid var(--jag-navy);
+}
+
+.premiumLabel {
+  font-weight: var(--weight-semibold);
+}
+
+.premiumFigure {
+  font-size: var(--text-lg);
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hair);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.preparedBy,
+.disclaimer {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------- print */
+
+@media print {
+  .chrome {
+    display: none;
+  }
+
+  .letterhead {
+    border: none;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .letterhead + .letterhead {
+    break-before: page;
+  }
+
+  .columns[data-spread] {
+    overflow-x: visible;
+  }
+}

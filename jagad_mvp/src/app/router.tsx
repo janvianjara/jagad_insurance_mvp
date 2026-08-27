@@ -21,6 +21,13 @@ import {
 import { ConsentTokenRoute } from '../features/consent/routes'
 import { Customer360Route, CustomerListRoute } from '../features/customers/routes'
 import { KycQueueRoute } from '../features/kyc/routes'
+import {
+  DealQueueRoute,
+  DealRoute,
+  QuotationComposerRoute,
+  QuotationNewRoute,
+  QuotationQueueRoute,
+} from '../features/quotations/routes'
 import { RequireAccess } from './RequireAccess'
 import { ROUTE_MAP } from './route-map'
 import type { RouteSpec } from './route-map'
@@ -81,6 +88,12 @@ const BUILT_SCREENS: Readonly<Record<string, () => ReactElement>> = {
   // the customer it is about, on its KYC tab, beside the household and timeline.
   '/customers/:id': () => <Customer360Route />,
   '/back-office/kyc': () => <KycQueueRoute />,
+  '/quotations': () => <QuotationQueueRoute />,
+  '/quotations/new': () => <QuotationNewRoute />,
+  '/quotations/:id': () => <QuotationComposerRoute />,
+  '/quotations/:id/v/:version': () => <QuotationComposerRoute />,
+  '/deals': () => <DealQueueRoute />,
+  '/deals/:id': () => <DealRoute />,
 }
 
 /**
