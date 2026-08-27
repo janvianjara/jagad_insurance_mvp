@@ -5,6 +5,9 @@
   flex-direction: column;
   width: var(--rail-w);
   height: 100%;
+  /* The rail is a flex column inside a viewport-height grid that clips its
+     overflow, so it must be allowed to shrink below its content height. */
+  min-height: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
 }
@@ -18,9 +21,22 @@
   flex: none;
 }
 
+/*
+ * Only this section scrolls. The brand above it and the role switcher below it
+ * stay pinned, because a rail that scrolls as one pushes the role switcher off
+ * the bottom of the viewport - and with eleven configuration items under it,
+ * that is most of the time.
+ *
+ * `min-height: 0` is the whole fix. A flex item's automatic minimum size is its
+ * content size, so without this the nav refuses to shrink, grows past the rail,
+ * and the shell's `overflow: hidden` clips whatever did not fit - silently, with
+ * no scrollbar to show anything is missing.
+ */
 .nav {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--sp-3) var(--sp-2);
   display: grid;
   gap: var(--sp-4);
