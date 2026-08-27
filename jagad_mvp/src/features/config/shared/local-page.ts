@@ -19,9 +19,17 @@ import type { ListQuery, Page } from '../../../data/repo'
 
 export type LocalCell = string | number | boolean | null | undefined
 
+/**
+ * What one filter reads off a row. An array is a row that holds several values
+ * at once — the lines a company is appointed for, the companies a broker holds,
+ * the categories an agent works — and it matches when any of them is selected.
+ * A single cell matches on equality, exactly as before.
+ */
+export type LocalFacet = LocalCell | readonly LocalCell[]
+
 export type LocalListSpec<T> = {
   readonly search?: readonly ((row: T) => LocalCell)[]
-  readonly filters?: Readonly<Record<string, (row: T) => LocalCell>>
+  readonly filters?: Readonly<Record<string, (row: T) => LocalFacet>>
   readonly sorts?: Readonly<Record<string, (row: T) => LocalCell>>
 }
 
@@ -62,7 +70,9 @@ export function localPage<T>(
           `Unknown filter "${key}". A configuration queue declares the filters it supports; an undeclared one would silently return every row.`,
         )
       }
-      if (!selected.includes(asText(read(row)))) return false
+      const held = read(row)
+      const cells = Array.isArray(held) ? held.map(asText) : [asText(held as LocalCell)]
+      if (!cells.some((cell) => selected.includes(cell))) return false
     }
 
     return true

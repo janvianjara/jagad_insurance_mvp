@@ -1,0 +1,130 @@
+/* The panels the five market and channel drawers are built from. One file, so a
+   company contact, a checklist item and a policy scope line sit on the same
+   rhythm as P-10a's master values. Colour comes from tokens only. */
+
+.drawer {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.rows {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.row[data-inactive] {
+  background: var(--sunken);
+}
+
+.rowHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.rowName {
+  font-weight: var(--weight-medium);
+}
+
+.rowMeta {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.rowActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* A multi-select made of real checkboxes: every option is labelled, tabbable and
+   readable by name, which a bespoke chip list would have had to reinvent. */
+.choices {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inline {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.grow {
+  flex: 1 1 14ch;
+  min-width: 0;
+}
+
+/* One policy in an agency's scope: what it is, what the rate is, and the way out. */
+.scopeRow {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) auto;
+  align-items: end;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+@media (max-width: 48rem) {
+  .scopeRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.refusal {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.hint {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.chips {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.section {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-cap);
+}

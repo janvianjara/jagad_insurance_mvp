@@ -16,3 +16,10 @@ import { lazy } from 'react'
 
 export const ConfigUsersScreen = lazy(() => import('./users/UsersScreen'))
 export const ConfigMastersScreen = lazy(() => import('./masters/MastersScreen'))
+
+// P-10b — market and channel.
+export const ConfigCompaniesScreen = lazy(() => import('./companies/CompaniesScreen'))
+export const ConfigProductsScreen = lazy(() => import('./products/ProductsScreen'))
+export const ConfigBenefitsScreen = lazy(() => import('./benefits/BenefitsScreen'))
+export const ConfigAgenciesScreen = lazy(() => import('./agencies/AgenciesScreen'))
+export const ConfigAgentsScreen = lazy(() => import('./agents/AgentsScreen'))

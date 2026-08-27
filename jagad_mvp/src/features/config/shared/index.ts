@@ -52,7 +52,7 @@ export type {
 } from './config-types'
 
 export { localPage } from './local-page'
-export type { LocalListSpec } from './local-page'
+export type { LocalCell, LocalFacet, LocalListSpec } from './local-page'
 
 export {
   DELETION_OFFERS,
@@ -92,3 +92,75 @@ export { accountsFromConfig, resolveUser, syncSession } from './session-sync'
 
 export { useEnsureConfig, useMasterOptions } from './use-config'
 export type { ConfigReadState, MasterOptions } from './use-config'
+
+/* ------------------------------------------- market and channel (P-10b) */
+
+export {
+  AGENCY_TYPE_LABELS,
+  BENEFIT_KIND_LABELS,
+  CHECKLIST_PURPOSE_LABELS,
+  LIFE_LINE,
+  LINE_LABELS,
+} from './market-types'
+export type {
+  ConfigAgency,
+  ConfigAgencyScope,
+  ConfigAgent,
+  ConfigBenefitItem,
+  ConfigBenefitMap,
+  ConfigChecklist,
+  ConfigCompany,
+  ConfigCompanyContact,
+  ConfigProduct,
+} from './market-types'
+
+export {
+  bpFromPercent,
+  companyLinesFormOneLicence,
+  individualAgencyHoldsOneCompany,
+  nextAgencyCode,
+  nextAgentCode,
+  percentFromBp,
+  percentIsValid,
+  readPercent,
+  scopeInsideAppointedCompanies,
+  subAgentTeamIsConsistent,
+} from './market-rules'
+export type {
+  AgencyAppointmentContext,
+  AgencyScopeContext,
+  SubAgentTeamContext,
+} from './market-rules'
+
+export {
+  agencyById,
+  agentsOfAgency,
+  benefitById,
+  benefitsForLine,
+  checkSubAgentShare,
+  checklistFor,
+  companyById,
+  contactsOfCompany,
+  mapsOfProduct,
+  parentAgentOf,
+  placementOptionsFor,
+  productById,
+  productsOfCompany,
+  scopesOfAgency,
+  subAgentsOf,
+  useMarketStore,
+} from './market-store'
+export type {
+  AgencyInput,
+  AgentInput,
+  BenefitInput,
+  BenefitSheetRow,
+  CompanyInput,
+  ContactInput,
+  MarketRepositories,
+  MarketState,
+  ProductInput,
+  ScopeDraftRow,
+} from './market-store'
+
+export { useEnsureMarket } from './use-market'
