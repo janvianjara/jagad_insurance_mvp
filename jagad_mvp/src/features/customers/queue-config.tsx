@@ -118,8 +118,6 @@ export function customerQueueConfig(deps: CustomerQueueDeps): QueueConfig<Custom
   return {
     key: 'customers',
     title: 'Customers',
-    description:
-      'Everyone on the books, with where their KYC and their consent stand. A row opens the 360.',
     noun: 'customer',
     getRowId: (row) => row.id,
     columns,

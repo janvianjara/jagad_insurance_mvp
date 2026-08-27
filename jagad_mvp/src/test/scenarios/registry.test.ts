@@ -228,7 +228,7 @@ describe('what M0 demonstrates', () => {
     expect(SCENARIOS).toHaveLength(48)
     expect(m0Rows()).toHaveLength(21)
     expect(rowsInState('covered-here')).toHaveLength(3)
-    expect(rowsInState('covered-elsewhere')).toHaveLength(8)
+    expect(rowsInState('covered-elsewhere')).toHaveLength(10)
 
     const m0Pending = m0Rows().filter((row) => row.coverage.state === 'pending')
     expect(m0Pending.map((row) => row.id)).toEqual([
@@ -240,8 +240,6 @@ describe('what M0 demonstrates', () => {
       '2.6',
       '2.7',
       '2.8',
-      '3.6',
-      '3.7',
     ])
   })
 

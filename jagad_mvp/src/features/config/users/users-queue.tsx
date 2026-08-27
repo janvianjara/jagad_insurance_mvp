@@ -66,8 +66,6 @@ export function usersQueue(input: UsersQueueInput): QueueConfig<ConfigUser> {
   return {
     key: 'config-users',
     title: 'Users',
-    description:
-      'Staff accounts, the permission template each one holds, and what the two-factor policy asks of them.',
     noun: 'account',
     getRowId: (row) => row.id,
 

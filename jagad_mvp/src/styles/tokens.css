@@ -47,7 +47,7 @@
   --p-red-tint: #f8e5e3;
   --p-blue-tint: #e5edf8;
   --p-grey-tint: #ecefed;
-  --p-lime-tint: #eef5da;
+  --p-lime-tint: #f2f6c9;
   --p-navy-tint: #e6e9f3;
 
   /* Neutrals — greys carry a faint green bias so they sit under the brand */
@@ -161,6 +161,18 @@
   --text-xl: 22px;
   --text-2xl: 28px;
 
+  /*
+   * Line length, NOT font size. These exist because their absence caused a
+   * shipped defect: `--text-reading` is a font size, it was the nearest
+   * sounding token, and four rules used it as `max-width` - capping every
+   * sentence on the Assistant landing at 15px and rendering it one word per
+   * line. A measure is a `ch` value; a size is a `px` value; they are not
+   * interchangeable and now they are not confusable either.
+   */
+  --measure: 68ch;
+  --measure-tight: 52ch;
+  --measure-wide: 78ch;
+
   --leading-tight: 1.25;
   --leading-normal: 1.5;
   --leading-loose: 1.65;
@@ -173,6 +185,17 @@
   --tracking-cap: 0.08em;
 
   /* Layout constants from the §3 shell */
+  /*
+   * The page gutter. Every screen mounted in the shell's main column uses this
+   * and nothing else. It exists because it did not: WorkQueue padded itself
+   * 16/24/32, Customer 360 used 20 all round, and the policy, composer and deal
+   * screens had no horizontal padding at all - so their content sat flush
+   * against the nav rail and four modules read as four different products.
+   */
+  --page-gutter-x: var(--sp-6);
+  --page-gutter-top: var(--sp-4);
+  --page-gutter-bottom: var(--sp-9);
+
   --rail-w: 240px;
   --drawer-min-w: 340px;
   --drawer-max-w: 560px;

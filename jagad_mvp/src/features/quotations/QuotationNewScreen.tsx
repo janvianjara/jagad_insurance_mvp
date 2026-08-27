@@ -153,7 +153,6 @@ export function QuotationNewScreen() {
       <PageHeader
         breadcrumb={<Link to="/quotations">Quotations</Link>}
         title="New quotation"
-        description="Pick the customer and the policies to compare. The composer opens on the union of those products’ benefits, with each company’s own defaults filled in."
       />
 
       <div className={styles.screen}>

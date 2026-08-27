@@ -130,7 +130,6 @@ export function InquiryCaptureScreen() {
     <>
       <PageHeader
         title="New inquiry"
-        description="A name and a mobile number are enough. Everything else can follow once the inquiry exists."
         actions={
           <Button variant="quiet" onClick={() => void navigate('/inquiries')}>
             Cancel

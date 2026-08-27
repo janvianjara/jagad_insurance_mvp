@@ -80,7 +80,7 @@ export function InquiryQueueScreen() {
         ) : null
       }
     >
-      <DevClock className={styles.devClock} />
+      <DevClock />
 
       {unroutedTotal > 0 ? (
         <div className={styles.unrouted} role="alert">

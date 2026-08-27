@@ -21,11 +21,18 @@
  * after M0, not because M0 is missing them. `phase` is what separates the two,
  * and `m0Rows()` is the filter that answers "what does the golden path owe".
  *
- * As it stands: 48 rows, 21 of them M0. Eleven of those 21 are covered — canvas
- * flow 1 entire, rows 3.1 and 3.2, and the three admin-configuration rows that
- * have a screen today. The other ten are canvas flow 2, which P-13 is building,
- * and rows 3.6 and 3.7, which P-15 is. Both flip to covered here — not by a new
- * argument, only by naming the tests those steps land.
+ * As it stands: 48 rows, 21 of them M0. Thirteen of those 21 are covered —
+ * canvas flow 1 entire, rows 3.1, 3.2, 3.6 and 3.7, and the three
+ * admin-configuration rows that have a screen today. The remaining eight are
+ * canvas flow 2, which P-13 built and which P-17 flips in one edit once it has
+ * that step's test names to point at.
+ *
+ * Rows 3.3, 3.4 and 3.5 are worth a note, because they are the only rows here
+ * carrying `partly`. P-15 built the payment fork, so each of them is walked by a
+ * named test today — but all three are P1 rows whose screens (`/back-office/
+ * collections` and the task queue) are not in M0, and a row is not covered
+ * because part of it moves. `partly` is what that distinction is for: it names
+ * the evidence without letting the row claim to be finished.
  */
 
 /** The three answers a row is allowed to give. */
@@ -357,7 +364,14 @@ export const SCENARIOS: readonly ScenarioRow[] = [
       state: 'pending',
       step: 'P1',
       why:
-        'Collections are P1 (plan §11.2). No screen records a payment reference in M0.',
+        'Collections are P1 (plan §11.2). P-15 built the payment fork on the policy file, so the reference itself is now recorded and walked; what is still missing is the collections screen at /back-office/collections, and the create edge a collection needs before one can be opened outside the fixtures.',
+      partly: [
+        {
+          file: 'src/features/policies/payment-fork.test.tsx',
+          name:
+            '3.3 a payment made straight to the company is recorded as a reference and never touches the agency books',
+        },
+      ],
     },
   },
   {
@@ -371,7 +385,14 @@ export const SCENARIOS: readonly ScenarioRow[] = [
       state: 'pending',
       step: 'P1',
       why:
-        'Collections are P1 (plan §11.2). No collection entry screen exists in M0.',
+        'Collections are P1 (plan §11.2). P-15 records an agency collection in any mode from the policy file and puts a cheque on bounce watch; the dedicated collection entry screen, and the verification queue behind it, are still P1.',
+      partly: [
+        {
+          file: 'src/features/policies/payment-fork.test.tsx',
+          name:
+            '3.4 a collection taken by the agency is recorded in any mode, issues no receipt, and a cheque goes on bounce watch',
+        },
+      ],
     },
   },
   {
@@ -385,7 +406,14 @@ export const SCENARIOS: readonly ScenarioRow[] = [
       state: 'pending',
       step: 'P1',
       why:
-        'Cheque bounce, and the follow-up task it raises, are P1 (plan §11.2).',
+        'Cheque bounce is walked from the policy file as of P-15, and the follow-up is raised on the same move. It stays pending because the task itself is held on the policy desk rather than in `TaskRepository`, which has no create edge, so nothing yet shows it in the task queue FR-15 promises. That queue is P1.',
+      partly: [
+        {
+          file: 'src/features/policies/payment-fork.test.tsx',
+          name:
+            '3.5 a bounced cheque raises the follow-up task on the same move, and the collection reopens',
+        },
+      ],
     },
   },
   {
@@ -396,10 +424,14 @@ export const SCENARIOS: readonly ScenarioRow[] = [
     then: 'OCR fills; staff confirm; both numbers stored; customer messaged',
     phase: 'M0',
     coverage: {
-      state: 'pending',
-      step: 'P-15',
-      why:
-        'P-15 builds policy entry, the PDF upload and the OCR review that stores both numbers.',
+      state: 'covered-elsewhere',
+      tests: [
+        {
+          file: 'src/features/policies/issuance.test.tsx',
+          name:
+            '3.6 the uploaded policy document fills the fields, a person confirms them, and both numbers are stored on a live policy',
+        },
+      ],
     },
   },
   {
@@ -410,10 +442,14 @@ export const SCENARIOS: readonly ScenarioRow[] = [
     then: 'Appears in completion queue with missing fields',
     phase: 'M0',
     coverage: {
-      state: 'pending',
-      step: 'P-15',
-      why:
-        'P-15 builds the half-done draft and the completion queue at /back-office/drafts.',
+      state: 'covered-elsewhere',
+      tests: [
+        {
+          file: 'src/features/policies/drafts-queue.test.tsx',
+          name:
+            '3.7 a half-finished entry is saved as a draft and appears in the completion queue with what is still missing',
+        },
+      ],
     },
   },
 

@@ -65,8 +65,6 @@ export function productsQueue(input: ProductsQueueInput): QueueConfig<ConfigProd
   return {
     key: 'config-products',
     title: 'Products',
-    description:
-      'Each company’s named policies, with the benefits their comparison sheet carries and the documents they ask for.',
     noun: 'product',
     getRowId: (row) => row.id,
 

@@ -39,8 +39,6 @@ export function quotationQueueConfig(deps: QuotationQueueDeps): QueueConfig<Quot
   return {
     key: 'quotations',
     title: 'Quotations',
-    description:
-      'Every comparison the agency has put in front of a customer. A quotation moves no further than composed until a person types each column’s Final Payable Premium.',
     noun: 'quotation',
     getRowId: (row) => row.id,
     columns: quotationColumn.columns([
@@ -141,8 +139,6 @@ export function dealQueueConfig(deps: DealQueueDeps): QueueConfig<Deal> {
   return {
     key: 'deals',
     title: 'Deals',
-    description:
-      'A won quotation becomes a deal, and the deal carries its line items into policy entry. A deal with nothing on it cannot go forward.',
     noun: 'deal',
     getRowId: (row) => row.id,
     columns: dealColumn.columns([

@@ -93,9 +93,14 @@ type QueueBase<Row extends RowData> = {
   /** Stable name for this queue. Used in labels and as the table's accessible name. */
   readonly key: string
   readonly title: string
-  readonly description?: string
   /** Singular noun for a row: "inquiry", "policy", "claim". */
   readonly noun: string
+  /**
+   * The plural, stated rather than derived. Appending "s" produced "inquirys"
+   * and "policys" on screen; English plurals are not a string operation and a
+   * queue knows its own noun.
+   */
+  readonly nounPlural?: string
 
   readonly columns: readonly DataTableColumn<Row>[]
   readonly getRowId: (row: Row) => string

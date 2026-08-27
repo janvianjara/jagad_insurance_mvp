@@ -14,7 +14,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+  /* Belt and braces with `html, body { overflow: hidden }`: reaching the end of
+     this list must not hand the gesture to anything behind it. */
+  overscroll-behavior: contain;
 }
 
 .pending {

@@ -426,9 +426,9 @@ export function Customer360Screen() {
               expiresAt={consent?.expiresAt ?? null}
               submittedAt={consent?.submittedAt ?? null}
             />
+            <span>{`${live.length} live ${live.length === 1 ? 'policy' : 'policies'} · on the books since ${new Date(customer.createdAt).getFullYear()}`}</span>
           </>
         }
-        description={`${live.length} live ${live.length === 1 ? 'policy' : 'policies'} · on the books since ${new Date(customer.createdAt).getFullYear()}`}
       />
 
       <div className={styles.screen}>

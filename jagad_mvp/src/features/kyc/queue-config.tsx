@@ -91,8 +91,6 @@ export function kycQueueConfig(deps: KycQueueDeps): QueueConfig<Customer> {
   return {
     key: 'kyc',
     title: 'KYC completion',
-    description:
-      'Every customer whose file is not yet complete. A file completes when its checklist is on file, every extracted value has been confirmed, and consent is recorded.',
     noun: 'file',
     getRowId: (row) => row.id,
     columns,

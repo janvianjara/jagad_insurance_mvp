@@ -6,8 +6,6 @@ export type PageHeaderProps = {
   title: ReactNode
   /** Reference numbers, states, clocks — the facts that identify the record. */
   meta?: ReactNode
-  /** One line of orientation, when the title is not enough on its own. */
-  description?: ReactNode
   /** Right-aligned. The primary action goes last, as it does everywhere else. */
   actions?: ReactNode
   /** Where this screen sits, for anything more than one level deep. */
@@ -22,7 +20,7 @@ export type PageHeaderProps = {
  * previous screen's title on every navigation, and it makes the title impossible
  * to read off the component you are looking at.
  */
-export function PageHeader({ title, meta, description, actions, breadcrumb }: PageHeaderProps) {
+export function PageHeader({ title, meta, actions, breadcrumb }: PageHeaderProps) {
   return (
     <header className={styles.header}>
       {breadcrumb ? <nav className={styles.breadcrumb}>{breadcrumb}</nav> : null}
@@ -33,7 +31,6 @@ export function PageHeader({ title, meta, description, actions, breadcrumb }: Pa
         </div>
         {actions ? <div className={styles.actions}>{actions}</div> : null}
       </div>
-      {description ? <p className={styles.description}>{description}</p> : null}
     </header>
   )
 }

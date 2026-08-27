@@ -72,7 +72,6 @@ export default function UsersScreen() {
       <>
         <PageHeader
           title="Permission templates"
-          description="The starter library an agency begins from, and the clones it edits. A starter is never changed in place."
           actions={nav}
         />
         <div className={layout.body}>
@@ -87,7 +86,6 @@ export default function UsersScreen() {
       <>
         <PageHeader
           title="Two-factor policy"
-          description="What a second factor is asked for, per template. Recorded in this build, not enforced."
           actions={nav}
         />
         <div className={layout.body}>

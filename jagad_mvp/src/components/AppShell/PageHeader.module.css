@@ -1,7 +1,9 @@
+/* Same reason as the action bar: a shell column would otherwise squeeze it. */
 .header {
   display: grid;
+  flex: none;
   gap: var(--sp-2);
-  padding: var(--sp-4) var(--sp-6) var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
   border-bottom: 1px solid var(--hair);
   background: var(--ground);
 }
@@ -47,9 +49,3 @@
   margin-left: auto;
 }
 
-.description {
-  font-size: var(--text-ui);
-  color: var(--ink-2);
-  max-width: 72ch;
-  margin: 0;
-}

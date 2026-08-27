@@ -1,0 +1,59 @@
+/*
+ * The queue screens' cells.
+ *
+ * Both `policyQueueConfig` and `draftQueueConfig` import from here rather than
+ * from a stylesheet each: they are two views of the same records and their cells
+ * are the same three shapes — a two-line placement, a count beside its names,
+ * and the quiet treatment for a row whose subject has gone.
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+/* Company over product: the company is what a person scans a column for. */
+.placement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  line-height: var(--leading-tight);
+}
+
+.company {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.product {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.missing {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/*
+ * The names sit beside the count rather than under it. A cell that grows a
+ * second line for every row makes the queue unscannable, and the count is what
+ * the column is sorted by.
+ */
+.missingNames {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orphan {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

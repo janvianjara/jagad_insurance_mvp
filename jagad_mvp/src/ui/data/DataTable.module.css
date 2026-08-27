@@ -1,10 +1,20 @@
 .wrap {
   position: relative;
   min-height: 0;
+  /* The table is allowed to be wider than the page; this frame is not. */
+  min-width: 0;
+  max-width: 100%;
   overflow: auto;
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+}
+
+/* `fill`: the frame takes the height its parent has left rather than stopping at
+   the last row, so a short page still reads as a table and not as a fragment. */
+.wrap[data-fill='true'] {
+  flex: 1 1 auto;
+  align-self: stretch;
 }
 
 .table {

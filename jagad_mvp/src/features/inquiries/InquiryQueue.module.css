@@ -5,18 +5,13 @@
   padding: var(--sp-5);
 }
 
-.devClock {
-  margin-block-end: var(--sp-3);
-}
-
 /* The unrouted alert. Lime: something needs a person, and nothing is wrong. */
 .unrouted {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  margin-block-end: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
   border: 1px solid var(--attn);
   border-radius: var(--radius-md);
   background: var(--attn-soft);
@@ -59,21 +54,16 @@
   gap: var(--sp-2);
 }
 
-.contact {
-  display: flex;
-  flex-direction: column;
-  line-height: var(--leading-tight);
-}
-
 .contactName {
   color: var(--ink);
 }
 
+/* Its own column now, so it reads at cell size rather than as a subtitle. */
 .contactMobile {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-xs);
-  color: var(--ink-3);
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
 .noClock {

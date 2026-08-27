@@ -53,9 +53,8 @@ export function mastersQueue(input: MastersQueueInput): QueueConfig<ConfigMaster
   return {
     key: 'config-masters',
     title: 'Masters',
-    description:
-      'The lists every form offers. A value in use is deactivated rather than deleted, so the records holding it keep resolving.',
     noun: 'master',
+    nounPlural: 'master types',
     getRowId: (row) => row.id,
 
     columns: column.columns([

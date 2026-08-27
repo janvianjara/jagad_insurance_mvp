@@ -5,11 +5,14 @@
   padding: var(--sp-5);
 }
 
+/* The same page gutters the header above it uses, so the panels line up with
+   the title rather than running into the rail and off the right edge. */
 .screen {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding-block-end: var(--sp-6);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  min-width: 0;
 }
 
 .refusal {

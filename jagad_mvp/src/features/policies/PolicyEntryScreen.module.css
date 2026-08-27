@@ -1,0 +1,112 @@
+/*
+ * Policy entry.
+ *
+ * The screen is a stack of panels and the stack is the argument: placement, then
+ * the path, then the form, then the premium. Nothing here styles money or a
+ * status — those come from the guardrail components and the tone tokens, which
+ * is what keeps a premium looking the same in every module.
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+/* The same page gutters the header above it uses, so the panels line up with
+   the title rather than running into the rail and off the right edge. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  min-width: 0;
+}
+
+.refusal,
+.blocked {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+/*
+ * A stop is not a failure. It says what will hold this record up later — an
+ * unrecorded Final Premium blocks issue, not capture — so it is quiet rather
+ * than red.
+ */
+.stop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.grid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.itemLabel {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-4);
+}
+
+/*
+ * Saving part-done sits outside the form element on purpose: it must never be
+ * reachable by the Enter key that moves between stages, because it writes.
+ */
+.draftRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-4);
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hair);
+}
+
+.draftNote {
+  flex: 1 1 20rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}

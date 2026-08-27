@@ -1,0 +1,37 @@
+/*
+ * Typed, derived, then typed again — and the middle band is set apart.
+ *
+ * The derived roll-up sits on the sunken surface with a rule above and below it,
+ * so the recorded Final Premium underneath reads as a separate act rather than
+ * as the bottom row of a calculation. A person signing off a premium should be
+ * able to see, without reading a word, which figures came out of a document and
+ * which came out of an addition.
+ */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: 460px;
+}
+
+.typed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-stack);
+}
+
+.derived {
+  max-width: none;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  background: var(--sunken);
+  border-radius: var(--radius-md);
+}
+
+.recorded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}

@@ -57,9 +57,8 @@ export function companiesQueue(input: CompaniesQueueInput): QueueConfig<ConfigCo
   return {
     key: 'config-companies',
     title: 'Companies',
-    description:
-      'The insurers the agency is appointed to, one row per licensed company. A life arm and a general arm are two companies here, not one company with a flag.',
     noun: 'company',
+    nounPlural: 'companies',
     getRowId: (row) => row.id,
 
     columns: column.columns([

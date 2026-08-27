@@ -1,12 +1,20 @@
+/*
+ * The strip sits where it always has — above the work, under the filters — and
+ * spans the queue the way that row did. Only its height changed: this is a demo
+ * affordance, not a record, so it gets the least band it can be read in. The
+ * padding is hairline, the type is the smallest in the system, and the buttons
+ * keep their own control height rather than inventing a new one — so the band
+ * comes out one control tall, where it used to be half again as much.
+ */
 .dev {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
+  gap: var(--sp-2) var(--sp-3);
+  padding: 2px var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
   background: var(--sunken);
 }
 
@@ -16,6 +24,7 @@
   gap: var(--sp-2);
   margin: 0;
   font-size: var(--text-xs);
+  line-height: var(--leading-tight);
   color: var(--ink-2);
 }
 
@@ -24,6 +33,10 @@
   letter-spacing: var(--tracking-cap);
   text-transform: uppercase;
   color: var(--ink-3);
+}
+
+.stamp {
+  font-size: var(--text-xs);
 }
 
 .offset {
@@ -35,5 +48,5 @@
 .steps {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
 }

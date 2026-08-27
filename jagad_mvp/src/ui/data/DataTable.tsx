@@ -56,6 +56,12 @@ export type DataTableProps<TData extends RowData> = {
   /** Severity stripe down the leading edge of a row, U7 colours. */
   rowTone?: (row: TData) => Tone | undefined
   stickyHeader?: boolean
+  /**
+   * Stretch the frame to the height its parent has left instead of ending at
+   * the last row. A queue holding three rows then has the same shape as one
+   * holding thirty.
+   */
+  fill?: boolean
 }
 
 /**
@@ -90,6 +96,7 @@ export function DataTable<TData extends RowData>({
   onOpenRow,
   rowTone,
   stickyHeader = true,
+  fill,
 }: DataTableProps<TData>) {
   const [ownSelection, setOwnSelection] = useState<RowSelectionState>(EMPTY_SELECTION)
   const [ownSorting, setOwnSorting] = useState<SortingState>(EMPTY_SORTING)
@@ -169,7 +176,7 @@ export function DataTable<TData extends RowData>({
   const showEmpty = !loading && !error && rows.length === 0
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} data-fill={fill ? 'true' : undefined}>
       <table
         role="grid"
         aria-label={label}

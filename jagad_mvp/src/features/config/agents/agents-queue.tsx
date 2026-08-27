@@ -57,8 +57,6 @@ export function agentsQueue(input: AgentsQueueInput): QueueConfig<ConfigAgent> {
   return {
     key: 'config-agents',
     title: 'Agents',
-    description:
-      'Who sources business under each agency, what share they take, and whether they may build a sub-agent team of their own.',
     noun: 'agent',
     getRowId: (row) => row.id,
 

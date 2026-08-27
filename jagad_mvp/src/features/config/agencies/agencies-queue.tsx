@@ -68,9 +68,8 @@ export function agenciesQueue(input: AgenciesQueueInput): QueueConfig<ConfigAgen
   return {
     key: 'config-agencies',
     title: 'Agencies',
-    description:
-      'The appointments the agency writes under. An Individual agency locks to exactly one company; a Broker carries many. Placement offers only what is in scope here.',
     noun: 'agency',
+    nounPlural: 'agencies',
     getRowId: (row) => row.id,
 
     columns: column.columns([

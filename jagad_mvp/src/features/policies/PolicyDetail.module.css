@@ -1,0 +1,68 @@
+/*
+ * One column, panel after panel, in the order a person meets the record: what
+ * it is, what it cost, what was paid, how it was issued, what history it carries.
+ *
+ * The premium pair is the only place this file does anything beyond stacking.
+ * The recorded Final sits above the derived roll-up, in the reading size, so the
+ * figure the policy actually carries is the one the eye lands on first — and the
+ * arithmetic beneath it reads as the check it is rather than as the conclusion.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.premium {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  max-width: 420px;
+  margin: 0 0 var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--hair);
+}
+
+.premiumLabel {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-ui);
+}
+
+.premiumValue {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-reading);
+  font-variant-numeric: tabular-nums;
+}
+
+.versions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.versions li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+}

@@ -114,9 +114,6 @@ const teamInquiries: NavCount = async (repositories, user) =>
     })
   ).total
 
-const unroutedInquiries: NavCount = async (repositories) =>
-  (await repositories.inquiries.unrouted(PROBE)).total
-
 const liveQuotations: NavCount = async (repositories) =>
   (await repositories.quotations.list({ ...PROBE, filters: { status: LIVE_QUOTATIONS } })).total
 
@@ -246,18 +243,6 @@ export const NAVIGATION: Readonly<Record<StarterTemplateKey, RoleNav>> = {
             resource: 'inquiries',
             count: openInquiries,
             countLabel: 'open inquiries',
-            countTone: 'attn',
-          },
-          {
-            // The rail carries the filter in the URL, which is the whole of what
-            // a pinned queue is here — no second screen, no second query.
-            key: 'inquiries-unrouted',
-            label: 'Unrouted',
-            to: '/inquiries?status=unrouted',
-            icon: 'alert',
-            resource: 'inquiries',
-            count: unroutedInquiries,
-            countLabel: 'inquiries nobody was routed',
             countTone: 'attn',
           },
           {

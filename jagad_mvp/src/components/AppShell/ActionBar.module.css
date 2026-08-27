@@ -1,24 +1,40 @@
+/*
+ * `flex: none` is not decoration. This strip is a flex item in the shell's main
+ * column, and a flex item shrinks by default: without it the bar is squeezed to
+ * its min-height while its controls keep their real size, and the labels spill
+ * out of the band above the fill. It takes the height its controls need.
+ */
 .bar {
   display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-6);
+  flex: none;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-6);
   border-bottom: 1px solid var(--hair);
   background: var(--surface);
   min-height: calc(var(--control-h) + var(--sp-4));
 }
 
+/*
+ * Controls align on their bottom edge, not their middle: a labelled filter is
+ * taller than a bare button, and centring the two leaves the input sitting
+ * lower than the button beside it. Column gap is wider than row gap so five
+ * filters read as five controls rather than one crowded strip.
+ */
 .start {
   display: flex;
-  align-items: center;
-  gap: var(--sp-2);
+  align-items: flex-end;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-2);
   flex-wrap: wrap;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .end {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  flex: 0 0 auto;
   gap: var(--sp-2);
   margin-left: auto;
 }

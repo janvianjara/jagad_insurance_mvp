@@ -50,8 +50,6 @@ export function benefitsQueue(input: BenefitsQueueInput): QueueConfig<ConfigBene
   return {
     key: 'config-benefits',
     title: 'Benefits',
-    description:
-      'What a comparison sheet can carry, per line. The order here is the order the sheet prints in.',
     noun: 'benefit',
     getRowId: (row) => row.id,
 

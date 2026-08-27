@@ -13,7 +13,7 @@ import { useDrawerSlot } from '../AppShell/drawer-slot'
 import { PageHeader } from '../AppShell/PageHeader'
 import { BulkActionGate } from './BulkActionGate'
 import { opensInDrawer } from './queue-config'
-import type { QueueConfig, QueueSelection } from './queue-config'
+import type { QueueConfig, QueueFilter, QueueSelection } from './queue-config'
 import {
   assertQueueFilterKeys,
   isQueueNarrowed,
@@ -24,6 +24,28 @@ import {
 } from './queue-url'
 import type { QueueUrlSchema, QueueUrlState } from './queue-url'
 import styles from './WorkQueue.module.css'
+
+/**
+ * The "no choice made" option's text.
+ *
+ * Lowercasing the label wholesale turns a KYC filter into "All kyc", which is
+ * the kind of small wrongness that makes a finished screen look unfinished. An
+ * all-caps word is an acronym and is left alone; everything else is prose.
+ */
+function anyOptionLabel(filter: QueueFilter): string {
+  if (filter.anyLabel) return filter.anyLabel
+  const label = filter.label
+    .split(' ')
+    .map((word) => (word === word.toUpperCase() ? word : word.toLowerCase()))
+    .join(' ')
+  return `All ${label}`
+}
+
+/** A queue's plural comes from its config; the fallback is only for regular nouns. */
+function pluralOf(config: { noun: string; nounPlural?: string }): string {
+  if (config.nounPlural) return config.nounPlural
+  return /(?:s|x|z|ch|sh)$/i.test(config.noun) ? `${config.noun}es` : `${config.noun}s`
+}
 
 export type WorkQueueProps<Row extends RowData> = {
   config: QueueConfig<Row>
@@ -127,11 +149,10 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
     <>
       <PageHeader
         title={config.title}
-        description={config.description}
         meta={
           page.status === 'ready' ? (
             <span className={styles.total}>
-              {total} {total === 1 ? config.noun : `${config.noun}s`}
+              {total} {total === 1 ? config.noun : pluralOf(config)}
             </span>
           ) : null
         }
@@ -148,11 +169,11 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           ) : null
         }
       >
-        <Field label="Search" className={styles.control}>
+        <Field label="Search" className={`${styles.control} ${styles.search}`}>
           <Input
             type="search"
             value={state.search}
-            placeholder={config.searchPlaceholder ?? `Search ${config.noun}s`}
+            placeholder={config.searchPlaceholder ?? `Search ${pluralOf(config)}`}
             onChange={(event) => narrow({ search: event.target.value }, { replace: true })}
           />
         </Field>
@@ -161,7 +182,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           <Field key={filter.key} label={filter.label} className={styles.control}>
             <Select
               value={state.filters[filter.key]?.[0] ?? ''}
-              placeholder={filter.anyLabel ?? `All ${filter.label.toLowerCase()}`}
+              placeholder={anyOptionLabel(filter)}
               options={filter.options.map((option) => ({
                 value: option.value,
                 label: option.label,
@@ -207,6 +228,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           getRowId={config.getRowId}
           label={config.title}
           loading={page.isLoading}
+          fill
           selectable={Boolean(config.bulkActions && config.bulkActions.length > 0)}
           rowSelection={rowSelection}
           onRowSelectionChange={(next) =>
@@ -271,7 +293,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           pageIndex={state.page - 1}
           pageSize={state.pageSize}
           totalRows={total}
-          noun={`${config.noun}s`}
+          noun={pluralOf(config)}
           onPageChange={(index) => apply({ page: index + 1, selection: [] })}
           onPageSizeChange={(size) => narrow({ pageSize: size })}
         />

@@ -52,7 +52,10 @@ export const ROUTE_MAP: readonly RouteSpec[] = [
     phase: 'M0',
     layout: 'bare',
     resource: null,
-    step: 'P-10a',
+    // P-10a built the 2FA enforcement MATRIX in /config/users (record-only, as
+    // the MVP scopes it). The login challenge itself is behind FR-18 and no M0
+    // step builds it.
+    step: undefined,
     note: 'TOTP; the enforcement matrix is recorded in configuration.',
   },
 
@@ -185,7 +188,9 @@ export const ROUTE_MAP: readonly RouteSpec[] = [
     phase: 'M0',
     layout: 'app',
     resource: 'backOffice',
-    step: 'P-15',
+    // P-15 built /back-office/drafts. This is the six-queue ops home of FR-08.1,
+    // which no step owns; each of its queues exists on its own route today.
+    step: undefined,
     note: 'The work-queue home.',
   },
   { path: '/back-office/drafts', title: 'Drafts', phase: 'M0', layout: 'app', resource: 'backOffice', step: 'P-15' },
@@ -276,8 +281,13 @@ export const ROUTE_MAP: readonly RouteSpec[] = [
     phase: 'P1',
     layout: 'app',
     resource: 'config',
-    step: 'P-12',
-    note: 'The schema builder: stages, fields, branching, preview, versions.',
+    // Deliberately no step. P-12 built the schema RENDERER and the seed schemas -
+    // src/domain/forms and <SchemaForm> - which is what policy entry, KYC and
+    // endorsement all run on. The BUILDER that edits a schema through a screen is
+    // section 4's `/config/forms [P1]`, and no M0 step owns it. Naming P-12 here
+    // read as "a finished step forgot this", which is not what happened.
+    note:
+      'The schema builder - stages, fields, branching, preview, versions. The engine it would edit is built and in use; this screen is the admin surface for authoring one, and it is P1.',
   },
   {
     path: '/config/companies',

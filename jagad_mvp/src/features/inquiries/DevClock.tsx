@@ -35,7 +35,7 @@ export function DevClock({ className }: { className?: string }) {
     >
       <p className={styles.reading}>
         <span className={styles.caption}>Demo clock</span>
-        <DateTime value={now} mode="datetime" />
+        <DateTime className={styles.stamp} value={now} mode="datetime" />
         {offsetMinutes === 0 ? null : (
           <span className={styles.offset}>{`+${offsetMinutes} min ahead`}</span>
         )}
@@ -46,9 +46,14 @@ export function DevClock({ className }: { className?: string }) {
             {minutes < 60 ? `+${minutes} min` : `+${minutes / 60} hr`}
           </Button>
         ))}
-        <Button size="sm" icon="close" onClick={reset} disabled={offsetMinutes === 0}>
-          Reset clock
-        </Button>
+        <Button
+          size="sm"
+          icon="close"
+          label="Reset clock"
+          title="Reset clock"
+          onClick={reset}
+          disabled={offsetMinutes === 0}
+        />
       </div>
     </div>
   )

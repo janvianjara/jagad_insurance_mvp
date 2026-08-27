@@ -87,12 +87,12 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
     column.accessor('contactName', {
       header: 'Customer',
       enableSorting: false,
-      cell: ({ row }) => (
-        <span className={styles.contact}>
-          <span className={styles.contactName}>{row.original.contactName}</span>
-          <span className={styles.contactMobile}>{row.original.contactMobile}</span>
-        </span>
-      ),
+      cell: ({ row }) => <span className={styles.contactName}>{row.original.contactName}</span>,
+    }),
+    column.accessor('contactMobile', {
+      header: 'Mobile',
+      enableSorting: false,
+      cell: ({ row }) => <span className={styles.contactMobile}>{row.original.contactMobile}</span>,
     }),
     column.accessor('source', {
       header: 'Source',
@@ -207,9 +207,8 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
   return {
     key: 'inquiries',
     title: 'Inquiries',
-    description:
-      'Unassigned and TAT-at-risk inquiries are pinned to the top. Everything below them is in the order the filters asked for.',
     noun: 'inquiry',
+    nounPlural: 'inquiries',
     getRowId: (row) => row.id,
     columns,
     filters: [
