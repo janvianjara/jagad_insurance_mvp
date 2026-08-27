@@ -28,6 +28,13 @@ import {
   QuotationNewRoute,
   QuotationQueueRoute,
 } from '../features/quotations/routes'
+import {
+  PolicyDetailRoute,
+  PolicyDraftsRoute,
+  PolicyEntryRoute,
+  PolicyQueueRoute,
+} from '../features/policies/routes'
+import { CommissionRoute } from '../features/commission/routes'
 import { RequireAccess } from './RequireAccess'
 import { ROUTE_MAP } from './route-map'
 import type { RouteSpec } from './route-map'
@@ -94,6 +101,11 @@ const BUILT_SCREENS: Readonly<Record<string, () => ReactElement>> = {
   '/quotations/:id/v/:version': () => <QuotationComposerRoute />,
   '/deals': () => <DealQueueRoute />,
   '/deals/:id': () => <DealRoute />,
+  '/policies': () => <PolicyQueueRoute />,
+  '/policies/new': () => <PolicyEntryRoute />,
+  '/policies/:id': () => <PolicyDetailRoute />,
+  '/back-office/drafts': () => <PolicyDraftsRoute />,
+  '/commission': () => <CommissionRoute />,
 }
 
 /**
