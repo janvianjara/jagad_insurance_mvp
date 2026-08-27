@@ -78,6 +78,14 @@ export type QueueSnapshot = {
 
   readonly renewalsDueThisWeek: readonly AssistantRenewal[]
   readonly renewalsLapsed: readonly AssistantRenewal[]
+  /**
+   * Due inside the week and nobody has been told yet.
+   *
+   * The prototype's renewals briefing says "12 have had no reminder yet", and
+   * that clause is only sayable if the count exists. `remindersSent` is on the
+   * projection already, so this is a filter of a filter rather than a new read.
+   */
+  readonly renewalsNoReminder: readonly AssistantRenewal[]
 }
 
 export function emptySnapshot(now: Date, enabled = false): QueueSnapshot {
@@ -100,6 +108,7 @@ export function emptySnapshot(now: Date, enabled = false): QueueSnapshot {
     claimsInsurerQuery: [],
     renewalsDueThisWeek: [],
     renewalsLapsed: [],
+    renewalsNoReminder: [],
   }
 }
 
@@ -125,6 +134,7 @@ export async function loadQueueSnapshot(
     repo.renewals(query),
   ])
 
+  const renewalsDueThisWeek = renewals.rows.filter((row) => isRenewalDueThisWeek(row, now))
   const inquiriesOpen = inquiries.rows.filter(isOpenInquiry)
   const tasksOpen = tasks.rows.filter(isOpenTask)
   const claimsOpen = claims.rows.filter(isOpenClaim)
@@ -153,7 +163,8 @@ export async function loadQueueSnapshot(
     claimsAged: claimsOpen.filter((row) => isAgedClaim(row, now)),
     claimsInsurerQuery: claimsOpen.filter(isInsurerQuery),
 
-    renewalsDueThisWeek: renewals.rows.filter((row) => isRenewalDueThisWeek(row, now)),
+    renewalsDueThisWeek,
     renewalsLapsed: renewals.rows.filter(isLapsedRenewal),
+    renewalsNoReminder: renewalsDueThisWeek.filter((row) => row.remindersSent === 0),
   }
 }

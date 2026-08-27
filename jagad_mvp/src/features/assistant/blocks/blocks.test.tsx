@@ -19,21 +19,57 @@ describe('emphasis is named, never marked up', () => {
   it('splits a sentence around the counted phrases', () => {
     const segments = splitEmphasis('18 open inquiries across the team.', ['18 open inquiries'])
     expect(segments).toEqual([
-      { text: '18 open inquiries', emphasised: true },
-      { text: ' across the team.', emphasised: false },
+      { text: '18 open inquiries', emphasised: true, mono: false },
+      { text: ' across the team.', emphasised: false, mono: false },
     ])
   })
 
   it('prefers the longer phrase, so a count is not shadowed by its own digits', () => {
     const segments = splitEmphasis('4 unassigned and 4 quoted', ['4', '4 unassigned'])
-    expect(segments[0]).toEqual({ text: '4 unassigned', emphasised: true })
+    expect(segments[0]).toEqual({ text: '4 unassigned', emphasised: true, mono: false })
     expect(segments.filter((segment) => segment.emphasised)).toHaveLength(2)
   })
 
   it('degrades to a plain sentence when a phrase has drifted out of the text', () => {
     expect(splitEmphasis('nothing is waiting', ['12 open leads'])).toEqual([
-      { text: 'nothing is waiting', emphasised: false },
+      { text: 'nothing is waiting', emphasised: false, mono: false },
     ])
+  })
+
+  /**
+   * A record named in a sentence is still a record number, and §2 sets those in
+   * mono with tabular figures wherever they appear. `mono` is a subset of the
+   * emphasis rather than a second mechanism, so the phrase is bold AND mono and
+   * the block still carries no markup.
+   */
+  it('marks a named record so the sentence can set it in mono', () => {
+    const segments = splitEmphasis(
+      '1 waiting on an insurer query, CLM-0417',
+      ['1 waiting on an insurer query', 'CLM-0417'],
+      ['CLM-0417'],
+    )
+
+    expect(segments).toContainEqual({ text: 'CLM-0417', emphasised: true, mono: true })
+    expect(segments).toContainEqual({
+      text: '1 waiting on an insurer query',
+      emphasised: true,
+      mono: false,
+    })
+  })
+
+  it('sets a named record in the mono face, and a count in the body face', () => {
+    draw([
+      {
+        kind: 'para',
+        text: '2 past thirty days, CLM-0398 the oldest.',
+        emphasis: ['2 past thirty days', 'CLM-0398'],
+        mono: ['CLM-0398'],
+      },
+    ])
+
+    expect(screen.getByText('CLM-0398').className).not.toBe(
+      screen.getByText('2 past thirty days').className,
+    )
   })
 
   it('never renders a phrase as markup', () => {

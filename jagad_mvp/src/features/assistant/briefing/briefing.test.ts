@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { BRIEFING_TEMPLATES, briefingClauses, briefingFor, snapshotCounts } from './briefing'
+import {
+  BRIEFING_TEMPLATES,
+  briefingClauses,
+  briefingFor,
+  briefingProse,
+  briefingTemplateFor,
+  snapshotCounts,
+} from './briefing'
 import { emptySnapshot, loadQueueSnapshot } from './snapshot'
 import type { QueueSnapshot } from './snapshot'
 import {
@@ -61,32 +68,46 @@ function pipeline(): StubRows {
   return { inquiries: [...unassigned, ...atRisk, ...comfortable, ...closed] }
 }
 
+/** Every queue in the snapshot non-empty, so no template is tested half-asleep. */
+function everything(): StubRows {
+  return {
+    ...pipeline(),
+    quotations: [
+      aQuotation({ id: 'q1' }),
+      aQuotation({ id: 'q2', status: 'shared', sharedAt: at(-2 * DAY) }),
+      aQuotation({ id: 'q3', status: 'shared', sharedAt: at(-9 * DAY) }),
+    ],
+    tasks: [
+      aTask({ id: 't1', dueAt: at(2 * DAY) }),
+      aTask({ id: 't2', dueAt: at(-DAY) }),
+      aTask({ id: 't3', kind: 'mandate_failure', dueAt: at(-2 * DAY) }),
+      aTask({ id: 't4', kind: 'policy_entry', dueAt: at(3 * DAY) }),
+    ],
+    claims: [
+      aClaim({ id: 'c1' }),
+      aClaim({ id: 'c2', state: 'query_open', raisedAt: at(-40 * DAY) }),
+      aClaim({ id: 'c3', state: 'filed_with_insurer', raisedAt: at(-55 * DAY) }),
+    ],
+    renewals: [aRenewal({ id: 'n1' }), aRenewal({ id: 'n2', state: 'lapsed' })],
+  }
+}
+
 describe('the briefing is counted, never written', () => {
   it('reproduces the plan’s worked example from the rows themselves', async () => {
     const blocks = briefingFor('salesManager', await snapshot(pipeline()))
     const text = paraText(blocks)
 
+    // The prototype's own line, rebuilt: a framed count, then a second sentence
+    // that says which part wants a person and what happens if nobody comes.
     expect(text).toContain('18 open inquiries across the team.')
-    expect(text).toContain('4 still unassigned.')
-    expect(text).toContain('2 close to their TAT')
-    expect(text).toContain('they reassign on their own and the customer waits longer')
+    expect(text).toContain('4 still unassigned and 2 close to their TAT')
+    expect(text).toContain('— if those lapse they reassign on their own and the customer waits longer.')
   })
 
   it.each(Object.keys(BRIEFING_TEMPLATES))(
     'gives %s only numbers that came off the snapshot',
     async (templateKey) => {
-      const state = await snapshot({
-        ...pipeline(),
-        quotations: [aQuotation({ id: 'q1' }), aQuotation({ id: 'q2', status: 'shared', sharedAt: at(-2 * DAY) })],
-        tasks: [
-          aTask({ id: 't1', dueAt: at(2 * DAY) }),
-          aTask({ id: 't2', dueAt: at(-DAY) }),
-          aTask({ id: 't3', kind: 'mandate_failure', dueAt: at(-2 * DAY) }),
-          aTask({ id: 't4', kind: 'policy_entry', dueAt: at(3 * DAY) }),
-        ],
-        claims: [aClaim({ id: 'c1' }), aClaim({ id: 'c2', state: 'query_open', raisedAt: at(-40 * DAY) })],
-        renewals: [aRenewal({ id: 'n1' }), aRenewal({ id: 'n2', state: 'lapsed' })],
-      })
+      const state = await snapshot(everything())
 
       const counts = Object.values(snapshotCounts(state))
 
@@ -98,6 +119,105 @@ describe('the briefing is counted, never written', () => {
       }
     },
   )
+
+  /**
+   * The rule that lets the second sentence exist at all.
+   *
+   * Interpretation is where a briefing would start inventing, so the
+   * interpretive material carries no figures: a `rest` and a `consequence` may
+   * say "past thirty days", never "past 30 days". Every digit in a briefing is
+   * therefore either a count on the clause that printed it or a record number
+   * read off a snapshot row — and this walks the rendered paragraph to prove it
+   * rather than trusting the templates.
+   */
+  it.each(Object.keys(BRIEFING_TEMPLATES))(
+    'prints no digit in %s it did not count or read off a record',
+    async (templateKey) => {
+      const state = await snapshot(everything())
+      const prose = briefingProse(templateKey, state)
+      const counts = Object.values(snapshotCounts(state)).map(String)
+      const names = prose.clauses.flatMap((entry) => entry.names ?? [])
+
+      // A named record is the only other licensed source of digits, so take the
+      // names out first — what is left must be countable.
+      let remaining = prose.text
+      for (const name of names) remaining = remaining.split(name).join(' ')
+
+      for (const figure of remaining.match(/\d+/g) ?? []) {
+        expect(counts).toContain(figure)
+      }
+    },
+  )
+
+  it.each(Object.keys(BRIEFING_TEMPLATES))(
+    'keeps the interpretation of %s free of figures entirely',
+    async (templateKey) => {
+      const state = await snapshot(everything())
+
+      for (const entry of briefingClauses(templateKey, state)) {
+        expect(entry.rest.replace(/[A-Z]+-\d+/g, '')).not.toMatch(/\d/)
+        expect(entry.consequence ?? '').not.toMatch(/\d/)
+      }
+    },
+  )
+
+  /**
+   * A record named in the prose has to be a record. The clause declares which
+   * ones it named; both the sentence and the snapshot have to agree.
+   */
+  it.each(Object.keys(BRIEFING_TEMPLATES))(
+    'names only records %s actually holds, and names them in the sentence',
+    async (templateKey) => {
+      const state = await snapshot(everything())
+      const prose = briefingProse(templateKey, state)
+      const held = new Set(
+        [
+          ...state.inquiriesOpen,
+          ...state.quotationsAwaitingReply,
+          ...state.quotationsDraft,
+          ...state.tasksOpen,
+          ...state.claimsOpen,
+        ].map((row) => row.systemNo),
+      )
+
+      for (const entry of prose.clauses) {
+        for (const name of entry.names ?? []) {
+          expect(held.has(name)).toBe(true)
+          expect(prose.text).toContain(name)
+          expect(prose.emphasis).toContain(name)
+        }
+      }
+    },
+  )
+
+  it('drops a consequence rather than inventing one the data cannot carry', async () => {
+    // Eighteen open inquiries, none unassigned, none near a turnaround: the
+    // headline has something to say and the attention band has nothing.
+    const state = await snapshot({
+      inquiries: Array.from({ length: 3 }, (_, index) =>
+        anInquiry({ id: `q${index}`, systemNo: `INQ-80${index}`, tatDueAt: at(30 * DAY), assignedAt: at(-HOUR) }),
+      ),
+    })
+    const prose = briefingProse('salesManager', state)
+
+    expect(prose.text).toBe('3 open inquiries across the team.')
+    expect(prose.text).not.toContain('—')
+  })
+
+  it('drops the frame with the sentence it frames', async () => {
+    // Back-office frames its counted sentence with "Your queue:". With nothing
+    // in the headline band the frame would be describing an absence.
+    const state = await snapshot({
+      tasks: [aTask({ id: 'late', kind: 'mandate_failure', dueAt: at(-DAY) })],
+    })
+    const prose = briefingProse('backOffice', state)
+
+    expect(briefingTemplateFor('backOffice').frame).toBe('Your queue:')
+    expect(prose.text.startsWith('Your queue:')).toBe(true)
+
+    const clear = briefingProse('claims', state)
+    expect(clear.text).not.toContain('Your queue:')
+  })
 
   it.each(Object.keys(BRIEFING_TEMPLATES))('never prints a zero for %s', async (templateKey) => {
     const state = await snapshot({ inquiries: [anInquiry({ id: 'only', status: 'converted' })] })

@@ -27,7 +27,7 @@ export function AssistantPanel({
 
   return (
     <div className={styles.panel}>
-      <AssistantConversation {...(label === undefined ? {} : { contextLabel: label })} />
+      <AssistantConversation pinAsk={false} {...(label === undefined ? {} : { contextLabel: label })} />
       <p className={styles.link}>
         <Link to="/assistant">Open the Assistant as a full screen</Link>
       </p>

@@ -639,3 +639,91 @@ export function chipsFor(templateKey: string): readonly AskCard[] {
 export function askCardById(id: string): AskCard | null {
   return ASK_CARDS.find((card) => card.id === id) ?? null
 }
+
+/* ------------------------------------------------------- typed questions */
+
+/**
+ * Words that carry no subject. Dropped before matching so "what is still
+ * unassigned?" and "unassigned" score the same.
+ */
+const EMPTY_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'of', 'to', 'for', 'in', 'on', 'at', 'is', 'are', 'was',
+  'were', 'be', 'do', 'does', 'did', 'what', 'which', 'who', 'when', 'where', 'how', 'why',
+  'show', 'me', 'my', 'i', 'you', 'your', 'this', 'that', 'it', 'any', 'all', 'can', 'get',
+  'give', 'list', 'tell', 'about', 'right', 'now', 'please',
+])
+
+function meaningfulWords(text: string): readonly string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !EMPTY_WORDS.has(word))
+}
+
+/** How many words a typed question and a card have to share before it is a match. */
+const MATCH_FLOOR = 2
+
+/**
+ * The card a typed question is asking for, or null.
+ *
+ * The prototype answers free text by matching it against a fixed list of
+ * examples (`KEYS`) and, failing that, saying plainly that this build answers a
+ * fixed set. This is the same contract with the matching done over the cards
+ * themselves rather than a second hand-written table, so a card added to a role
+ * becomes typeable in the same commit it becomes pressable.
+ *
+ * The search is over the role's OWN cards, never all of them. Every card runs
+ * through the scoped facade, so a wider search would still be safe — but a
+ * renewals officer typing "claims" and getting a claims answer teaches them the
+ * Assistant does not know what they do, which is the thing `chipsFor` exists to
+ * avoid.
+ *
+ * `MATCH_FLOOR` is what keeps it from guessing. One shared word is a
+ * coincidence; below the floor the caller gets null and says so, which is the
+ * honest answer and the prototype's own.
+ */
+export function matchAskCard(question: string, cards: readonly AskCard[]): AskCard | null {
+  const asked = new Set(meaningfulWords(question))
+  if (asked.size === 0) return null
+
+  let best: AskCard | null = null
+  let bestScore = 0
+
+  for (const card of cards) {
+    const known = new Set([...meaningfulWords(card.label), ...meaningfulWords(card.question)])
+    let score = 0
+    for (const word of asked) if (known.has(word)) score += 1
+
+    if (score > bestScore) {
+      best = card
+      bestScore = score
+    }
+  }
+
+  return bestScore >= MATCH_FLOOR ? best : null
+}
+
+/**
+ * What the Assistant says to a question it cannot answer yet.
+ *
+ * The prototype's own reply, with our chips named instead of its examples: it
+ * offers what it CAN do rather than apologising, and it never pretends to have
+ * looked something up. Nothing here is a stored answer.
+ */
+export function unmatchedAnswer(cards: readonly AskCard[]): readonly Block[] {
+  const offered = cards.map((card) => card.label)
+
+  return [
+    {
+      kind: 'para',
+      text: 'I can look that up, but this build answers a fixed set of questions about your own queue.',
+    },
+    {
+      kind: 'note',
+      text:
+        offered.length > 0
+          ? `Try one of these instead: ${offered.join(', ')}. Each runs a live query over the records this account can see, at the moment you press it.`
+          : 'This account has no suggestions available, so there is nothing for a typed question to match.',
+    },
+  ]
+}

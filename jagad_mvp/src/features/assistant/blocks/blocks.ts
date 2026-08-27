@@ -94,6 +94,17 @@ export type ParaBlock = {
   readonly kind: 'para'
   readonly text: string
   readonly emphasis?: readonly string[]
+  /**
+   * The emphasised phrases that are record numbers.
+   *
+   * A `systemNo` is set in mono with tabular figures everywhere else in this
+   * product (§2), and a sentence is not an exception — the prototype names
+   * "CLM-0398" inline and ours has to be recognisable as the same kind of thing
+   * a person reads off a queue row. It is a subset of `emphasis` rather than a
+   * separate mechanism, so a record named in prose is bold AND mono, and there
+   * is still no path by which a block carries markup.
+   */
+  readonly mono?: readonly string[]
 }
 
 export type NoteBlock = {
@@ -115,6 +126,15 @@ export type BlockRow = {
 export type RowsBlock = {
   readonly kind: 'rows'
   readonly rows: readonly BlockRow[]
+  /**
+   * What this handful of records *is*, and how it was chosen.
+   *
+   * Without it the briefing prints four rows under a sentence that counted three
+   * different things, and the reader has to guess which of the three they are
+   * looking at — which makes an accurate list read like a decorative one. The
+   * caption is generated beside the rows from the same source, never typed.
+   */
+  readonly caption?: string
 }
 
 export type TableColumn = {
@@ -150,11 +170,59 @@ export type KvBlock = {
 
 export type Block = ParaBlock | NoteBlock | RowsBlock | TableBlock | KvBlock
 
+/* ----------------------------------------------------------- row filtering */
+
+/**
+ * The same blocks with named record ids removed from every `rows` block, and any
+ * `rows` block that empties dropped entirely.
+ *
+ * It exists for one composition problem on the landing screen. The briefing and
+ * the threshold rules read the same queues, so the four records the briefing
+ * lists to illustrate its counts are frequently the same four a notice is about
+ * to raise with a reason. Printing them twice, a hand apart, makes the screen
+ * look like it is padding — and it pushes the notice, which is the part nobody
+ * asked for and the part that matters, below the fold.
+ *
+ * This removes the duplicate from the *illustration*, never from the count: the
+ * briefing's sentence is untouched, so every number on screen still comes from
+ * the projection and still means what it says.
+ */
+export function withoutRows(
+  blocks: readonly Block[],
+  excludedIds: ReadonlySet<string>,
+): readonly Block[] {
+  if (excludedIds.size === 0) return blocks
+
+  const kept: Block[] = []
+
+  for (const block of blocks) {
+    if (block.kind !== 'rows') {
+      kept.push(block)
+      continue
+    }
+    const rows = block.rows.filter((row) => !excludedIds.has(row.id))
+    if (rows.length > 0) kept.push({ ...block, rows })
+  }
+
+  return kept
+}
+
+/** Every record id a set of blocks puts on screen in a `rows` block. */
+export function rowIdsIn(blocks: readonly Block[]): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (const block of blocks) {
+    if (block.kind === 'rows') for (const row of block.rows) ids.add(row.id)
+  }
+  return ids
+}
+
 /* ------------------------------------------------------- emphasis splitting */
 
 export type ParaSegment = {
   readonly text: string
   readonly emphasised: boolean
+  /** True when this run is a record number, and is set in mono. */
+  readonly mono: boolean
 }
 
 /**
@@ -165,12 +233,17 @@ export type ParaSegment = {
  * not in the text is simply not found — an emphasis list that has drifted from
  * the sentence degrades to an unemphasised sentence rather than to a crash.
  */
-export function splitEmphasis(text: string, emphasis: readonly string[] = []): ParaSegment[] {
+export function splitEmphasis(
+  text: string,
+  emphasis: readonly string[] = [],
+  mono: readonly string[] = [],
+): ParaSegment[] {
   const phrases = [...new Set(emphasis.filter((phrase) => phrase.length > 0))].sort(
     (a, b) => b.length - a.length,
   )
+  const monoPhrases = new Set(mono)
 
-  if (phrases.length === 0) return text.length > 0 ? [{ text, emphasised: false }] : []
+  if (phrases.length === 0) return text.length > 0 ? [{ text, emphasised: false, mono: false }] : []
 
   const segments: ParaSegment[] = []
   let cursor = 0
@@ -189,12 +262,14 @@ export function splitEmphasis(text: string, emphasis: readonly string[] = []): P
     }
 
     if (bestAt === -1) {
-      segments.push({ text: text.slice(cursor), emphasised: false })
+      segments.push({ text: text.slice(cursor), emphasised: false, mono: false })
       break
     }
 
-    if (bestAt > cursor) segments.push({ text: text.slice(cursor, bestAt), emphasised: false })
-    segments.push({ text: bestPhrase, emphasised: true })
+    if (bestAt > cursor) {
+      segments.push({ text: text.slice(cursor, bestAt), emphasised: false, mono: false })
+    }
+    segments.push({ text: bestPhrase, emphasised: true, mono: monoPhrases.has(bestPhrase) })
     cursor = bestAt + bestPhrase.length
   }
 

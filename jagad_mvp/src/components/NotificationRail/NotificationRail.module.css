@@ -54,12 +54,18 @@
   color: var(--ink);
 }
 
+/*
+ * `--text-reading` is a font size, not a measure — used as `max-width` it capped
+ * the reason line at 15px and broke it into a one-word column. The measure is a
+ * `ch` value, as it is elsewhere in this codebase.
+ */
 .reason {
   margin: 0;
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
   color: var(--ink-2);
-  max-width: var(--text-reading);
+  max-width: 72ch;
+  text-wrap: pretty;
 }
 
 .link {
