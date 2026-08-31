@@ -12,10 +12,12 @@ export type { ChecklistSource } from './checklist-source'
 export {
   aadhaarLast4Of,
   checklistFor,
+  derivedStateFor,
   docTypeForItem,
   extractionsFor,
   itemsSuppliedByConsent,
   kycCommandFor,
+  kycFactsFor,
   maskAtExtraction,
   unconfirmedExtractions,
 } from './kyc-view'

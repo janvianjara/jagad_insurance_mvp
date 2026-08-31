@@ -41,11 +41,12 @@ import {
   PAYMENT_LABEL,
   PAYMENT_TONE,
   POLICY_LABEL,
-  POLICY_TONE,
   PREMIUM_MODE_LABEL,
   draftSeverity,
   nameOf,
+  policyLabelFor,
   policySeverity,
+  policyToneFor,
 } from './policy-view'
 import type { PolicyDesk } from './data/policy-desk'
 import styles from './PolicyQueueScreen.module.css'
@@ -57,12 +58,14 @@ export type PolicyQueueDeps = {
   readonly customers: readonly Customer[]
   readonly companies: readonly Company[]
   readonly products: readonly Product[]
+  /** Injected, so the pill and the stripe cannot disagree about what day it is. */
+  readonly now: Date
 }
 
 const policyColumn = dataTableColumns<Policy>()
 
 export function policyQueueConfig(deps: PolicyQueueDeps): QueueConfig<Policy> {
-  const { desk, customers, companies, products } = deps
+  const { desk, customers, companies, products, now } = deps
 
   const customerName = (id: string) =>
     customers.find((customer) => customer.id === id)?.fullName ?? id
@@ -107,8 +110,8 @@ export function policyQueueConfig(deps: PolicyQueueDeps): QueueConfig<Policy> {
       header: 'State',
       enableSorting: false,
       cell: ({ row }) => (
-        <StatusPill tone={POLICY_TONE[row.original.status]}>
-          {POLICY_LABEL[row.original.status]}
+        <StatusPill tone={policyToneFor(row.original, now)}>
+          {policyLabelFor(row.original, now)}
         </StatusPill>
       ),
     }),
@@ -166,7 +169,7 @@ export function policyQueueConfig(deps: PolicyQueueDeps): QueueConfig<Policy> {
     sortable: ['systemNo', 'startDate', 'expiryDate'],
     defaultSort: { field: 'expiryDate', direction: 'asc' },
     searchPlaceholder: "Our number or the insurer's",
-    stripeMapping: policySeverity,
+    stripeMapping: (row) => policySeverity(row, now),
     load: (query: ListQuery) => desk.list(query),
     empty: {
       title: 'No policies are on file yet',

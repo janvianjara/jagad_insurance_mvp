@@ -87,7 +87,7 @@
 import { fromPaise, isMoney } from './money'
 import type { Money } from './money'
 import { placementInsideAgencyScope } from './workflows/deal'
-import type { AgencyScope, DealLineItem } from './workflows/deal'
+import type { AgencyScope, PlacementLine } from './workflows/deal'
 import {
   COMMISSION_PARTY_KINDS,
   FULL_SHARE_BASIS_POINTS,
@@ -224,7 +224,7 @@ export type CommissionShareholder = {
  * less the deal line's own id - a policy is not a deal line, and inventing an id
  * for one would put a second identity on a record that already has two (§8).
  */
-export type CommissionPlacement = Pick<DealLineItem, 'companyId' | 'productId' | 'label'>
+export type CommissionPlacement = PlacementLine
 
 export type CommissionChainInput = {
   readonly trigger: CommissionTrigger
@@ -364,10 +364,7 @@ export function commissionChain(input: CommissionChainInput): CommissionChainRes
    * scope a one-company list, which is what this guard already reads. A policy on
    * any other company falls outside and is refused with the guard's own words.
    */
-  const inScope = placementInsideAgencyScope({
-    lineItems: [{ id: policyId, ...placement }],
-    agencyScope,
-  })
+  const inScope = placementInsideAgencyScope({ lineItems: [placement], agencyScope })
   if (!inScope.ok) return inScope
 
   const channelMismatch = payerFitsChannel(input)

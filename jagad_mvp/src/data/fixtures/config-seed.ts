@@ -24,8 +24,10 @@ import type { BenefitItem, PolicyBenefitMap } from '../repo/benefits'
 import type { Company, CompanyContact, InsuranceLine } from '../repo/companies'
 import type { CommissionRule } from '../repo/commission'
 import type {
+  Disposition,
   FormSchema,
   InquiryCategory,
+  InquiryStage,
   MasterType,
   MasterValue,
   MessageTemplate,
@@ -351,6 +353,9 @@ export const AGENCY_SCOPES: readonly AgencyPolicyScope[] = AGENCY_SEEDS.flatMap(
       productId: product.id,
       commissionPercentBp: BASE_RATE_BY_LINE[product.line] + (index % 3) * 50,
       effectiveFrom: SEEDED_AT,
+      // Open-ended. An appointment that ends gets a date here rather than
+      // having `active` flipped, so a past placement stays judgeable.
+      effectiveTo: null,
       active: true,
     }),
   ),
@@ -745,9 +750,264 @@ export const MASTER_VALUES: readonly MasterValue[] = MASTER_SEEDS.flatMap((seed)
     key,
     label,
     sortOrder: index + 1,
+    effectiveTo: null,
     active: true,
   })),
 )
+
+/* ------------------------------------------------- engagement, FR-06.12 to .17 */
+
+/**
+ * The pipeline an accepted inquiry moves through, as configuration.
+ *
+ * These are not machine states: `inquiryMachine` still owns new → assigned →
+ * accepted → converted/lost, and every row here is a position *inside*
+ * `accepted`. An agency that works its pipeline differently edits these rows.
+ *
+ * `allowedFromKeys` is the adjacency a transition table would have held, and
+ * `canEnterStage` is the only thing that reads it. An empty list means the stage
+ * can be entered from anywhere, which is true of the ones a call can produce out
+ * of nothing — you can always fail to reach somebody.
+ */
+export const INQUIRY_STAGES: readonly InquiryStage[] = [
+  {
+    id: 'ist-contacted',
+    key: 'contacted',
+    label: 'Contacted',
+    allowedFromKeys: [],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 1,
+    active: true,
+  },
+  {
+    id: 'ist-not-reachable',
+    key: 'not_reachable',
+    label: 'Not reachable',
+    allowedFromKeys: [],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 2,
+    active: true,
+  },
+  {
+    id: 'ist-follow-up',
+    key: 'follow_up_scheduled',
+    label: 'Follow-up scheduled',
+    /*
+     * Reachable from nothing, deliberately. The first call on a lead nobody has
+     * spoken to yet routinely ends in "ring me Thursday", and a pipeline that
+     * refused to record the commonest outcome of the commonest call would be
+     * one nobody used.
+     */
+    allowedFromKeys: [],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 3,
+    active: true,
+  },
+  {
+    id: 'ist-needs-info',
+    key: 'needs_info',
+    label: 'Needs information',
+    /* Also a first-call outcome: "send me the details and I will look." */
+    allowedFromKeys: [],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 4,
+    active: true,
+  },
+  {
+    id: 'ist-requirement',
+    key: 'requirement_captured',
+    label: 'Requirement captured',
+    /* A first call can go straight to interested, and often does. */
+    allowedFromKeys: [],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 5,
+    active: true,
+  },
+  {
+    id: 'ist-quoted',
+    key: 'quoted',
+    label: 'Quoted',
+    /*
+     * This one keeps its predecessors, and the distinction is the point of
+     * having them at all: an inquiry cannot be Quoted before anybody has spoken
+     * to the customer, because there is nothing to have quoted against.
+     */
+    allowedFromKeys: ['requirement_captured', 'follow_up_scheduled', 'needs_info', 'contacted'],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 6,
+    active: true,
+  },
+  {
+    id: 'ist-negotiating',
+    key: 'negotiating',
+    label: 'Negotiating',
+    allowedFromKeys: ['quoted', 'follow_up_scheduled', 'needs_info'],
+    requiresNextAction: true,
+    countsAsOpen: true,
+    terminal: false,
+    parksTheLead: false,
+    sortOrder: 7,
+    active: true,
+  },
+  {
+    /**
+     * Parked, not lost. A cold lead whose only exit is Lost destroys the
+     * win-back list, so dormancy is its own stage with a way back out.
+     */
+    id: 'ist-dormant',
+    key: 'dormant',
+    label: 'Dormant',
+    allowedFromKeys: ['not_reachable', 'contacted', 'follow_up_scheduled', 'needs_info'],
+    requiresNextAction: false,
+    countsAsOpen: false,
+    terminal: true,
+    parksTheLead: true,
+    sortOrder: 8,
+    active: true,
+  },
+  {
+    /**
+     * A wrong number is a data fault, not a sales outcome. It goes back for
+     * correction and flags the source that produced it rather than dying quietly
+     * as another Lost row nobody looks at.
+     */
+    id: 'ist-data-issue',
+    key: 'data_issue',
+    label: 'Data issue',
+    allowedFromKeys: [],
+    requiresNextAction: false,
+    countsAsOpen: false,
+    terminal: true,
+    parksTheLead: false,
+    sortOrder: 9,
+    active: true,
+  },
+]
+
+/**
+ * The disposition matrix — what came of one contact, and what the system does
+ * about it. Seven rows an admin edits; no switch statement anywhere reads them
+ * by name except the two the platform's own logic needs (`not_interested` closes
+ * the inquiry, `wrong_number` flags the source).
+ */
+export const DISPOSITIONS: readonly Disposition[] = [
+  {
+    id: 'dsp-interested',
+    key: 'interested',
+    label: 'Connected — interested',
+    channelKeys: ['call', 'whatsapp', 'meeting', 'visit'],
+    stageKey: 'requirement_captured',
+    requiresNextAction: true,
+    requiresReason: false,
+    incrementsAttempt: false,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: 1440,
+    sortOrder: 1,
+    active: true,
+  },
+  {
+    id: 'dsp-call-back',
+    key: 'call_back',
+    label: 'Connected — call back',
+    channelKeys: ['call', 'whatsapp'],
+    stageKey: 'follow_up_scheduled',
+    requiresNextAction: true,
+    requiresReason: false,
+    incrementsAttempt: false,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: 2880,
+    sortOrder: 2,
+    active: true,
+  },
+  {
+    id: 'dsp-needs-info',
+    key: 'needs_info',
+    label: 'Connected — needs information',
+    channelKeys: [],
+    stageKey: 'needs_info',
+    requiresNextAction: true,
+    requiresReason: false,
+    incrementsAttempt: false,
+    suggestedTemplateKey: 'quotation.shared',
+    defaultRetryMinutes: 1440,
+    sortOrder: 3,
+    active: true,
+  },
+  {
+    id: 'dsp-not-interested',
+    key: 'not_interested',
+    label: 'Connected — not interested',
+    channelKeys: [],
+    stageKey: null,
+    requiresNextAction: false,
+    requiresReason: true,
+    incrementsAttempt: false,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: null,
+    sortOrder: 4,
+    active: true,
+  },
+  {
+    id: 'dsp-not-reachable',
+    key: 'not_reachable',
+    label: 'Not reachable',
+    channelKeys: ['call'],
+    stageKey: 'not_reachable',
+    requiresNextAction: true,
+    requiresReason: false,
+    incrementsAttempt: true,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: 240,
+    sortOrder: 5,
+    active: true,
+  },
+  {
+    id: 'dsp-busy',
+    key: 'busy',
+    label: 'Busy, call later today',
+    channelKeys: ['call'],
+    stageKey: 'contacted',
+    requiresNextAction: true,
+    requiresReason: false,
+    incrementsAttempt: true,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: 120,
+    sortOrder: 6,
+    active: true,
+  },
+  {
+    id: 'dsp-wrong-number',
+    key: 'wrong_number',
+    label: 'Wrong number',
+    channelKeys: ['call', 'whatsapp'],
+    stageKey: 'data_issue',
+    requiresNextAction: false,
+    requiresReason: true,
+    incrementsAttempt: false,
+    suggestedTemplateKey: null,
+    defaultRetryMinutes: null,
+    sortOrder: 7,
+    active: true,
+  },
+]
 
 export const RETENTION_CLASSES: readonly RetentionClass[] = [
   { id: 'rtn-standard', key: 'standard', label: 'Standard records', years: 7 },
@@ -919,6 +1179,31 @@ export const RECIPES: readonly Recipe[] = [
     updatedAt: isoTime(new Date('2026-07-14T06:20:00.000Z')),
   },
   {
+    /**
+     * §9's rule about the TAT, applied to going cold: the thresholds are
+     * parameters here and there is no default anywhere in the code that reads
+     * them. Twelve days without contact, or five attempts nobody answered.
+     */
+    id: 'rcp-inquiry-dormancy',
+    key: 'inquiry.dormancy',
+    label: 'Park an inquiry nobody can reach, and keep it for win-back',
+    version: 1,
+    trigger: 'activity.logged',
+    parameters: { noContactDays: 12, maxAttempts: 5, recycleToPool: true },
+    active: true,
+    updatedAt: SEEDED_AT,
+  },
+  {
+    id: 'rcp-inquiry-nudge',
+    key: 'inquiry.nextActionNudge',
+    label: 'Nudge the owner of an open inquiry with no dated next action',
+    version: 1,
+    trigger: 'inquiry.accepted',
+    parameters: { quietDays: 3, escalateAfterDays: 7, escalateToUserId: USER_IDS.nikunj },
+    active: true,
+    updatedAt: SEEDED_AT,
+  },
+  {
     id: 'rcp-quotation-autoshare',
     key: 'quotation.autoShare',
     label: 'Share a quotation with the customer as soon as it exists',
@@ -954,7 +1239,16 @@ export const RECIPES: readonly Recipe[] = [
     label: 'Send the renewal reminder with year-wise amounts and offers',
     version: 2,
     trigger: 'renewal.due',
-    parameters: { maxReminders: 3, channel: 'whatsapp', templateKey: 'renewal.reminder' },
+    parameters: {
+      // The ladder, read by `readLadder` in src/domain/automation. Written as a
+      // day list because RecipeParameters holds scalars: an admin edits numbers
+      // and names, not JSON. `maxReminders` stays authoritative over its length.
+      offsetsDays: '45,30,15,7,1',
+      graceOffsetsDays: '3,10',
+      maxReminders: 3,
+      channel: 'whatsapp',
+      templateKey: 'renewal.reminder',
+    },
     active: true,
     updatedAt: isoTime(new Date('2026-08-01T05:50:00.000Z')),
   },
@@ -974,7 +1268,10 @@ export const RECIPES: readonly Recipe[] = [
     label: 'Raise a same-day follow-up inside grace when a mandate fails',
     version: 1,
     trigger: 'mandate.failed',
-    parameters: { sameDay: true, notifyAgent: true, templateKey: 'mandate.failed' },
+    // `sameDay` is the intent and `dueInDays: 0` is the number the action reads.
+    // Both, rather than one: the flag is what an admin recognises on the screen,
+    // and the count is what `followUpAction` refuses to invent for itself.
+    parameters: { sameDay: true, dueInDays: 0, notifyAgent: true, templateKey: 'mandate.failed' },
     active: true,
     updatedAt: SEEDED_AT,
   },
@@ -1008,7 +1305,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Inquiry {{systemNo}} for {{contactName}} is with you. Please confirm within {{tatMinutes}} minutes.',
+    recipeKey: 'inquiry.routing',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-quotation-shared',
@@ -1017,7 +1318,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Namaste {{customerName}}, your comparison {{systemNo}} from Jagad Insurance is attached.',
+    recipeKey: 'quotation.autoShare',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-credentials-issued',
@@ -1026,7 +1331,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Your Jagad Insurance portal login is ready. Username {{username}}. The password has been sent separately.',
+    recipeKey: 'kyc.credentials',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-policy-issued',
@@ -1035,7 +1344,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Policy {{insurerNo}} is issued and the document is attached. Our reference is {{systemNo}}.',
+    recipeKey: 'policy.issuedNotice',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-renewal-reminder',
@@ -1044,7 +1357,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Policy {{systemNo}} expires on {{expiryDate}}. Last year {{lastYearAmount}}, this year {{thisYearAmount}}.',
+    recipeKey: 'renewal.reminder',
+    version: 2,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-claim-status',
@@ -1053,7 +1370,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'Claim {{systemNo}} is now {{state}}. You can follow it in your panel.',
+    recipeKey: 'claim.statusUpdate',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-mandate-failed',
@@ -1062,7 +1383,11 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'The bank could not debit the instalment for policy {{systemNo}}. Grace runs to {{graceEndsAt}}.',
+    recipeKey: 'mandate.failureFollowUp',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
   {
     id: 'tpl-collection-bounced',
@@ -1071,6 +1396,25 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
     channel: 'whatsapp',
     subject: null,
     body: 'The cheque recorded against policy {{systemNo}} has been returned. Reason: {{bounceReason}}.',
+    recipeKey: 'collection.bounceFollowUp',
+    version: 1,
     active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
+  },
+  {
+    // Sent by the notice batch itself, row by row, once a person has released
+    // it. No recipe fires it, which is why `recipeKey` is null here.
+    id: 'tpl-renewal-notice',
+    key: 'renewal.notice',
+    label: 'Renewal notice from the insurer',
+    channel: 'email',
+    subject: 'Renewal notice for policy {{policyNo}}',
+    body: 'The insurer renewal notice for policy {{policyNo}} is attached. It is due on {{expiryDate}}.',
+    recipeKey: null,
+    version: 1,
+    active: true,
+    updatedAt: SEEDED_AT,
+    updatedBy: USER_IDS.vivek,
   },
 ]

@@ -39,22 +39,27 @@ import type {
   RenewalState,
 } from '../../domain/workflows'
 import type { Claim, ClaimRepository } from '../repo/claims'
-import { PAYMENT_STATES } from '../repo/policies'
+import { PAYMENT_STATES, dealIdOf, precedingPolicyIdOf } from '../repo/policies'
 import type {
   CollectionRecord,
   CollectionRepository,
   Policy,
+  PolicyDispatch,
   PolicyEntryDraft,
+  PolicyNcb,
+  PolicyPremiumComponent,
   PolicyRepository,
   PolicyStepCommand,
+  PremiumComponentInput,
   PremiumScheduleRepository,
 } from '../repo/policies'
+import type { Activity, ActivityRepository } from '../repo/activities'
 import type { RenewalRepository, RenewalTask, Task, TaskRepository } from '../repo/tasks'
-import { notFound } from '../repo/result'
+import { notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
-import { create, move, record } from './move'
+import { append, create, move, record } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
 
@@ -68,6 +73,7 @@ export function createContractRepositories(deps: ContractDeps): {
   schedules: PremiumScheduleRepository
   collections: CollectionRepository
   tasks: TaskRepository
+  activities: ActivityRepository
   renewals: RenewalRepository
   claims: ClaimRepository
 } {
@@ -151,6 +157,43 @@ export function createContractRepositories(deps: ContractDeps): {
     })
   }
 
+  /**
+   * The typed components of one policy, replaced wholesale.
+   *
+   * Replaced rather than merged because the block is entered as a set: a person
+   * looking at the insurer's schedule types what is on it, and a component that
+   * has disappeared from the schedule should disappear from the record rather
+   * than linger from an earlier save. An unrecorded amount is kept as `null` —
+   * it is a row saying "nobody typed this", which is not the same as no row.
+   */
+  function writeComponents(
+    policyId: string,
+    components: readonly PremiumComponentInput[] | undefined,
+    schemaVersion: number,
+    stamp: { recordedBy: string; recordedAt: string },
+  ): void {
+    if (components === undefined) return
+
+    for (const existing of rowsOf(t.policyPremiumComponents)) {
+      if (existing.policyId === policyId) t.policyPremiumComponents.delete(existing.id)
+    }
+
+    components.forEach((component, index) => {
+      const row: PolicyPremiumComponent = {
+        id: `ppc-${policyId.replace('pol-', '')}-${component.key}`,
+        policyId,
+        key: component.key,
+        label: component.label,
+        amount: component.amount,
+        schemaVersion,
+        sortOrder: index,
+        recordedBy: stamp.recordedBy,
+        recordedAt: stamp.recordedAt,
+      }
+      t.policyPremiumComponents.set(row.id, row)
+    })
+  }
+
   const policies: PolicyRepository = {
     async list(query) {
       await wait()
@@ -207,6 +250,26 @@ export function createContractRepositories(deps: ContractDeps): {
         .filter((version) => version.policyId === policyId)
         .sort((a, b) => a.version - b.version)
     },
+    async premiumComponents(policyId) {
+      await wait()
+      return rowsOf(t.policyPremiumComponents)
+        .filter((row) => row.policyId === policyId)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+    },
+    async ncb(policyId) {
+      await wait()
+      return rowsOf(t.policyNcbs).find((row) => row.policyId === policyId) ?? null
+    },
+    async forDeal(dealId) {
+      await wait()
+      return rowsOf(t.policies).filter((policy) => dealIdOf(policy.provenance) === dealId)
+    },
+    async renewalsOf(policyId) {
+      await wait()
+      return rowsOf(t.policies).filter(
+        (policy) => precedingPolicyIdOf(policy.provenance) === policyId,
+      )
+    },
     async expiringBetween(from, to) {
       await wait()
       return rowsOf(t.policies).filter(
@@ -230,7 +293,7 @@ export function createContractRepositories(deps: ContractDeps): {
         machine: policyMachine,
         event: 'policy.drafted',
         actorId: command.actorId,
-        detail: { entryPath: command.entryPath, dealId: command.dealId ?? null },
+        detail: { entryPath: command.entryPath, dealId: dealIdOf(command.provenance) },
         build: (born): Policy => ({
           id: born.id,
           systemNo: born.systemNo,
@@ -256,6 +319,7 @@ export function createContractRepositories(deps: ContractDeps): {
           paymentState: PAYMENT_STATES.unpaid,
           memberIds: command.memberIds ?? [],
           retentionClass: command.retentionClass,
+          provenance: command.provenance,
           schemaVersion: command.schemaVersion,
           // Sensitive fields are not collected by an entry command. They arrive
           // through the flows that guard them.
@@ -274,7 +338,9 @@ export function createContractRepositories(deps: ContractDeps): {
         // Derived from the policy's own id, so it is unique for the same reason.
         id: `ped-${outcome.record.id.replace('pol-', '')}`,
         policyId: outcome.record.id,
-        dealId: command.dealId ?? null,
+        // Written from `provenance`, never passed separately: one input for one
+        // fact is what keeps the draft and the contract from disagreeing later.
+        dealId: dealIdOf(command.provenance),
         entryPath: command.entryPath,
         formSchemaId: command.formSchemaId,
         schemaVersion: command.schemaVersion,
@@ -283,6 +349,29 @@ export function createContractRepositories(deps: ContractDeps): {
         savedAt: now.toISOString(),
       }
       t.policyDrafts.set(draft.id, draft)
+
+      // The typed parts, kept. They are written here rather than by a separate
+      // call because they were typed in the same act, and a create that dropped
+      // them is exactly how a record ends up holding a Net nobody can break down.
+      // Nothing reads them back to produce a figure: `netPremium` stays the typed
+      // scalar it always was, and `<RollUp>` renders these beside it.
+      writeComponents(outcome.record.id, command.components, command.schemaVersion, {
+        recordedBy: command.savedBy,
+        recordedAt: now.toISOString(),
+      })
+
+      if (command.ncb) {
+        const ncb: PolicyNcb = {
+          id: `ncb-${outcome.record.id.replace('pol-', '')}`,
+          policyId: outcome.record.id,
+          percentBp: command.ncb.percentBp,
+          source: command.ncb.source,
+          carriedFromPolicyId: command.ncb.carriedFromPolicyId ?? null,
+          recordedBy: command.savedBy,
+          recordedAt: now.toISOString(),
+        }
+        t.policyNcbs.set(ncb.id, ncb)
+      }
 
       return outcome
     },
@@ -337,7 +426,71 @@ export function createContractRepositories(deps: ContractDeps): {
     },
     async dispatch(id, command) {
       await wait()
-      return step(id, 'dispatched', command)
+      const moved = step(id, 'dispatched', command)
+      if (!moved.ok) return moved
+
+      // The delivery row is written by the same act as the transition. A
+      // `dispatched` policy with no record of where the document went is the
+      // state FR-10.9 exists to prevent, so the two cannot come apart.
+      const at = command.now ?? store.now()
+      const dispatch: PolicyDispatch = {
+        id: `dsp-${id.replace('pol-', '')}-${rowsOf(t.policyDispatches).filter((row) => row.policyId === id).length + 1}`,
+        policyId: id,
+        channel: command.channel,
+        documentId: command.documentId ?? null,
+        // Nothing is delivered at the moment it is sent. The courier or the
+        // customer says so later, and until then the honest state is pending.
+        state: 'pending',
+        recipientName: command.recipientName,
+        recipientContactMasked: command.recipientContactMasked,
+        courierName: command.courierName ?? null,
+        trackingRef: command.trackingRef ?? null,
+        dispatchedBy: command.actorId,
+        dispatchedAt: at.toISOString(),
+        deliveredAt: null,
+        confirmedAt: null,
+        confirmedBy: null,
+        returnReason: null,
+      }
+      t.policyDispatches.set(dispatch.id, dispatch)
+
+      return moved
+    },
+    async dispatches(policyId) {
+      await wait()
+      return rowsOf(t.policyDispatches)
+        .filter((row) => row.policyId === policyId)
+        .sort((a, b) => a.dispatchedAt.localeCompare(b.dispatchedAt))
+    },
+    async recordDelivery(dispatchId, command) {
+      await wait()
+      const dispatch = t.policyDispatches.get(dispatchId)
+      if (!dispatch) return notFound('PolicyDispatch', dispatchId)
+
+      if (command.state === 'returned' && !command.returnReason?.trim()) {
+        return rejected(
+          'Record what the courier said when it came back. A returned document with no reason cannot be chased.',
+        )
+      }
+
+      const at = (command.now ?? store.now()).toISOString()
+      // Delivery and confirmation are different claims by different people, so
+      // one never fills in the other: a courier saying it arrived is not the
+      // customer saying they have it.
+      const next: PolicyDispatch = {
+        ...dispatch,
+        state: command.state,
+        deliveredAt:
+          command.state === 'delivered' || command.state === 'confirmed_by_customer'
+            ? (dispatch.deliveredAt ?? at)
+            : dispatch.deliveredAt,
+        confirmedAt: command.state === 'confirmed_by_customer' ? at : dispatch.confirmedAt,
+        confirmedBy:
+          command.state === 'confirmed_by_customer' ? command.actorId : dispatch.confirmedBy,
+        returnReason: command.state === 'returned' ? (command.returnReason ?? null) : dispatch.returnReason,
+      }
+      t.policyDispatches.set(next.id, next)
+      return { ok: true, record: next, events: [] }
     },
     async collectDocuments(id, command) {
       await wait()
@@ -593,6 +746,45 @@ export function createContractRepositories(deps: ContractDeps): {
         query,
       )
     },
+    async create(command) {
+      await wait()
+      const now = at(command.now)
+      const dueAt = new Date(command.dueAt)
+      if (Number.isNaN(dueAt.getTime())) {
+        return rejected(
+          'That due date could not be read, so nothing would ever surface this task. Pick a date and time.',
+        )
+      }
+      return append<Task>({
+        store,
+        table: t.tasks,
+        entity: 'Task',
+        kind: 'task',
+        event: 'task.created',
+        actorId: command.actorId,
+        causedBy: command.causedBy,
+        detail: { kind: command.kind, subject: command.subjectId, dueAt: command.dueAt },
+        build: (born) => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          kind: command.kind,
+          title: command.title,
+          subjectEntity: command.subjectEntity,
+          subjectId: command.subjectId,
+          ownerId: command.ownerId ?? null,
+          teamId: command.teamId ?? null,
+          agentId: command.agentId ?? null,
+          state: 'open',
+          priority: command.priority ?? 'normal',
+          dueAt: command.dueAt,
+          createdAt: now.toISOString(),
+          completedAt: null,
+          // A person who raised it is named as themselves. Only a recipe gets to
+          // be named by key, and then the audit says which recipe fired.
+          raisedBy: command.raisedBy ?? command.actorId,
+        }),
+      })
+    },
     async complete(id, command) {
       await wait()
       const now = at(command.now)
@@ -607,6 +799,115 @@ export function createContractRepositories(deps: ContractDeps): {
         actorId: command.actorId,
         detail: command.note === undefined ? undefined : { note: command.note },
         apply: (row) => ({ ...row, state: 'done', completedAt: now.toISOString() }),
+      })
+    },
+  }
+
+  /* ------------------------------------------------------------ activities */
+
+  /**
+   * The engagement log — FR-06.13.
+   *
+   * Read and append, and nothing else. There is no `update` and no `remove` on
+   * the interface, so there is nothing to implement here: a call log somebody can
+   * quietly revise afterwards is not evidence of anything, and the way to make
+   * that true is for the edit path not to exist rather than for a rule to forbid
+   * it.
+   *
+   * `log` counts the attempt itself rather than taking one from the caller. Two
+   * screens supplying their own counters is how a counter starts disagreeing with
+   * itself by the second week, and the count is the whole point of "tried three
+   * times, never picked up".
+   */
+  const activities: ActivityRepository = {
+    async list(query) {
+      await wait()
+      return runQuery(rowsOf(t.activities), ACTIVITY_LIST_SPEC, query)
+    },
+    async get(id) {
+      await wait()
+      return t.activities.get(id) ?? null
+    },
+    async getMany(ids) {
+      await wait()
+      return ids.map((id) => t.activities.get(id)).filter((row) => row !== undefined)
+    },
+    async forSubject(subjectEntity, subjectId) {
+      await wait()
+      return rowsOf(t.activities)
+        .filter((row) => row.subjectEntity === subjectEntity && row.subjectId === subjectId)
+        .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+    },
+    async latestFor(subjectEntity, subjectId) {
+      await wait()
+      const rows = rowsOf(t.activities)
+        .filter((row) => row.subjectEntity === subjectEntity && row.subjectId === subjectId)
+        .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+      return rows[rows.length - 1] ?? null
+    },
+    async forActor(actorId, query) {
+      await wait()
+      return runQuery(
+        rowsOf(t.activities).filter((row) => row.actorId === actorId),
+        ACTIVITY_LIST_SPEC,
+        query,
+      )
+    },
+    async log(command) {
+      await wait()
+      const now = at(command.now)
+      const occurredAt = command.occurredAt ?? now.toISOString()
+      if (Number.isNaN(new Date(occurredAt).getTime())) {
+        return rejected('That contact time could not be read. Say when this happened.')
+      }
+
+      const disposition = rowsOf(t.dispositions).find(
+        (row) => row.key === command.dispositionKey,
+      )
+      if (!disposition) {
+        return rejected(
+          `"${command.dispositionKey}" is not a configured outcome. The list of outcomes is edited in configuration, and an activity has to carry one of them.`,
+        )
+      }
+
+      const prior = rowsOf(t.activities).filter(
+        (row) =>
+          row.subjectEntity === command.subjectEntity && row.subjectId === command.subjectId,
+      )
+      const attempts = prior.reduce((high, row) => Math.max(high, row.attemptNo), 0)
+
+      return append<Activity>({
+        store,
+        table: t.activities,
+        entity: 'Activity',
+        kind: 'activity',
+        event: 'activity.logged',
+        actorId: command.actorId,
+        // The disposition and the channel go into the audit trail; the note does
+        // not. What was said is on the record, not in the event stream, for the
+        // same reason it is `document-content` in the classification registry.
+        detail: {
+          subject: command.subjectId,
+          channel: command.channel,
+          direction: command.direction,
+          disposition: disposition.key,
+        },
+        build: (born) => ({
+          id: born.id,
+          systemNo: born.systemNo,
+          subjectEntity: command.subjectEntity,
+          subjectId: command.subjectId,
+          channel: command.channel,
+          direction: command.direction,
+          occurredAt,
+          actorId: command.actorId,
+          dispositionKey: disposition.key,
+          notes: command.notes ?? null,
+          nextTaskId: command.nextTaskId ?? null,
+          attemptNo: disposition.incrementsAttempt ? attempts + 1 : attempts,
+          messageLogId: command.messageLogId ?? null,
+          createdAt: now.toISOString(),
+        }),
       })
     },
   }
@@ -736,6 +1037,7 @@ export function createContractRepositories(deps: ContractDeps): {
           companyRemark: command.companyRemark ?? claim.companyRemark ?? undefined,
           documentsCollected: command.documentsCollected ?? claim.documentsCollected,
           checklistItems: claim.checklistItems,
+          presentDocTypes: command.presentDocTypes,
         },
         actorId: command.actorId,
         apply: (row) => ({
@@ -749,7 +1051,7 @@ export function createContractRepositories(deps: ContractDeps): {
     },
   }
 
-  return { policies, schedules, collections, tasks, renewals, claims }
+  return { policies, schedules, collections, tasks, activities, renewals, claims }
 }
 
 /* ------------------------------------------------------------- list specs */
@@ -806,6 +1108,24 @@ const TASK_LIST_SPEC = {
     priority: (row: Task) => row.priority,
   },
   defaultSort: { field: 'dueAt', direction: 'asc' as const },
+}
+
+const ACTIVITY_LIST_SPEC = {
+  search: [(row: Activity) => row.systemNo, (row: Activity) => row.dispositionKey],
+  filters: {
+    channel: (row: Activity) => row.channel,
+    direction: (row: Activity) => row.direction,
+    dispositionKey: (row: Activity) => row.dispositionKey,
+    actorId: (row: Activity) => row.actorId,
+    subjectEntity: (row: Activity) => row.subjectEntity,
+    subjectId: (row: Activity) => row.subjectId,
+  },
+  sorts: {
+    occurredAt: (row: Activity) => row.occurredAt,
+    createdAt: (row: Activity) => row.createdAt,
+  },
+  // Newest first: a contact log is read to find out what happened last.
+  defaultSort: { field: 'occurredAt', direction: 'desc' as const },
 }
 
 const RENEWAL_LIST_SPEC = {

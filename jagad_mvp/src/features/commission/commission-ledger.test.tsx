@@ -15,6 +15,7 @@ import { NO_LATENCY, createMockRepositories } from '../../data/mock'
 import type { MockRepositories } from '../../data/mock'
 import { RepositoriesProvider } from '../../app/repositories'
 import { resolveAccount, useSessionStore } from '../../app/store'
+import type { User } from '../../domain/permissions'
 import CommissionScreen from './CommissionScreen'
 import { commissionDesk } from './data/commission-desk'
 
@@ -33,6 +34,18 @@ async function signInAsAdmin(): Promise<void> {
   useSessionStore
     .getState()
     .hydrate(staff.filter((person) => person.active).map(resolveAccount), ADMIN)
+}
+
+/**
+ * The owner, resolved. `book` takes the viewer and will not read without one -
+ * §11's row scope is a property of the read, so there is no unscoped call to
+ * make here either.
+ */
+async function adminViewer(): Promise<User> {
+  const staff = await repositories.config.users()
+  const owner = staff.find((person) => person.id === ADMIN)
+  if (!owner) throw new Error('The fixture set has no admin account.')
+  return resolveAccount(owner).user
 }
 
 function renderScreen(path = '/commission') {
@@ -117,13 +130,13 @@ describe('the commission ledger view', () => {
     expect(pager.textContent).toContain('51')
 
     // The headline total counts every issued policy, not the twenty-five shown.
-    const book = await commissionDesk(repositories).book()
+    const book = await commissionDesk(repositories).book(await adminViewer())
     expect(book.rows.length).toBeGreaterThan(25)
     expect(screen.getByText(`${book.rows.length} issued policies`)).toBeInTheDocument()
   })
 
   it('prints the figures the domain computed, and they reconcile', async () => {
-    const book = await commissionDesk(repositories).book()
+    const book = await commissionDesk(repositories).book(await adminViewer())
 
     expect(book.rows.length).toBeGreaterThan(0)
     expect(book.totals).not.toBeNull()
@@ -167,7 +180,7 @@ describe('the commission ledger view', () => {
   })
 
   it('says why an issued policy has no chain instead of dropping it', async () => {
-    const book = await commissionDesk(repositories).book()
+    const book = await commissionDesk(repositories).book(await adminViewer())
 
     // Whether the fixture set has any is not the point - the point is that a
     // policy the chain refuses is carried with its reason rather than filtered

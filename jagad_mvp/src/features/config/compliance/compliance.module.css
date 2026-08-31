@@ -1,0 +1,125 @@
+/* The consent and retention panels. Structure only; colour comes from tokens. */
+
+.panels {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.cards {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  align-content: start;
+}
+
+.cardHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.figures {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.figure {
+  /* Value above its label, with the definition list kept in reading order. */
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--sp-1);
+  margin: 0;
+}
+
+.figure dd {
+  margin: 0;
+}
+
+.figureValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+}
+
+.figureLabel {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-cap);
+}
+
+/* §9's lock: a closed record past its class stays readable and cannot change,
+   and is never hard-deleted. Grey is the U7 colour for locked. */
+.lock {
+  margin: 0;
+  padding: var(--sp-3);
+  max-width: var(--measure);
+  border-left: 3px solid var(--idle);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.states {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.state {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* A consent link nobody has acted on needs a person, which is what lime says. */
+.state[data-attention] {
+  border-left: 3px solid var(--attn);
+}
+
+.inline {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.hint {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

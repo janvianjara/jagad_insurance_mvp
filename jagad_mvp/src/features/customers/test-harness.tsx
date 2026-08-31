@@ -68,6 +68,10 @@ export function renderCustomers(
             <Routes>
               <Route path="/customers" element={<CustomerListScreen />} />
               <Route path="/customers/:id" element={<Customer360Screen />} />
+              {/* The one facet with a path of its own (§4). It renders the SAME
+                  screen, so a test can prove the deep route opens the record on
+                  the right tab rather than a second page pretending to be one. */}
+              <Route path="/customers/:id/consent" element={<Customer360Screen />} />
               <Route path="/back-office/kyc" element={<KycQueueScreen />} />
               <Route path="/consent/:token" element={<ConsentTokenScreen />} />
             </Routes>

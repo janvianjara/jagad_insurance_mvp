@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { money } from '../money'
 import { createEventBus } from '../events'
 import type { DomainEvent } from '../events'
 import { reasonOf } from './machine'
 import { DEAL_STATES, dealHasLineItems, dealMachine, placementInsideAgencyScope } from './deal'
-import type { DealContext, DealLineItem } from './deal'
+import type { AppointedPlacement, DealContext, DealLineItem } from './deal'
 
 function recordingBus() {
   const seen: DomainEvent[] = []
@@ -12,11 +13,30 @@ function recordingBus() {
   return { bus, seen }
 }
 
+function appointed(companyId: string, productId: string): AppointedPlacement {
+  return {
+    scopeId: `aps-${companyId}-${productId}`,
+    companyId,
+    productId,
+    commissionPercentBp: null,
+    appointedFrom: '2026-01-01T00:00:00.000Z',
+    appointedTo: null,
+  }
+}
+
 const HEALTH_FLOATER: DealLineItem = {
   id: 'li-1',
   companyId: 'co-hdfc',
   productId: 'pr-optima',
   label: 'HDFC Ergo Optima Secure, 10L floater',
+  quotationLineId: 'qln-1',
+  columnKey: 'hdfc-optima',
+  carriedFromVersion: 1,
+  acceptedFinalPayablePremium: money(28_450),
+  acceptedPremiumSource: 'typed',
+  netPremium: money(24_110),
+  gstAmount: money(4_340),
+  premiumMode: 'annual',
 }
 
 function context(overrides: Partial<DealContext> = {}): DealContext {
@@ -24,8 +44,10 @@ function context(overrides: Partial<DealContext> = {}): DealContext {
     lineItems: [HEALTH_FLOATER],
     agencyScope: {
       agencyId: 'ag-jagad-broker',
-      companyIds: ['co-hdfc', 'co-niva'],
-      productIds: ['pr-optima', 'pr-reassure'],
+      appointments: [
+        appointed('co-hdfc', 'pr-optima'),
+        appointed('co-niva', 'pr-reassure'),
+      ],
     },
     ...overrides,
   }

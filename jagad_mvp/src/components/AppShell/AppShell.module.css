@@ -3,8 +3,24 @@
 .shell {
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr) auto;
+  /*
+   * Both height AND min-height, deliberately.
+   *
+   * `height: 100dvh` alone collapses to content height the moment anything in
+   * the html > body > #root chain loses its own height - and when it collapses,
+   * the rail, the main column and the drawer all stop together partway down the
+   * window with white underneath, which reads as a broken screen rather than a
+   * short one. min-height makes the fill hold even if that chain breaks.
+   *
+   * dvh rather than vh so a mobile browser's collapsing toolbar does not leave a
+   * strip of white either; the vh line above it is the fallback for engines that
+   * do not know dvh.
+   */
   height: 100vh;
   height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   background: var(--ground);
   color: var(--ink);
   overflow: hidden;
@@ -16,6 +32,14 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  /*
+   * The main column is the page GROUND and panels are raised on it. Without this
+   * both were white, so a short screen on a tall monitor looked like the page had
+   * simply stopped - the client reported exactly that, twice. Panels now read as
+   * sitting on a surface, and the space below the last one reads as page rather
+   * than as breakage.
+   */
+  background: var(--surface);
   /* Belt and braces with `html, body { overflow: hidden }`: reaching the end of
      this list must not hand the gesture to anything behind it. */
   overscroll-behavior: contain;

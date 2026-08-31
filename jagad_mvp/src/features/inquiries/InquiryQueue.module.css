@@ -70,3 +70,11 @@
   font-size: var(--text-xs);
   color: var(--ink-3);
 }
+
+/* Stage and what is booked next, read as one fact — FR-06.12, FR-06.15. */
+.stage {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}

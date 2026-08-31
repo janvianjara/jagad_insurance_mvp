@@ -439,6 +439,42 @@ describe('the premium stop — the system cannot fill it in', () => {
     expect(screen.getByRole('button', { name: 'Generate the quotation' })).toBeEnabled()
   })
 
+  /**
+   * FR-06.16 — the seam §9.2 step 4 sat on.
+   *
+   * The composer's opening line is "select the customer and the candidate
+   * policies", which only works if somebody already knows what the customer
+   * needs. Until requirement capture existed the answer came from the agent's
+   * memory of a phone call.
+   */
+  it('opens with what the customer said they need, in the words the form asked', async () => {
+    renderQuotations(repositories, '/quotations/new?inquiry=inq-1031')
+
+    const heading = await screen.findByRole('heading', { name: 'What they said they need' })
+    const panel = heading.closest('section') as HTMLElement
+
+    // Labels off the pinned schema, never the stored keys.
+    expect(within(panel).getByText('Make and model')).toBeInTheDocument()
+    expect(within(panel).getByText('Maruti Baleno Zeta')).toBeInTheDocument()
+    expect(within(panel).queryByText('makeModel')).not.toBeInTheDocument()
+
+    // A boolean reads as a person would say it, not as `false`.
+    const claimed = within(panel).getByText('Claimed on the current policy')
+    expect(claimed.nextElementSibling).toHaveTextContent('No')
+    expect(within(panel).queryByText('false')).not.toBeInTheDocument()
+  })
+
+  it('says nothing about requirements when the inquiry carries none', async () => {
+    // No panel rather than an empty one: a heading over nothing reads as a
+    // requirement that was captured and came back blank.
+    renderQuotations(repositories, '/quotations/new?inquiry=inq-1039')
+
+    await screen.findByRole('heading', { name: 'Customer' })
+    expect(
+      screen.queryByRole('heading', { name: 'What they said they need' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('the composer has no way to put a figure into a column: the only writer is the per-column control, wired to what a person typed', () => {
     // Complements the matrix model's own export-surface proof. The screen
     // renders no amount-entry control of its own, never calls the model's

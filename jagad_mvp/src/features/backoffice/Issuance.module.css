@@ -1,0 +1,154 @@
+/*
+ * `/back-office/issuance` — the queue and its drawer.
+ *
+ * The table itself is `<WorkQueue>`'s and the issue panel is the policies
+ * module's, so nothing here styles a list or a form. What is left is the two row
+ * cells that carry more than a word, and the facts block the drawer opens with.
+ *
+ * No colour is written here. Every value is a token from `src/styles/tokens.css`,
+ * which is what `npm run check` enforces and what keeps lime meaning "needs a
+ * person" on this screen as well as everywhere else.
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+/* ------------------------------------------------------------------- cells */
+
+.coverCell {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-tight);
+}
+
+.coverCompany {
+  margin-top: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ drawer */
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.standing {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: var(--text-ui);
+}
+
+.facts dt {
+  color: var(--ink-3);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.factNote {
+  display: block;
+  margin-top: var(--sp-1);
+  max-width: var(--measure-tight);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+/*
+ * What is standing between this policy and a customer holding their document.
+ * Lime on the marker, because every line here is work rather than a fault; the
+ * stripe on the row is already carrying the row's severity.
+ */
+.outstanding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  list-style: none;
+  border-left: 2px solid var(--attn);
+  border-radius: var(--radius-sm);
+  background: var(--attn-soft);
+}
+
+.outstandingItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------- the settled policy */
+
+.settled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hair);
+}
+
+.settledHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--ok);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+/*
+ * A gap in the data layer, said out loud. Amber rather than red: nothing is
+ * broken, there is simply no move that would record this, and a person is
+ * entitled to know that rather than hunt for a button.
+ */
+.gap {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--ink-2);
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.drawerLink {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--action);
+}

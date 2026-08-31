@@ -23,6 +23,12 @@ export const QUOTATION_STATES = {
   generated: 'generated',
   shared: 'shared',
   revisionRequested: 'revision_requested',
+  /**
+   * The customer has said yes and named the columns they are taking. Nothing is
+   * placed yet and no application exists — this is the decision, on the record,
+   * in the gap that used to be a single guardless hop into `won`.
+   */
+  awarded: 'awarded',
   won: 'won',
   lost: 'lost',
 } as const
@@ -44,6 +50,12 @@ export type PremiumSource = (typeof PREMIUM_SOURCES)[keyof typeof PREMIUM_SOURCE
 
 /** One company-and-product column of the comparison the customer receives. */
 export type QuotationColumn = {
+  /**
+   * The stable key a column is identified by across versions and on the award.
+   * Optional only because the older callers that build columns for the premium
+   * guards have no key to give; anything naming an accepted column must set it.
+   */
+  readonly columnKey?: string
   readonly label: string
   readonly companyId: string
   readonly productId: string
@@ -73,6 +85,11 @@ export type QuotationContext = {
   readonly priorVersions?: readonly QuotationVersion[]
   readonly revisionReason?: string
   readonly lostReason?: string
+  /** The columns the customer accepted. Named on the award, never inferred. */
+  readonly acceptedColumnKeys?: readonly string[]
+  /** The application opened off this award. `won` is not reachable without one. */
+  readonly dealId?: string
+  readonly awardVoidReason?: string
 }
 
 /**
@@ -153,6 +170,98 @@ export function priorVersionsRemainImmutable(ctx: QuotationContext): TransitionR
   return allow()
 }
 
+/**
+ * Which columns the customer actually bought.
+ *
+ * This used to be optional, and a quotation could reach `won` without it — which
+ * left the single most valuable fact of the sale recorded nowhere except an event
+ * payload. Everything downstream then had to guess, or ask a person.
+ */
+export function acceptedColumnsExist(ctx: QuotationContext): TransitionResult {
+  const accepted = ctx.acceptedColumnKeys ?? []
+  if (accepted.length === 0) {
+    return refuse(
+      'Name the column the customer accepted before marking this quotation won. Which one they bought is the whole content of the decision.',
+    )
+  }
+
+  const unknown = accepted.filter((key) => !columnFor(ctx, key))
+  if (unknown.length > 0) {
+    return refuse(
+      `This quotation has no column called: ${unknown.join(', ')}. A deal can only be opened on a column the customer was actually shown.`,
+    )
+  }
+  return allow()
+}
+
+/**
+ * The column an accepted key names.
+ *
+ * Keyed by `columnKey` where there is one and by label otherwise, because the
+ * columns handed to the premium guards are built from a draft that has no keys
+ * yet. Falling back rather than refusing keeps one guard usable from both
+ * callers without either having to lie about what it holds.
+ */
+function columnFor(ctx: QuotationContext, key: string): QuotationColumn | undefined {
+  return ctx.columns.find((column) => (column.columnKey ?? column.label) === key)
+}
+
+/**
+ * The accepted columns carry the figure the deal will be opened on.
+ *
+ * `generate` already refused the whole quotation without a typed premium per
+ * column, so this can only fail on a quotation that reached `shared` some other
+ * way. It is checked anyway, because the deal is about to copy these figures and
+ * a missing one there is a sale with no price.
+ */
+export function acceptedColumnsHaveTypedPremium(ctx: QuotationContext): TransitionResult {
+  const accepted = ctx.acceptedColumnKeys ?? []
+  const chosen = accepted
+    .map((key) => columnFor(ctx, key))
+    .filter((column): column is QuotationColumn => column !== undefined)
+
+  const missing = chosen.filter((column) => !isMoney(column.finalPayablePremium))
+  if (missing.length > 0) {
+    return refuse(
+      `No Final Payable Premium was ever typed for: ${missing.map((column) => column.label).join(', ')}. The deal carries that figure, so it has to exist before the sale is recorded.`,
+    )
+  }
+
+  const derived = chosen.filter(
+    (column) => column.finalPremiumSource === PREMIUM_SOURCES.computed,
+  )
+  if (derived.length > 0) {
+    return refuse(
+      `Final Payable Premium is marked as computed for: ${derived.map((column) => column.label).join(', ')}. This figure is typed from the insurer's quote, never derived.`,
+    )
+  }
+  return allow()
+}
+
+/**
+ * §9's `won` now means something checkable: an application exists.
+ *
+ * Every screen already reads `won` as "this became a deal". Before this guard
+ * that was a convention nobody enforced, and a failed deal creation left a
+ * quotation permanently claiming a sale with no application behind it.
+ */
+export function dealExistsForAward(ctx: QuotationContext): TransitionResult {
+  if (!ctx.dealId) {
+    return refuse(
+      'A quotation is won by the application it produced, and none has been opened yet. Open the deal first — marking it won on its own would record a sale with nothing behind it.',
+    )
+  }
+  return allow()
+}
+
+/** Reversing a decision is a decision. It is recorded, not erased. */
+export function awardVoidRequiresReason(ctx: QuotationContext): TransitionResult {
+  if (!ctx.awardVoidReason || ctx.awardVoidReason.trim().length === 0) {
+    return refuse('Record why this award is being reversed. The quotation goes back to shared, and the reason is what explains the round trip.')
+  }
+  return allow()
+}
+
 export function quotationLostRequiresReason(ctx: QuotationContext): TransitionResult {
   if (!ctx.lostReason || ctx.lostReason.trim().length === 0) {
     return refuse('Record why this quotation was lost. The mandatory reason is what makes lost-reason reporting worth reading.')
@@ -191,8 +300,24 @@ export const QUOTATION_TRANSITIONS = {
       event: 'quotation.revision_requested',
       guards: [revisionRequiresReason],
     },
-    won: { event: 'quotation.won', note: 'A Deal is created from here.' },
+    awarded: {
+      event: 'quotation.awarded',
+      guards: [acceptedColumnsExist, acceptedColumnsHaveTypedPremium],
+      note: 'The customer named the columns they are taking. Nothing is placed yet.',
+    },
     lost: { event: 'quotation.lost', guards: [quotationLostRequiresReason] },
+  },
+  awarded: {
+    won: {
+      event: 'quotation.won',
+      guards: [acceptedColumnsExist, dealExistsForAward],
+      note: '§9: `won` is reachable only through the application it produced.',
+    },
+    shared: {
+      event: 'quotation.award_voided',
+      guards: [awardVoidRequiresReason],
+      note: 'A decision reversed before placement. The quotation is live again.',
+    },
   },
   revision_requested: {
     generated: {

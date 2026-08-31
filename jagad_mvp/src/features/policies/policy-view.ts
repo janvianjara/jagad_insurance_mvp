@@ -22,7 +22,14 @@
  *   work, and it is coloured as work.
  */
 
-import type { PaymentState, Policy, PolicyEntryDraft, StaffUser } from '../../data/repo'
+import type {
+  DeliveryState,
+  DispatchChannel,
+  PaymentState,
+  Policy,
+  PolicyEntryDraft,
+  StaffUser,
+} from '../../data/repo'
 import type { PolicyEntryPath, PolicyState, PremiumMode } from '../../domain/workflows'
 import type { Severity, Tone } from '../../ui/tone'
 
@@ -106,6 +113,113 @@ export const PREMIUM_MODE_LABEL: Readonly<Record<PremiumMode, string>> = {
   monthly: 'Monthly',
 }
 
+/* ----------------------------------------------------------------- dispatch */
+
+export const DISPATCH_CHANNEL_LABEL: Readonly<Record<DispatchChannel, string>> = {
+  e_policy_email: 'E-policy by email',
+  e_policy_whatsapp: 'E-policy by WhatsApp',
+  courier: 'Courier',
+  handed_over: 'Handed over in person',
+}
+
+export const DELIVERY_LABEL: Readonly<Record<DeliveryState, string>> = {
+  pending: 'Sent',
+  in_transit: 'In transit',
+  delivered: 'Delivered',
+  returned: 'Returned',
+  confirmed_by_customer: 'Customer confirmed',
+}
+
+/**
+ * Only a customer's own confirmation is green.
+ *
+ * `delivered` is the courier's word and is drawn as in-progress rather than
+ * settled, for the same reason a collection that has been taken but not verified
+ * is not green: it is somebody else's claim, and treating it as proof is how a
+ * document that never arrived comes to look received.
+ */
+export const DELIVERY_TONE: Readonly<Record<DeliveryState, Tone>> = {
+  pending: 'info',
+  in_transit: 'info',
+  delivered: 'info',
+  returned: 'bad',
+  confirmed_by_customer: 'ok',
+}
+
+/** The one channel that has a carrier, and therefore a name and a tracking reference. */
+export function isCourier(channel: DispatchChannel): boolean {
+  return channel === 'courier'
+}
+
+/* ---------------------------------------------------------------- in force */
+
+/**
+ * The states in which a policy is actually carrying risk.
+ *
+ * `issued`, `dispatched` and `documents_collected` are the same contract at
+ * three stages of paperwork — the cover is running in all three. Everything
+ * before `issued` has no cover yet, and everything after `documents_collected`
+ * is a file being shut.
+ */
+export const LIVE_POLICY_STATES: readonly PolicyState[] = ['issued', 'dispatched', 'documents_collected']
+
+/** The day `now` falls on, as the record's own dates are written. */
+function dayOf(now: Date): string {
+  return now.toISOString().slice(0, 10)
+}
+
+/**
+ * Whether cover has run out.
+ *
+ * A policy with no expiry date recorded is not expired — it is a record whose
+ * expiry nobody has entered, which is a different thing and must not be coloured
+ * as though the cover had ended.
+ */
+export function policyExpired(policy: Policy, now: Date): boolean {
+  if (policy.expiryDate === null) return false
+  return policy.expiryDate < dayOf(now)
+}
+
+/**
+ * Whether this policy is carrying risk today.
+ *
+ * This function exists because the module was, until now, deciding the question
+ * in three places and getting it wrong in all of them. `POLICY_TONE` painted
+ * `issued` green with no reference to the calendar, so a policy that expired
+ * last quarter and never received an explicit `policy.lapsed` transition read as
+ * being in good standing forever; `policySeverity` returned `good` on the same
+ * basis; and `<PremiumBlock disabled>` was documented as "a locked policy, or a
+ * live one" while nothing in the feature could say which policies were live.
+ *
+ * `now` is a parameter for the same reason `<ConsentBadge>` takes one: a screen
+ * and the rows inside it must not be able to disagree about what day it is.
+ */
+export function policyInForce(policy: Policy, now: Date): boolean {
+  if (!LIVE_POLICY_STATES.includes(policy.status)) return false
+  return !policyExpired(policy, now)
+}
+
+/**
+ * The pill's tone, with the calendar taken into account.
+ *
+ * An expired policy that is still recorded as `issued` is not in good standing
+ * and is not an error either — it is a record whose term ran out and which
+ * nobody has closed or renewed. That is work, so it reads as attention rather
+ * than as green or as red.
+ */
+export function policyToneFor(policy: Policy, now: Date): Tone {
+  if (policyExpired(policy, now) && LIVE_POLICY_STATES.includes(policy.status)) return 'attn'
+  return POLICY_TONE[policy.status]
+}
+
+/** What the pill says once the calendar is allowed to disagree with the state. */
+export function policyLabelFor(policy: Policy, now: Date): string {
+  if (policyExpired(policy, now) && LIVE_POLICY_STATES.includes(policy.status)) {
+    return `${POLICY_LABEL[policy.status]}, term ended`
+  }
+  return POLICY_LABEL[policy.status]
+}
+
 /* ---------------------------------------------------------------- severity */
 
 /**
@@ -116,11 +230,15 @@ export const PREMIUM_MODE_LABEL: Readonly<Record<PremiumMode, string>> = {
  * the one waiting on an insurer, then an issued policy whose premium has not
  * been collected — which is a live contract the agency is carrying money on.
  */
-export function policySeverity(policy: Policy): Severity {
+export function policySeverity(policy: Policy, now: Date): Severity {
   if (policy.status === 'declined' || policy.status === 'lapsed') return 'hot'
   if (policy.status === 'closed' || policy.status === 'locked') return 'cool'
   if (policy.status === 'draft' || policy.status === 'proposal') return 'attn'
   if (policy.status === 'sent') return 'warm'
+  // A term that has run out while the record still says `issued` is the one row
+  // on this queue nobody is being told about, so it outranks an unpaid premium:
+  // the cover has gone, and either a renewal or a closure is somebody's to make.
+  if (policyExpired(policy, now)) return 'attn'
   if (policy.paymentState === 'unpaid' || policy.paymentState === 'part_paid') return 'warm'
   return 'good'
 }

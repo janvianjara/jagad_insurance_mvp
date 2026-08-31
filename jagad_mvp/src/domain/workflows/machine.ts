@@ -100,6 +100,12 @@ export type TransitionOptions = {
   readonly actorId?: string
   readonly subject?: EventSubject
   readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /**
+   * The event that caused this transition, when a recipe caused it — FR-21.5.
+   * Stamped onto every event the edge emits, which is what lets the dispatcher's
+   * depth guard count a repository write as a hop rather than as a fresh root.
+   */
+  readonly causedBy?: string
 }
 
 export type TransitionOutcome<S extends string> =
@@ -205,6 +211,7 @@ export function createMachine<S extends string, Ctx>(
           actorId: options.actorId,
           subject: options.subject,
           detail: { ...options.detail, from, to },
+          causedBy: options.causedBy,
         }),
       )
 

@@ -361,6 +361,7 @@ export const ROUTE_MAP: readonly RouteSpec[] = [
     phase: 'P2',
     layout: 'bare',
     resource: null,
+    step: 'P-20a',
     note: 'Login-free and expiring. Carries no session by design (§11.1).',
   },
 ]

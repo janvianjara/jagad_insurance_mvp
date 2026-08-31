@@ -228,19 +228,15 @@ describe('what M0 demonstrates', () => {
     expect(SCENARIOS).toHaveLength(48)
     expect(m0Rows()).toHaveLength(21)
     expect(rowsInState('covered-here')).toHaveLength(3)
-    expect(rowsInState('covered-elsewhere')).toHaveLength(10)
+    expect(rowsInState('covered-elsewhere')).toHaveLength(32)
 
+    // Nothing in M0 is pending any more. Canvas flow 2 was the last block
+    // outstanding — P-13 built the screens and the quotation tests now walk every
+    // row of it — so the golden path owes nothing. This stays an assertion rather
+    // than becoming a deleted test: the day a new M0 row is added un-walked, this
+    // is what says so.
     const m0Pending = m0Rows().filter((row) => row.coverage.state === 'pending')
-    expect(m0Pending.map((row) => row.id)).toEqual([
-      '2.1',
-      '2.2',
-      '2.3',
-      '2.4',
-      '2.5',
-      '2.6',
-      '2.7',
-      '2.8',
-    ])
+    expect(m0Pending.map((row) => row.id)).toEqual([])
   })
 
   it('leaves nothing in a phase the plan does not have', () => {

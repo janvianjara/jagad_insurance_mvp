@@ -4,7 +4,9 @@ export { opensInDrawer } from './queue-config'
 export type {
   QueueActionOutcome,
   QueueBulkAction,
+  QueueBulkChoice,
   QueueConfig,
+  QueueDrawerControls,
   QueueFilter,
   QueueFilterOption,
   QueueRowTarget,

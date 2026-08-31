@@ -1,0 +1,114 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+/* The kind cell. It is the column that keeps two clocks apart, so it carries a
+   sentence rather than only a colour. */
+.kind {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-items: flex-start;
+}
+
+.kindMeaning {
+  max-inline-size: 22rem;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.expiring {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* Not expiring. Stated in words, because the date alone reads like an expiry. */
+.inForce {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.grace {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.quiet {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* The standing note above the pool. Lime: it needs a person to read it once. */
+.primer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--attn);
+  border-radius: var(--radius-md);
+  background: var(--attn-soft);
+  color: var(--ink);
+}
+
+.primerTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.primerNote {
+  margin: var(--sp-1) 0 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.mandates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mandate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.mandateRef {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.continuity {
+  margin: var(--sp-3) 0 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}

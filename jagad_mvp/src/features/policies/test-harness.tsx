@@ -51,6 +51,13 @@ export const CAST = {
   directDraft: 'pol-draft-0230',
   /** Rakesh Patel's issued floater, with the insurer's own number on it. */
   issued: 'pol-4388',
+  /**
+   * Jayesh Kapadia's health policy on a MONTHLY schedule: twelve instalments,
+   * six settled, the seventh sitting in grace, and an eNACH mandate the bank
+   * turned down last month. The one row in the cast that can prove the schedule
+   * tab shows a due and a failed mandate as different things.
+   */
+  scheduled: 'pol-4402',
 
   /** The deal `/policies/new?dealId=` pre-populates from. Two Tata AIG line items. */
   deal: 'app-0774',
@@ -66,6 +73,7 @@ export const CAST = {
   hitesh: 'cus-hitesh-mehta',
   nilesh: 'cus-nilesh-bhatt',
   rakesh: 'cus-rakesh-patel',
+  jayesh: 'cus-jayesh-kapadia',
 } as const
 
 export function freshRepositories(): MockRepositories {
@@ -148,17 +156,29 @@ export function renderPolicies(repositories: MockRepositories, path: string) {
  * so an entry scenario fails when entry breaks; this one mounts the file so a
  * scenario about the file fails when the file breaks. One harness, two trees,
  * and neither test can be broken by the screen it is not about.
+ *
+ * All three of the file's addresses are registered against the SAME screen,
+ * because that is the claim being made: `/policies/:id/versions` and
+ * `/policies/:id/schedule` are tabs of one record rather than screens of their
+ * own. A test can hand this a deep address and assert the record opened on that
+ * tab, which is exactly what a person landing on a bookmarked link does.
  */
-export function renderPolicyFile(repositories: MockRepositories, policyId: string) {
+export function renderPolicyFile(
+  repositories: MockRepositories,
+  policyId: string,
+  tabPath: '' | '/versions' | '/schedule' = '',
+) {
   useMarketStore.getState().reset()
 
   return render(
     <RepositoriesProvider repositories={repositories}>
       <ToastProvider>
-        <MemoryRouter initialEntries={[`/policies/${policyId}`]}>
+        <MemoryRouter initialEntries={[`/policies/${policyId}${tabPath}`]}>
           <Routes>
             <Route path="/policies" element={<h1>Policies</h1>} />
             <Route path="/policies/:id" element={<PolicyDetailScreen />} />
+            <Route path="/policies/:id/versions" element={<PolicyDetailScreen />} />
+            <Route path="/policies/:id/schedule" element={<PolicyDetailScreen />} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>

@@ -23,11 +23,27 @@ import {
   proportionOf,
 } from './commission'
 import type { CommissionChain, CommissionChainInput } from './commission'
+import type { AppointedPlacement } from './workflows/deal'
 
 /** 15% is 1500 basis points, and nothing in this file writes 0.15. */
 function percent(value: number): number {
   return value * BASIS_POINTS_PER_PERCENT
 }
+/**
+ * One appointment, open-ended. Scope is pairs now, so a test that wants an
+ * agency appointed for a company AND a product has to say so as one fact.
+ */
+function appointed(companyId: string, productId: string): AppointedPlacement {
+  return {
+    scopeId: `aps-${companyId}-${productId}`,
+    companyId,
+    productId,
+    commissionPercentBp: null,
+    appointedFrom: '2026-01-01T00:00:00.000Z',
+    appointedTo: null,
+  }
+}
+
 
 const HDFC = 'cmp-hdfc-ergo'
 const LIC = 'cmp-lic'
@@ -42,8 +58,7 @@ const OWN_CODE_INPUT: CommissionChainInput = {
   placement: { companyId: HDFC, productId: FLOATER, label: 'HDFC Ergo Optima Secure' },
   agencyScope: {
     agencyId: 'agy-jagad-hdfc',
-    companyIds: [HDFC],
-    productIds: [FLOATER],
+    appointments: [appointed(HDFC, FLOATER)],
   },
   agencyPercentBp: percent(15),
   agent: { id: 'agt-kiran', sharePercentBp: percent(60) },
@@ -129,11 +144,7 @@ describe('the commission chain', () => {
     // for one company, which makes its scope a one-company list, and the P-03
     // guard the chain delegates to reads exactly that. This asserts the chain
     // respects it rather than re-implementing it.
-    const individualScope = {
-      agencyId: 'agy-jagad-hdfc',
-      companyIds: [HDFC],
-      productIds: [FLOATER],
-    }
+    const individualScope = { agencyId: 'agy-jagad-hdfc', appointments: [appointed(HDFC, FLOATER)] }
 
     const onItsCompany = chainOf(chainInput({ agencyScope: individualScope }))
     expect(onItsCompany.agencyId).toBe('agy-jagad-hdfc')
@@ -283,8 +294,7 @@ describe('the commission chain', () => {
         payer: broker,
         agencyScope: {
           agencyId: 'agy-jagad-general',
-          companyIds: [HDFC],
-          productIds: [FLOATER],
+          appointments: [appointed(HDFC, FLOATER)],
         },
         subAgent: { id: 'agt-meera', sharePercentBp: percent(30) },
       }),

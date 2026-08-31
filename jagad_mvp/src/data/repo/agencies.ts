@@ -12,6 +12,7 @@
  * how reconciliation mismatches start looking like business bugs.
  */
 
+import type { AgencyScope } from '../../domain/workflows'
 import type { ReadRepository } from './query'
 
 export const AGENCY_TYPES = {
@@ -40,6 +41,13 @@ export type AgencyPolicyScope = {
   readonly productId: string
   readonly commissionPercentBp: number
   readonly effectiveFrom: string
+  /**
+   * When the appointment ends. `null` is open-ended. Without this an appointment
+   * that lapses can only be represented by flipping `active`, which rewrites
+   * history: a placement made legitimately in June becomes retrospectively
+   * out of scope, and nobody can answer "was this valid when it was made".
+   */
+  readonly effectiveTo: string | null
   readonly active: boolean
 }
 
@@ -50,9 +58,5 @@ export type AgencyRepository = ReadRepository<Agency> & {
    * The placement filter, in the shape `placementInsideAgencyScope` wants: the
    * company and product ids this agency may actually be placed with.
    */
-  placementScope(agencyId: string): Promise<{
-    readonly agencyId: string
-    readonly companyIds: readonly string[]
-    readonly productIds: readonly string[]
-  } | null>
+  placementScope(agencyId: string): Promise<AgencyScope | null>
 }

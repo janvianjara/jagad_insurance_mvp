@@ -74,6 +74,77 @@ export type MasterValue = {
   readonly active: boolean
 }
 
+/**
+ * The engagement stages an inquiry moves through inside `accepted` — FR-06.12.
+ *
+ * These are configuration and not machine states, which is a deliberate split.
+ * The lifecycle machine in `src/domain/workflows/inquiry.ts` still owns
+ * new → assigned → accepted → converted/lost and its TAT chain; a stage is a
+ * position *inside* `accepted`, and an agency that works its pipeline
+ * differently edits rows here rather than waiting for a release.
+ *
+ * The cost of that choice is that the compiler no longer proves a stage move is
+ * legal, so the rules travel with the data — `allowedFromKeys` is the adjacency
+ * a transition table would have held — and `canEnterStage` in
+ * `src/domain/workflows/inquiryStage.ts` is the single place that reads them.
+ */
+export type InquiryStage = {
+  readonly id: string
+  readonly key: string
+  readonly label: string
+  /** Stages this one may be entered from. Empty means "from any stage". */
+  readonly allowedFromKeys: readonly string[]
+  /** Leaving this stage demands a dated next action (FR-06.15). */
+  readonly requiresNextAction: boolean
+  /** Counts towards "open inquiries" in the pipeline and the next-action KPI. */
+  readonly countsAsOpen: boolean
+  /** No stage follows this one; the inquiry is closed or parked. */
+  readonly terminal: boolean
+  /**
+   * This stage is where a cold lead is parked, so the win-back list is the
+   * inquiries sitting in it. A flag rather than a well-known key, because
+   * stages are rows an admin edits: an agency that calls it "Cold storage"
+   * still has a win-back list, and one that retires the row has none rather
+   * than a query that silently returns nothing.
+   */
+  readonly parksTheLead: boolean
+  readonly sortOrder: number
+  readonly active: boolean
+}
+
+/**
+ * What came of one contact — FR-06.14, and the engine of the whole engagement
+ * layer.
+ *
+ * Logging an activity forces one of these, and the row itself decides what the
+ * system does next: which stage the inquiry lands in, whether a next action is
+ * owed, whether the attempt counter moves, which template to offer and how soon
+ * to retry. That is why it is a record and not a switch statement — the seven
+ * seeded rows are the agency's current vocabulary, not the platform's.
+ *
+ * `defaultRetryMinutes` follows §9's rule about the TAT exactly: the interval is
+ * a parameter on the row, and no module holds a default of its own.
+ */
+export type Disposition = {
+  readonly id: string
+  readonly key: string
+  readonly label: string
+  /** The channels this outcome can be recorded against. Empty means all. */
+  readonly channelKeys: readonly string[]
+  /** The stage the inquiry moves to. Null leaves the stage where it is. */
+  readonly stageKey: string | null
+  readonly requiresNextAction: boolean
+  /** Lost needs a reason. FR-06.10 said so already; this keeps it true here. */
+  readonly requiresReason: boolean
+  readonly incrementsAttempt: boolean
+  /** Offered to the person logging it, never sent on their behalf. */
+  readonly suggestedTemplateKey: string | null
+  /** How far out to date the retry this disposition proposes. */
+  readonly defaultRetryMinutes: number | null
+  readonly sortOrder: number
+  readonly active: boolean
+}
+
 /** §9's retention classes. The years come from here; no module hard-codes ten. */
 export type RetentionClass = {
   readonly id: string
@@ -151,14 +222,29 @@ export const MESSAGE_CHANNELS = {
 
 export type MessageChannel = (typeof MESSAGE_CHANNELS)[keyof typeof MESSAGE_CHANNELS]
 
+/**
+ * The words a customer receives. Edited on the templates config screen through
+ * `MessageTemplateRepository` in `./templates`.
+ *
+ * `version` is here for the reason `Recipe.version` is: an edit publishes a new
+ * version rather than rewriting what already went out. `recipeKey` names the
+ * automation that fires this template, which makes the pair navigable in both
+ * directions — a recipe's `parameters.templateKey` says what it sends.
+ */
 export type MessageTemplate = {
   readonly id: string
   readonly key: string
   readonly label: string
   readonly channel: MessageChannel
+  /** Email only. WhatsApp and SMS carry no subject line. */
   readonly subject: string | null
   readonly body: string
+  /** The recipe that fires it. Null for a template only a person sends by hand. */
+  readonly recipeKey: string | null
+  readonly version: number
   readonly active: boolean
+  readonly updatedAt: string
+  readonly updatedBy: string
 }
 
 export const MESSAGE_STATES = {
@@ -189,6 +275,9 @@ export type ConfigRepository = {
   categories(): Promise<readonly InquiryCategory[]>
   masterTypes(): Promise<readonly MasterType[]>
   masterValues(masterTypeKey: string): Promise<readonly MasterValue[]>
+  /** The engagement vocabulary and the stages it moves inquiries between. */
+  dispositions(): Promise<readonly Disposition[]>
+  inquiryStages(): Promise<readonly InquiryStage[]>
   retentionClasses(): Promise<readonly RetentionClass[]>
   /** The schema a record renders under: the pinned version, or the live one. */
   formSchema(objectKey: string, productId?: string, version?: number): Promise<FormSchema | null>

@@ -1,0 +1,106 @@
+/*
+ * `/wallet` - the sub-agent's own statement, laid out for a phone first.
+ *
+ * The base rules assume a narrow screen and a thumb: one column, big figures,
+ * generous targets. The single media query is the widening, not the narrowing,
+ * which is what keeps the small screen from being an afterthought.
+ *
+ * No hex anywhere. Every value is a token from `src/styles/tokens.css`. Money
+ * is mono with tabular figures so a column of amounts lines up.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  max-width: var(--measure-wide);
+}
+
+.who {
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+}
+
+/* One tile per row on a phone; three across as soon as there is room. */
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+
+.note {
+  max-width: var(--measure);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.statement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.statementHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.statementTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.monthField {
+  max-width: 16rem;
+}
+
+/*
+ * The month's own total, sized to be the second thing read after the tiles.
+ * A statement whose period total is buried under the rows makes a person add
+ * the rows up themselves.
+ */
+.monthTotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.monthTotalLabel {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-cap);
+  color: var(--ink-3);
+}
+
+.cardMeta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 40rem) {
+  .tiles {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-4);
+  }
+
+  .statementHead {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}

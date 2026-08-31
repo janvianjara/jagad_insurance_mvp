@@ -17,7 +17,7 @@ import type { ButtonVariant } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
 import type { IconName } from '../../ui/Icon'
 import { EmptyState, Skeleton } from '../../ui/data'
-import { Field, Textarea } from '../../ui/form'
+import { Field, Select, Textarea } from '../../ui/form'
 import { Clock, StatusPill } from '../../ui/signal'
 import { Panel } from '../../ui/surface'
 import { useToaster } from '../../ui/surface'
@@ -30,11 +30,15 @@ import type { IntakeRepository } from './data/intake'
 import {
   INQUIRY_LABEL,
   INQUIRY_TONE,
+  referrerLabel,
   SOURCE_LABEL,
   buildTrail,
   isClockRunning,
   readTat,
 } from './inquiry-view'
+import { LogActivityPanel } from './LogActivityPanel'
+import { RequirementPanel } from './RequirementPanel'
+import { requirementObjectKey } from './requirement-view'
 import { categoryOf, nameOf, planEscalation, planRouting, tatMinutesFor } from './routing'
 import styles from './InquiryDetail.module.css'
 
@@ -72,16 +76,41 @@ export function InquiryDetailScreen() {
   const intake = inquiryIntake(repositories)
 
   const context = useResource(async () => {
-    const [categories, users, recipes, agents] = await Promise.all([
-      repositories.config.categories(),
-      repositories.config.users(),
-      repositories.config.recipes(),
-      repositories.agents.list({ page: 1, pageSize: 200 }),
-    ])
-    return { categories, users, recipes, agents: agents.rows }
+    const [categories, users, recipes, agents, dispositions, stages, customers] =
+      await Promise.all([
+        repositories.config.categories(),
+        repositories.config.users(),
+        repositories.config.recipes(),
+        repositories.agents.list({ page: 1, pageSize: 200 }),
+        repositories.config.dispositions(),
+        repositories.config.inquiryStages(),
+        // Only to name a referrer. A referral attributed to an id nobody can
+        // read is the same problem the attribution was added to solve.
+        repositories.customers.list({ page: 1, pageSize: 200 }),
+      ])
+    return {
+      categories,
+      users,
+      recipes,
+      agents: agents.rows,
+      dispositions,
+      stages,
+      customers: customers.rows,
+    }
   }, 'inquiries:detail-context')
 
-  const loaded = useResource(() => intake.get(id), `inquiry:${id}`)
+  /** Bumped after a logged contact, so the timeline and the facts re-read. */
+  const [engagementSeq, setEngagementSeq] = useState(0)
+
+  const loaded = useResource(() => intake.get(id), `inquiry:${id}:${engagementSeq}`)
+  const contacts = useResource(
+    () => repositories.activities.forSubject('Inquiry', id),
+    `inquiry:${id}:activities:${engagementSeq}`,
+  )
+  const requirement = useResource(
+    () => repositories.requirements.forInquiry(id),
+    `inquiry:${id}:requirement:${engagementSeq}`,
+  )
 
   /** What the last committed move produced. Keyed by id so a navigation cannot inherit it. */
   const [written, setWritten] = useState<{ id: string; record: Inquiry; events: DomainEvent[] } | null>(
@@ -90,6 +119,8 @@ export function InquiryDetailScreen() {
   const [armed, setArmed] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [lostReason, setLostReason] = useState('')
+  /** Who the person on this screen named. Empty means they left it to routing. */
+  const [assignToId, setAssignToId] = useState('')
 
   const fresh = written && written.id === id ? written : null
   const inquiry = fresh?.record ?? loaded.data ?? null
@@ -119,13 +150,24 @@ export function InquiryDetailScreen() {
     )
   }
 
-  const { categories, users, recipes, agents } = context.data
+  const { categories, users, recipes, agents, dispositions, stages, customers } = context.data
+  const activities = contacts.data ?? []
   const category = categoryOf(inquiry, categories)
   const tatMinutes = tatMinutesFor(inquiry, categories)
   const tat = readTat(inquiry, now, tatMinutes)
   const routing = planRouting(inquiry, categories, users)
   const escalation = planEscalation(recipes)
   const mayAct = can(user, 'assign', 'inquiries')
+  /**
+   * Logging a contact is `edit`, not `assign`.
+   *
+   * Assigning hands work to somebody else and is a manager's move; ringing the
+   * customer is the work itself, and the agent who owns the lead has to be able
+   * to record it. Gating both on the same grant would have left an agent able to
+   * own an inquiry and unable to say they had spoken to anybody — which is the
+   * silence this whole layer exists to end.
+   */
+  const mayLog = can(user, 'edit', 'inquiries')
 
   async function commit(key: string, run: () => Promise<MutationResult<Inquiry>>) {
     const outcome = await run()
@@ -142,6 +184,7 @@ export function InquiryDetailScreen() {
       events: [...(previous && previous.id === id ? previous.events : []), ...outcome.events],
     }))
     setArmed(null)
+    setAssignToId('')
     toaster.notify({ title: receiptFor(key), tone: 'ok' })
 
     // The one move that leads somewhere else: converting opens the composer with
@@ -160,6 +203,7 @@ export function InquiryDetailScreen() {
     actorId: user.id,
     intake,
     lostReason,
+    assignToId,
   })
 
   const armedAction = actions.find((action) => action.key === armed) ?? null
@@ -167,8 +211,25 @@ export function InquiryDetailScreen() {
   const facts: readonly { key: string; label: string; value: ReactNode }[] = [
     { key: 'mobile', label: 'Mobile', value: inquiry.contactMobile },
     { key: 'source', label: 'Source', value: SOURCE_LABEL[inquiry.source] },
+    ...(inquiry.referral === null
+      ? []
+      : [
+          {
+            key: 'referrer',
+            label: 'Referred by',
+            value: referrerLabel(inquiry, { customers, agents, users }) ?? '',
+          },
+        ]),
     { key: 'category', label: 'Category', value: category?.label ?? 'No category matched' },
     { key: 'owner', label: 'Owner', value: nameOf(users, inquiry.ownerId) },
+    {
+      key: 'agent',
+      label: 'Agent',
+      value:
+        inquiry.agentId === null
+          ? 'Not attached to an agent'
+          : (agents.find((agent) => agent.id === inquiry.agentId)?.name ?? inquiry.agentId),
+    },
     {
       key: 'subAgent',
       label: 'Sub-agent',
@@ -275,6 +336,16 @@ export function InquiryDetailScreen() {
 
               {armedAction ? (
                 <div className={styles.gate}>
+                  {armedAction.choice ? (
+                    <Field label={armedAction.choice.label} hint={armedAction.choice.hint}>
+                      <Select
+                        value={assignToId}
+                        placeholder={armedAction.choice.emptyLabel}
+                        options={armedAction.choice.options}
+                        onChange={(event) => setAssignToId(event.target.value)}
+                      />
+                    </Field>
+                  ) : null}
                   {armedAction.key === 'lost' ? (
                     <Field
                       label="Why was this lost"
@@ -294,19 +365,79 @@ export function InquiryDetailScreen() {
                     note={armedAction.note}
                     confirmLabel={armedAction.confirmLabel ?? armedAction.label}
                     receipt={receiptFor(armedAction.key)}
-                    onCancel={() => setArmed(null)}
+                    onCancel={() => {
+                      setArmed(null)
+                      setAssignToId('')
+                    }}
                     onConfirm={() => void commit(armedAction.key, armedAction.run)}
                   />
                 </div>
               ) : null}
             </Panel>
 
+            {/*
+              * The contact panel sits above the trail because it is the thing a
+              * person opens this screen to do. The machine actions above it move
+              * the inquiry between lifecycle states; this moves it through the
+              * conversation, which is where an accepted inquiry actually spends
+              * its life.
+              */}
+            {inquiry.status === 'accepted' ? (
+              <LogActivityPanel
+                inquiry={inquiry}
+                dispositions={dispositions}
+                stages={stages}
+                now={now}
+                actorId={user.id}
+                canLog={mayLog}
+                onLog={(command) => intake.logEngagement(inquiry.id, command)}
+                onRecycle={(command) => intake.recycle(inquiry.id, command)}
+                onLogged={() => setEngagementSeq((seq) => seq + 1)}
+              />
+            ) : null}
+
+            {/*
+              * What they need, next to what was said. The composer opens from
+              * this record, so it belongs on the screen where the conversation
+              * is happening rather than behind a link somebody has to know about.
+              */}
+            {inquiry.status === 'accepted' ? (
+              <RequirementPanel
+                inquiry={inquiry}
+                category={category}
+                requirement={requirement.data ?? null}
+                canCapture={mayLog}
+                onCapture={(submission) =>
+                  repositories.requirements.capture({
+                    actorId: user.id,
+                    inquiryId: inquiry.id,
+                    formSchemaId: submission.schemaId,
+                    objectKey:
+                      category === null ? '' : requirementObjectKey(category.line),
+                    schemaVersion: submission.schemaVersion,
+                    values: submission.values,
+                    now,
+                  })
+                }
+                onCaptured={() => setEngagementSeq((seq) => seq + 1)}
+              />
+            ) : null}
+
             <Panel
               title="Assignment trail"
               description="Every event on this record, oldest first. An escalation carries the whole trail with it."
             >
               <AssignmentTrail
-                entries={buildTrail({ inquiry, users, tatMinutes, events })}
+                entries={buildTrail({
+                  inquiry,
+                  users,
+                  tatMinutes,
+                  events,
+                  activities,
+                  dispositions,
+                  customers,
+                  agents,
+                })}
                 now={now}
               />
             </Panel>
@@ -343,6 +474,20 @@ export default InquiryDetailScreen
 
 /* ------------------------------------------------------------------ actions */
 
+/**
+ * A person to hand the inquiry to, offered inside the gate.
+ *
+ * It lives with the action rather than beside the button because the preview
+ * underneath has to answer for it: change the person and the gate redraws what
+ * it is about to write, which is the only reason previewing is worth doing.
+ */
+type DetailChoice = {
+  readonly label: string
+  readonly emptyLabel: string
+  readonly hint: ReactNode
+  readonly options: readonly { readonly value: string; readonly label: string }[]
+}
+
 type DetailAction = {
   readonly key: string
   readonly label: string
@@ -352,6 +497,7 @@ type DetailAction = {
   readonly confirmLabel?: string
   readonly changes: readonly ConfirmChange[]
   readonly note: ReactNode
+  readonly choice?: DetailChoice
   /** The machine's answer, asked before the control is drawn. */
   readonly verdict: TransitionResult
   readonly run: () => Promise<MutationResult<Inquiry>>
@@ -368,11 +514,65 @@ type ActionInput = {
   readonly actorId: string
   readonly intake: IntakeRepository
   readonly lostReason: string
+  /** The person named on the screen. Empty means nobody said, so routing decides. */
+  readonly assignToId: string
+}
+
+/**
+ * Who this inquiry goes to, and under what allowance.
+ *
+ * A person named on the screen wins over routing's pick. Canvas 1.1 still holds
+ * — routing assigns when nobody says otherwise — but a name typed by somebody
+ * looking at the record is not a lesser answer than the recipe's, and making
+ * them run routing first only to reassign afterwards is two moves for one
+ * decision.
+ *
+ * The allowance is not part of the choice. It comes from the inquiry's own
+ * category either way, so naming somebody on an inquiry with no category buys
+ * nothing: there is no allowance to measure them against, and routing's refusal
+ * still stands. §9 holds no default and neither does this screen.
+ */
+function assignmentTarget(input: ActionInput): {
+  readonly assignee: StaffUser
+  readonly categoryId: string
+  readonly categoryLabel: string
+  readonly teamId: string | undefined
+  readonly tatMinutes: number
+  readonly manual: boolean
+} | null {
+  const { assignToId, users, category, routing } = input
+
+  if (assignToId !== '' && category) {
+    const person = users.find((entry) => entry.id === assignToId && entry.active)
+    if (person) {
+      return {
+        assignee: person,
+        categoryId: category.id,
+        categoryLabel: category.label,
+        teamId: category.teamId,
+        tatMinutes: category.tatMinutes,
+        manual: true,
+      }
+    }
+  }
+
+  if (routing.ok) {
+    return {
+      assignee: routing.assignee,
+      categoryId: routing.category.id,
+      categoryLabel: routing.category.label,
+      teamId: routing.category.teamId,
+      tatMinutes: routing.tatMinutes,
+      manual: false,
+    }
+  }
+
+  return null
 }
 
 function receiptFor(key: string): string {
   const receipts: Readonly<Record<string, string>> = {
-    route: 'Routed. The assignee has been notified and their clock has started.',
+    route: 'Assigned. They have been notified and their clock has started.',
     unroute: 'Moved to unrouted. The admin alert went with it.',
     accept: 'Accepted. They own it and the clock has stopped.',
     reassign: 'Reassigned to the next person in the category. Both have been notified.',
@@ -406,39 +606,55 @@ function buildActions(input: ActionInput): readonly DetailAction[] {
   const list: DetailAction[] = []
 
   if (status === 'new' || status === 'unrouted') {
-    if (routing.ok) {
+    const target = assignmentTarget(input)
+    if (target) {
       const ctx = previewContext(input, {
-        nextOwnerId: routing.assignee.id,
-        nextOwnerCategoryGroupId: routing.category.id,
+        nextOwnerId: target.assignee.id,
+        nextOwnerCategoryGroupId: target.categoryId,
         routingMatchFound: true,
-        tatMinutes: routing.tatMinutes,
+        tatMinutes: target.tatMinutes,
       })
+      const suggestion = routing.ok ? routing.assignee.name : null
       list.push({
         key: 'route',
-        label: 'Run routing',
+        label: 'Assign',
         icon: 'users',
         variant: 'primary',
-        confirmTitle: `Route ${inquiry.systemNo} to ${routing.assignee.name}`,
-        confirmLabel: 'Route and notify',
+        confirmTitle: `Assign ${inquiry.systemNo} to ${target.assignee.name}`,
+        confirmLabel: 'Assign and notify',
+        choice: {
+          label: 'Assign to',
+          emptyLabel:
+            suggestion === null ? 'Nobody yet' : `${suggestion} — routing's pick`,
+          hint:
+            suggestion === null
+              ? 'Routing has nobody to suggest for this one, so name somebody.'
+              : `Leave it alone and routing's pick stands. Anyone active can take it; from here on it only moves to the next person when the allowance runs out.`,
+          options: users
+            .filter((person) => person.active)
+            .map((person) => ({ value: person.id, label: person.name })),
+        },
         changes: [
-          { key: 'owner', label: 'Owner', from: owner, to: routing.assignee.name },
+          { key: 'owner', label: 'Owner', from: owner, to: target.assignee.name },
           { key: 'status', label: 'Status', from: INQUIRY_LABEL[status], to: 'Assigned' },
           {
             key: 'tat',
             label: 'Turnaround',
-            to: `${routing.tatMinutes} minutes, from the ${routing.category.label} category`,
+            to: `${target.tatMinutes} minutes, from the ${target.categoryLabel} category`,
           },
         ],
-        note: `${routing.assignee.name} is notified and the clock starts now. The allowance comes from configuration, not from this screen.`,
+        note: target.manual
+          ? `${target.assignee.name} is notified and the clock starts now. The allowance comes from the ${target.categoryLabel} category in configuration, not from this screen, and it only moves on to somebody else if that allowance runs out.`
+          : `${target.assignee.name} is notified and the clock starts now. The allowance comes from configuration, not from this screen.`,
         verdict: ask(status, 'assigned', ctx),
         run: () =>
           intake.assign(inquiry.id, {
             actorId,
-            nextOwnerId: routing.assignee.id,
-            nextOwnerCategoryGroupId: routing.category.id,
-            tatMinutes: routing.tatMinutes,
+            nextOwnerId: target.assignee.id,
+            nextOwnerCategoryGroupId: target.categoryId,
+            tatMinutes: target.tatMinutes,
             routingMatchFound: true,
-            teamId: routing.category.teamId,
+            ...(target.teamId === undefined ? {} : { teamId: target.teamId }),
             now,
           }),
       })
@@ -455,7 +671,9 @@ function buildActions(input: ActionInput): readonly DetailAction[] {
           { key: 'status', label: 'Status', from: INQUIRY_LABEL[status], to: 'Unrouted' },
           { key: 'alert', label: 'Admin alert', to: 'Raised with the move' },
         ],
-        note: routing.reason,
+        note: routing.ok
+          ? 'Routing has a match for this one, so parking it is a deliberate override.'
+          : routing.reason,
         verdict: ask(status, 'unrouted', ctx),
         run: () =>
           intake.markUnrouted(inquiry.id, { actorId, adminAlertRaised: true, now }),

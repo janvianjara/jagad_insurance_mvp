@@ -1,31 +1,49 @@
 /**
- * Suggestion chips and the Ask cards behind them — FR-22.2 (Ask) and FR-22.3.
+ * The Ask cards — FR-22.2's first request kind, and the one M0 shipped.
  *
- * A chip is not a canned answer. Each one is a query over the projection facade,
- * run at the moment it is pressed, as the person who pressed it. That is the
- * whole of FR-22.3 in this feature: there is no user id compared anywhere below,
- * because the scope was applied by the repository before these functions saw a
- * row. An agent asking about a customer they did not source gets nothing back —
- * not a filtered answer, an empty one — and the card says so in as many words.
+ * "Fetch something you would otherwise navigate to. Nothing changes; it just
+ * arrives faster than opening four screens." Each card is a projection query,
+ * run at the moment its chip is pressed, as the person who pressed it. The
+ * shared machinery — the card shape, the empty answer, the tones, the table
+ * parts — lives in `card-kit.ts`, so Analyse, Act and Produce are built from
+ * the same pieces rather than from a second copy of them.
  *
- * M0 is Ask-only (FR-22.2, "Ask M0; rest P1"), so every card here retrieves.
- * None of them writes, and none of them needs a `<ConfirmGate>` yet; the first
- * card that changes something will.
- *
- * The money rule holds here too and is easy to state: a card may show a figure
- * that was recorded on a record, and may not add two of them together. There is
- * no arithmetic on an amount anywhere in this file (FR-22.5, D3).
+ * This file also owns the registry: which chips each role sees, how a typed
+ * question is matched against them, and what is said to one that matches
+ * nothing.
  */
 
 import type {
   AssistantClaim,
   AssistantInquiry,
-  AssistantRepository,
   AssistantTask,
 } from '../../../data/assistant'
-import type { Block, Cell, TableRow } from '../blocks/blocks'
 import { textCell } from '../blocks/blocks'
-import type { Tone } from '../../../ui/signal'
+import {
+  ACT_CARDS,
+  ASSIGN_UNASSIGNED,
+  CHASE_MANDATE,
+  ESCALATE_OLDEST_CLAIM,
+  RESCHEDULE_OVERDUE,
+} from './act-cards'
+import { AGEING_SIDES, ANALYSE_CARDS, LOAD_BY_OWNER, WHY_LAPSING, WHY_UNASSIGNED } from './analyse-cards'
+import { CLAIM_SUMMARY, PRODUCE_CARDS, RENEWAL_NOTICE, WORK_SUMMARY } from './produce-cards'
+import {
+  INQUIRY_COLUMNS,
+  MAX_ROWS,
+  PAGE,
+  REQUEST_KINDS,
+  answer,
+  claimTone,
+  countWord,
+  inquiryRows,
+  inquiryTableRow,
+  nothingFound,
+  taskRows,
+  taskTone,
+  words,
+} from './card-kit'
+import type { AskCard, CardAnswer } from './card-kit'
 import {
   THRESHOLDS,
   isAgedClaim,
@@ -43,148 +61,12 @@ import {
   isRenewalDueThisWeek,
   isTatAtRisk,
   isUnassignedInquiry,
-  tatAllowanceMs,
 } from '../queue-rules'
 
-/** One page, then the answer is trimmed to `MAX_ROWS` with the total stated. */
-const PAGE = 5000
-const MAX_ROWS = 8
-
-/**
- * FR-22.2 tags every response with the kind of request it answered. M0 answers
- * only the first of the four; the other three are named so the tag has a
- * vocabulary rather than a single value.
- */
-export const REQUEST_KINDS = {
-  ask: 'Ask',
-  analyse: 'Analyse',
-  act: 'Act',
-  produce: 'Produce',
-} as const
-
-export type RequestKind = (typeof REQUEST_KINDS)[keyof typeof REQUEST_KINDS]
-
-export type AskCard = {
-  readonly id: string
-  /** The chip's text. */
-  readonly label: string
-  /** What the chip stands in for, shown as the person's own turn. */
-  readonly question: string
-  readonly kind: RequestKind
-  readonly run: (repo: AssistantRepository, now: Date) => Promise<readonly Block[]>
-}
-
-/* ------------------------------------------------------------------- tones */
-
-function inquiryTone(status: AssistantInquiry['status']): Tone {
-  if (status === 'escalated' || status === 'unrouted') return 'bad'
-  if (status === 'new' || status === 'reassigned') return 'attn'
-  if (status === 'converted') return 'ok'
-  return 'info'
-}
-
-function claimTone(state: AssistantClaim['state']): Tone {
-  if (state === 'blocked' || state === 'query_open') return 'bad'
-  if (state === 'raised' || state === 'checklist_raised') return 'attn'
-  if (state === 'settlement_recorded' || state === 'closed') return 'ok'
-  return 'info'
-}
-
-function taskTone(task: AssistantTask, now: Date): Tone {
-  if (isOverdueTask(task, now)) return 'bad'
-  if (task.priority === 'urgent' || task.priority === 'high') return 'attn'
-  return 'info'
-}
-
-function words(value: string): string {
-  return value.replace(/_/g, ' ')
-}
-
-/* ------------------------------------------------------------ answer shape */
-
-/**
- * The empty answer, and it is a deliberate one.
- *
- * FR-22.3's acceptance criterion is that a person asking outside their scope
- * "receives nothing". Saying nothing is found — rather than quietly showing a
- * shorter list — is what makes the boundary visible to the person using it.
- */
-function nothingFound(subject: string): readonly Block[] {
-  return [
-    { kind: 'para', text: `Nothing in your ${subject} matches that right now.` },
-    {
-      kind: 'note',
-      text: 'The Assistant reads as you and never above you. A record outside this account’s scope is not filtered out of the answer — it was never in the query.',
-    },
-  ]
-}
-
-function answer(
-  headline: string,
-  emphasis: readonly string[],
-  columns: readonly { key: string; label: string; align?: 'start' | 'end' }[],
-  rows: readonly TableRow[],
-  total: number,
-): readonly Block[] {
-  const blocks: Block[] = [
-    { kind: 'para', text: headline, emphasis },
-    { kind: 'table', columns, rows },
-  ]
-
-  if (total > rows.length) {
-    blocks.push({
-      kind: 'note',
-      text: `Showing the first ${rows.length} of ${total}. The queue screen holds the rest, with the filters and the bulk actions.`,
-    })
-  }
-
-  return blocks
-}
-
-function countWord(value: number, one: string, many: string): string {
-  return `${value} ${value === 1 ? one : many}`
-}
-
-/* -------------------------------------------------------------- the loads */
-
-async function inquiryRows(repo: AssistantRepository): Promise<readonly AssistantInquiry[]> {
-  return (await repo.inquiries({ pageSize: PAGE })).rows
-}
-
-async function taskRows(repo: AssistantRepository): Promise<readonly AssistantTask[]> {
-  return (await repo.tasks({ pageSize: PAGE })).rows
-}
+export { REQUEST_KINDS } from './card-kit'
+export type { AskCard, CardAnswer, RequestKind } from './card-kit'
 
 /* -------------------------------------------------------------- the cards */
-
-const INQUIRY_COLUMNS = [
-  { key: 'no', label: 'Inquiry' },
-  { key: 'who', label: 'Contact' },
-  { key: 'state', label: 'State' },
-  { key: 'clock', label: 'Turnaround', align: 'end' as const },
-]
-
-function inquiryTableRow(row: AssistantInquiry): TableRow {
-  const clock: Cell =
-    row.assignedAt === null || row.tatDueAt === null
-      ? textCell('no turnaround set')
-      : {
-          cell: 'clock',
-          mode: 'tat',
-          start: row.assignedAt,
-          durationMs: tatAllowanceMs(row) ?? 0,
-        }
-
-  return {
-    id: row.id,
-    cells: [
-      { cell: 'id', systemNo: row.systemNo },
-      textCell(row.contactName),
-      { cell: 'status', value: words(row.status), tone: inquiryTone(row.status) },
-      clock,
-    ],
-  }
-}
 
 function inquiryCard(
   id: string,
@@ -593,7 +475,8 @@ const MY_QUEUE = taskCard(
 
 /* ------------------------------------------------------------ per-role set */
 
-export const ASK_CARDS: readonly AskCard[] = [
+/** Every card in the product, of every kind. The registry, and the only one. */
+export const ALL_CARDS: readonly AskCard[] = [
   MY_LEADS,
   OPEN_INQUIRIES,
   UNASSIGNED,
@@ -610,7 +493,15 @@ export const ASK_CARDS: readonly AskCard[] = [
   AGED_CLAIMS,
   RENEWALS_DUE,
   RENEWALS_LAPSED,
+  ...ANALYSE_CARDS,
+  ...ACT_CARDS,
+  ...PRODUCE_CARDS,
 ]
+
+/** Kept under its M0 name: the Ask half of the registry. */
+export const ASK_CARDS: readonly AskCard[] = ALL_CARDS.filter(
+  (card) => card.kind === REQUEST_KINDS.ask,
+)
 
 /**
  * The chips each role sees, in the order they see them.
@@ -619,14 +510,55 @@ export const ASK_CARDS: readonly AskCard[] = [
  * section and the first suggestion chip" — and every set differs, because a
  * renewals officer offered "unassigned inquiries" learns that the Assistant does
  * not know what they do.
+ *
+ * Each set is also mixed across the four request kinds, which is the whole
+ * reason the tag on a chip is worth printing. A row of six chips that all
+ * retrieve teaches a person that the Assistant looks things up; a row that
+ * opens with their queue and ends with "Claim summary · Produce" teaches them
+ * what else it is for, before they have to guess and type.
  */
 const CHIPS_BY_TEMPLATE: Readonly<Record<string, readonly AskCard[]>> = {
-  admin: [OPEN_INQUIRIES, UNASSIGNED, TAT_AT_RISK, AGED_CLAIMS, RENEWALS_DUE, DUE_THIS_WEEK],
-  salesManager: [OPEN_INQUIRIES, UNASSIGNED, TAT_AT_RISK, AWAITING_REPLY, DUE_THIS_WEEK],
-  agent: [MY_LEADS, TAT_AT_RISK, MY_DRAFTS, AWAITING_REPLY, DUE_THIS_WEEK],
-  backOffice: [MY_QUEUE, POLICY_ENTRIES, MANDATE_FAILURES, PAST_DUE, DUE_THIS_WEEK],
-  claims: [MY_CLAIMS, INSURER_QUERIES, AGED_CLAIMS, DUE_THIS_WEEK],
-  renewals: [RENEWALS_DUE, RENEWALS_LAPSED, MANDATE_FAILURES, DUE_THIS_WEEK],
+  admin: [
+    OPEN_INQUIRIES,
+    UNASSIGNED,
+    AGED_CLAIMS,
+    LOAD_BY_OWNER,
+    AGEING_SIDES,
+    WORK_SUMMARY,
+  ],
+  salesManager: [
+    OPEN_INQUIRIES,
+    UNASSIGNED,
+    TAT_AT_RISK,
+    WHY_UNASSIGNED,
+    ASSIGN_UNASSIGNED,
+    AWAITING_REPLY,
+  ],
+  agent: [MY_LEADS, TAT_AT_RISK, MY_DRAFTS, DUE_THIS_WEEK, RESCHEDULE_OVERDUE],
+  backOffice: [
+    MY_QUEUE,
+    POLICY_ENTRIES,
+    MANDATE_FAILURES,
+    PAST_DUE,
+    CHASE_MANDATE,
+    RESCHEDULE_OVERDUE,
+  ],
+  claims: [
+    MY_CLAIMS,
+    INSURER_QUERIES,
+    AGED_CLAIMS,
+    AGEING_SIDES,
+    ESCALATE_OLDEST_CLAIM,
+    CLAIM_SUMMARY,
+  ],
+  renewals: [
+    RENEWALS_DUE,
+    RENEWALS_LAPSED,
+    MANDATE_FAILURES,
+    WHY_LAPSING,
+    CHASE_MANDATE,
+    RENEWAL_NOTICE,
+  ],
 }
 
 /** A template this file has not heard of gets the three queues everyone has. */
@@ -637,7 +569,116 @@ export function chipsFor(templateKey: string): readonly AskCard[] {
 }
 
 export function askCardById(id: string): AskCard | null {
-  return ASK_CARDS.find((card) => card.id === id) ?? null
+  return ALL_CARDS.find((card) => card.id === id) ?? null
+}
+
+/* --------------------------------------------------------------- follow-ups */
+
+/**
+ * What is offered after an answer lands — the prototype's `n:` list.
+ *
+ * An assistant that shows the same six chips after every turn is a menu with a
+ * text box on it. The prototype's does not: each answer proposes the moves that
+ * follow from what it just showed, which is the reason a second and a third turn
+ * happen at all. "Which inquiries have nobody on them" is followed by "route
+ * them", not by "which renewals are due".
+ *
+ * It is a map rather than a field on the card because the interesting content is
+ * the EDGES — which answer leads to which — and an edge list is only readable
+ * when it is in one place. A card with no entry falls back to the role's own
+ * chips, which is the right default and the prototype's.
+ */
+const FOLLOW_UPS: Readonly<Record<string, readonly string[]>> = {
+  'open-inquiries': ['unassigned', 'tat-at-risk', 'why-unassigned'],
+  unassigned: ['assign-unassigned', 'why-unassigned', 'tat-at-risk'],
+  'tat-at-risk': ['assign-unassigned', 'unassigned', 'load-by-owner'],
+  'why-unassigned': ['assign-unassigned', 'unassigned', 'load-by-owner'],
+  'assign-unassigned': ['tat-at-risk', 'open-inquiries', 'load-by-owner'],
+  'my-leads': ['my-drafts', 'awaiting-reply', 'due-this-week'],
+  'my-drafts': ['awaiting-reply', 'my-leads', 'due-this-week'],
+  'awaiting-reply': ['my-drafts', 'reschedule-overdue', 'due-this-week'],
+
+  'my-queue': ['past-due', 'policy-entries', 'reschedule-overdue'],
+  'due-this-week': ['past-due', 'my-queue', 'reschedule-overdue'],
+  'past-due': ['reschedule-overdue', 'load-by-owner', 'my-queue'],
+  'policy-entries': ['past-due', 'my-queue', 'work-summary'],
+  'mandate-failures': ['chase-mandate', 'past-due', 'why-lapsing'],
+  'chase-mandate': ['mandate-failures', 'due-this-week', 'past-due'],
+  'reschedule-overdue': ['past-due', 'my-queue', 'due-this-week'],
+
+  'my-claims': ['insurer-queries', 'aged-claims', 'claim-summary'],
+  'insurer-queries': ['aged-claims', 'ageing-sides', 'claim-summary'],
+  'aged-claims': ['ageing-sides', 'escalate-claim', 'claim-summary'],
+  'ageing-sides': ['escalate-claim', 'aged-claims', 'claim-summary'],
+  'escalate-claim': ['aged-claims', 'my-claims', 'claim-summary'],
+  'claim-summary': ['aged-claims', 'insurer-queries', 'record-settlement'],
+  'record-settlement': ['my-claims', 'aged-claims'],
+
+  'renewals-due': ['renewal-notice', 'renewals-lapsed', 'mandate-failures'],
+  'renewals-lapsed': ['why-lapsing', 'renewals-due', 'renewal-notice'],
+  'why-lapsing': ['renewals-lapsed', 'renewals-due', 'renewal-notice'],
+  'renewal-notice': ['renewals-due', 'renewals-lapsed', 'why-lapsing'],
+
+  'load-by-owner': ['past-due', 'unassigned', 'work-summary'],
+  'work-summary': ['load-by-owner', 'past-due', 'aged-claims'],
+}
+
+/**
+ * The chips to show after `cardId` answered, for this role.
+ *
+ * Two rules, and the second is a scope rule rather than a layout one. Ids are
+ * resolved against the registry, so a follow-up naming a card that no longer
+ * exists is dropped instead of rendering a dead chip. And a follow-up is only
+ * offered if it is genuinely reachable — a role that has no claims work is not
+ * shown "escalate the oldest claim" just because the edge list mentions it.
+ * Falling back to the role's own chips means a person is never left with an
+ * answer and no next move.
+ */
+export function followUpsFor(cardId: string, templateKey: string): readonly AskCard[] {
+  const role = chipsFor(templateKey)
+  const ids = FOLLOW_UPS[cardId]
+  if (!ids) return role
+
+  const offered = ids
+    .map((id) => askCardById(id))
+    .filter((card): card is AskCard => card !== null && reachableFor(card, templateKey))
+
+  return offered.length > 0 ? offered : role
+}
+
+/**
+ * Whether this role can be offered this card at all.
+ *
+ * The repository is what actually enforces scope — every card returns an empty
+ * answer for records the account cannot see, so offering a chip is never a leak.
+ * This is narrower than that and about usefulness: a chip whose answer is always
+ * "nothing found" is noise, and a role's own chip set is the best available
+ * statement of what that person's work is. A card in their set, or one whose
+ * subject their set already covers, is fair to offer.
+ */
+function reachableFor(card: AskCard, templateKey: string): boolean {
+  const role = chipsFor(templateKey)
+  if (role.some((chip) => chip.id === card.id)) return true
+
+  const subjects = new Set(role.map(subjectOf))
+  return subjects.has(subjectOf(card))
+}
+
+/**
+ * What a card is *about* — the queue it reads.
+ *
+ * Derived from the id rather than declared, deliberately: the ids already carry
+ * the subject and a second declaration would be one more thing to keep in step.
+ */
+function subjectOf(card: AskCard): string {
+  const id = card.id
+  if (id.includes('claim') || id.includes('settlement') || id === 'ageing-sides') return 'claims'
+  if (id.includes('renewal') || id === 'why-lapsing') return 'renewals'
+  if (id.includes('inquir') || id.includes('unassigned') || id.includes('tat') || id.includes('lead')) {
+    return 'inquiries'
+  }
+  if (id.includes('quotation') || id.includes('drafts') || id.includes('reply')) return 'quotations'
+  return 'tasks'
 }
 
 /* ------------------------------------------------------- typed questions */
@@ -710,10 +751,10 @@ export function matchAskCard(question: string, cards: readonly AskCard[]): AskCa
  * offers what it CAN do rather than apologising, and it never pretends to have
  * looked something up. Nothing here is a stored answer.
  */
-export function unmatchedAnswer(cards: readonly AskCard[]): readonly Block[] {
+export function unmatchedAnswer(cards: readonly AskCard[]): CardAnswer {
   const offered = cards.map((card) => card.label)
 
-  return [
+  return { blocks: [
     {
       kind: 'para',
       text: 'I can look that up, but this build answers a fixed set of questions about your own queue.',
@@ -724,6 +765,7 @@ export function unmatchedAnswer(cards: readonly AskCard[]): readonly Block[] {
         offered.length > 0
           ? `Try one of these instead: ${offered.join(', ')}. Each runs a live query over the records this account can see, at the moment you press it.`
           : 'This account has no suggestions available, so there is nothing for a typed question to match.',
-    },
-  ]
+      },
+    ],
+  }
 }

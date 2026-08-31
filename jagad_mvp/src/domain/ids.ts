@@ -31,6 +31,12 @@ export const RECORD_PREFIXES = {
   claim: 'CLM',
   endorsement: 'END',
   task: 'TSK',
+  /**
+   * An activity is numbered like every other record because it is one: staff
+   * quote it when they ask a colleague to look at what was said on a call, and a
+   * row nobody can name is a row nobody refers to.
+   */
+  activity: 'ACT',
 } as const
 
 export type RecordKind = keyof typeof RECORD_PREFIXES

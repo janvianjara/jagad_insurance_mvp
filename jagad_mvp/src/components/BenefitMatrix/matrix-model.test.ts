@@ -312,6 +312,8 @@ describe('reopening a saved version', () => {
         productId: 'p-star',
         finalPayablePremium: fromPaise(1850000),
         finalPremiumSource: 'typed',
+        netPremium: null,
+        gstAmount: null,
         benefitValues: { 'room-rent': 'Single private room' },
         locked: true,
       },

@@ -62,6 +62,13 @@ export type ClaimTransitionCommand = {
   readonly settlement?: ClaimSettlement
   readonly companyRemark?: string
   readonly documentsCollected?: readonly string[]
+  /**
+   * Doc types present against the claim, read off the document ledger by the
+   * caller that owns it. The cashless `summary_received` guard reads this, and
+   * it is a command field rather than something the store derives because the
+   * upload ledger lives above the data layer until documents gain a write API.
+   */
+  readonly presentDocTypes?: readonly string[]
   readonly now?: Date
 }
 

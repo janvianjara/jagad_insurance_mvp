@@ -13,6 +13,8 @@
 
 import { createMachine, allow, refuse } from './machine'
 import type { TransitionResult, TransitionTable } from './machine'
+import { KYC_BLOCKERS } from '../derive/customerState'
+import type { DerivedCustomerState } from '../derive/customerState'
 
 export const KYC_CONSENT_STATES = {
   pending: 'pending',
@@ -49,9 +51,17 @@ export type ExtractedField = {
 export type KycContext = {
   readonly now: Date
   readonly route?: KycCompletionRoute
-  /** Which required documents are present. Presence only; content stays out of here. */
-  readonly requiredDocuments?: readonly string[]
-  readonly presentDocuments?: readonly string[]
+  /**
+   * The KYC file as derived from the document ledger.
+   *
+   * This replaced a pair of caller-supplied lists — `requiredDocuments` and
+   * `presentDocuments` — which the guard compared against each other. That guard
+   * read well and checked nothing: it asked whether the caller's own claim was
+   * internally consistent, never whether the documents existed, so a caller
+   * passing two empty arrays walked to `complete` with an empty file. Only the
+   * layer that owns the ledger can fill this in, which is the point.
+   */
+  readonly derived?: DerivedCustomerState
   /** Values pulled off documents in this session. */
   readonly extractedFields?: readonly ExtractedField[]
   /** What the record will actually store for Aadhaar. Last four digits, or nothing. */
@@ -123,12 +133,32 @@ export function everyExtractionConfirmed(ctx: KycContext): TransitionResult {
   return allow()
 }
 
+/**
+ * §9's completion bar, read off the ledger rather than off the caller.
+ *
+ * Every refusal names the specific thing standing in the way, because a person
+ * being told "not complete" has to know what to go and collect.
+ */
 export function everyRequiredDocumentPresent(ctx: KycContext): TransitionResult {
-  const required = ctx.requiredDocuments ?? []
-  const present = new Set(ctx.presentDocuments ?? [])
-  const missing = required.filter((document) => !present.has(document))
-  if (missing.length > 0) {
-    return refuse(`KYC is not complete yet. Still missing: ${missing.join(', ')}.`)
+  const derived = ctx.derived
+  if (!derived) {
+    return refuse(
+      'The KYC file could not be read. Completion is decided from the documents on file, so a caller cannot assert it.',
+    )
+  }
+
+  if (derived.blockers.includes(KYC_BLOCKERS.noChecklist)) {
+    return refuse(
+      'No document checklist is configured for this product, so there is nothing to check the file against. Configure one before completing KYC.',
+    )
+  }
+  if (derived.outstanding.length > 0) {
+    return refuse(`KYC is not complete yet. Still missing: ${derived.outstanding.join(', ')}.`)
+  }
+  if (derived.rejected.length > 0) {
+    return refuse(
+      `These were rejected on review and a fresh copy is needed: ${derived.rejected.join(', ')}.`,
+    )
   }
   return allow()
 }

@@ -120,8 +120,10 @@ describe('reads', () => {
     const repos = repositories()
     const scope = await repos.agencies.placementScope('agy-jagad-hdfc')
 
-    expect(scope?.companyIds).toEqual(['cmp-hdfc-ergo'])
-    expect(scope?.productIds.length).toBeGreaterThan(0)
+    // Pairs, not two flat lists: an Individual agency appointed for one company
+    // has every appointment on that company and nothing else.
+    expect(scope?.appointments.length).toBeGreaterThan(0)
+    expect([...new Set(scope?.appointments.map((row) => row.companyId))]).toEqual(['cmp-hdfc-ergo'])
   })
 
   it('answers document questions with presence, never with content', async () => {
@@ -271,6 +273,8 @@ describe('the money rules the machines enforce', () => {
           productId: 'prd-he-ops',
           finalPayablePremium: null,
           finalPremiumSource: null,
+          netPremium: null,
+          gstAmount: null,
           benefitValues: {},
         },
       ],
@@ -298,6 +302,8 @@ describe('the money rules the machines enforce', () => {
           productId: 'prd-he-ops',
           finalPayablePremium: null,
           finalPremiumSource: null,
+          netPremium: null,
+          gstAmount: null,
           benefitValues: {},
         },
       ],
@@ -326,6 +332,8 @@ describe('the money rules the machines enforce', () => {
           productId: 'prd-he-ops',
           finalPayablePremium: null,
           finalPremiumSource: null,
+          netPremium: null,
+          gstAmount: null,
           benefitValues: {},
         },
       ],
@@ -352,6 +360,8 @@ describe('the money rules the machines enforce', () => {
           productId: 'prd-he-ops',
           finalPayablePremium: money(18_900),
           finalPremiumSource: 'typed',
+          netPremium: null,
+          gstAmount: null,
           benefitValues: { 'sum-insured': '10,00,000' },
         },
       ],
@@ -391,6 +401,14 @@ describe('the money rules the machines enforce', () => {
           companyId: 'cmp-tata-aig',
           productId: 'prd-ta-tvg',
           label: 'Tata AIG Travel Guard',
+          quotationLineId: 'qln-0332-v2-a',
+          columnKey: 'tata-travel',
+          carriedFromVersion: 2,
+          acceptedFinalPayablePremium: money(4_838),
+          acceptedPremiumSource: 'typed',
+          netPremium: money(4_100),
+          gstAmount: money(738),
+          premiumMode: 'annual',
         },
       ],
     })
@@ -419,8 +437,7 @@ describe('the money rules the machines enforce', () => {
     const kyc = await repos.customers.advanceKyc('cus-hitesh-mehta', 'complete', {
       actorId: ACTOR,
       route: 'staff',
-      requiredDocuments: ['PAN card', 'Address proof'],
-      presentDocuments: ['PAN card', 'Address proof'],
+      receipts: ['PAN card', 'Address proof'],
       extractedFields: [{ name: 'panNumber', value: 'ABCPM4471N', confirmed: true }],
       aadhaarLast4: '4471',
     })
@@ -451,11 +468,16 @@ describe('the money rules the machines enforce', () => {
 
   it('refuses to complete KYC while an extraction is unconfirmed', async () => {
     const repos = repositories()
+    // The file is otherwise complete — the vault holds the three typed lines and
+    // the desk has receipted the fourth — so the unconfirmed extraction is the
+    // only thing left to refuse on. Before completion was derived this test
+    // passed no documents at all, which meant it was never really exercising the
+    // OCR guard.
     const result = await repos.customers.advanceKyc('cus-hitesh-mehta', 'complete', {
       actorId: ACTOR,
       route: 'staff',
-      requiredDocuments: [],
-      presentDocuments: [],
+      receipts: ['Address proof'],
+      aadhaarLast4: '4471',
       extractedFields: [{ name: 'panNumber', value: 'ABCPM4471N', confirmed: false }],
     })
 
@@ -466,13 +488,16 @@ describe('the money rules the machines enforce', () => {
 
   it('refuses to issue without a Final Premium, whatever else is in place', async () => {
     const repos = repositories()
-    await repos.customers.advanceKyc('cus-hitesh-mehta', 'complete', {
+    const kyc = await repos.customers.advanceKyc('cus-hitesh-mehta', 'complete', {
       actorId: ACTOR,
       route: 'staff',
-      requiredDocuments: [],
-      presentDocuments: [],
+      receipts: ['Address proof'],
+      aadhaarLast4: '4471',
       extractedFields: [],
     })
+    // Asserted, not assumed: if this stopped completing, the premium refusal
+    // below would still fire and the test would still pass for the wrong reason.
+    expect(kyc.ok).toBe(true)
 
     const result = await repos.policies.issue('pol-draft-0224', {
       actorId: ACTOR,
@@ -546,11 +571,11 @@ describe('the money rules the machines enforce', () => {
     })
     expect(withTask.ok).toBe(true)
     if (!withTask.ok) return
-    expect(withTask.events.map((event) => event.name)).toEqual([
-      'cheque.bounced',
-      'task.created',
-      'message.sent',
-    ])
+    // The bounce alone. A repository test builds no automation runtime, so the
+    // recipe that raises the follow-up is not bound here — that path is proved
+    // end to end in `src/data/automation/automation.test.ts`, against a real
+    // `Task` row rather than against an event announcing one.
+    expect(withTask.events.map((event) => event.name)).toEqual(['cheque.bounced'])
   })
 
   it('refuses the retention lock while the window is still open', async () => {
@@ -704,6 +729,87 @@ describe('creating records', () => {
     if (next.ok) expect(next.record.systemNo).toBe('INQ-1047')
   })
 
+  it('records who referred a referred lead, and stamps when', async () => {
+    const repos = repositories()
+    const result = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'referral',
+      referral: { kind: 'customer', referrerId: 'cus-rakesh-patel' },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.record.referral).toEqual({
+      kind: 'customer',
+      referrerId: 'cus-rakesh-patel',
+      referrerName: null,
+      // Stamped by the repository, the way the record is numbered by it.
+      capturedAt: result.record.createdAt,
+    })
+  })
+
+  it('takes a referrer who is not on the books as a name, and holds no id for one', async () => {
+    const repos = repositories()
+    const result = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'referral',
+      referral: { kind: 'external', referrerName: '  Chirag Desai  ' },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.record.referral?.referrerName).toBe('Chirag Desai')
+    expect(result.record.referral?.referrerId).toBeNull()
+  })
+
+  it('refuses a referral with no referrer, and a referrer on anything else, writing neither', async () => {
+    const repos = repositories()
+
+    const orphan = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'referral',
+    })
+    expect(orphan.ok).toBe(false)
+    if (!orphan.ok) expect(orphan.reason).toMatch(/does not say who referred it/)
+
+    const mismatched = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'walk_in',
+      referral: { kind: 'customer', referrerId: 'cus-rakesh-patel' },
+    })
+    expect(mismatched.ok).toBe(false)
+    if (!mismatched.ok) expect(mismatched.reason).toMatch(/source is "walk_in"/)
+
+    const nameless = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'referral',
+      referral: { kind: 'external', referrerName: '   ' },
+    })
+    expect(nameless.ok).toBe(false)
+    if (!nameless.ok) expect(nameless.reason).toMatch(/Name whoever referred/)
+
+    // Three refusals, and not one of them consumed a number or raised an event.
+    expect(repos.store.events()).toEqual([])
+    const next = await repos.inquiries.create({
+      actorId: ACTOR,
+      contactName: 'Hetal Bhatt',
+      contactMobile: '98250 11111',
+      source: 'website',
+    })
+    expect(next.ok).toBe(true)
+    if (next.ok) expect(next.record.systemNo).toBe('INQ-1047')
+  })
+
   it('opens a customer with KYC pending, consent unsent and no Aadhaar anywhere', async () => {
     const repos = repositories()
     const before = await repos.customers.list({ pageSize: 1 })
@@ -745,7 +851,7 @@ describe('creating records', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
-    expect(result.record.systemNo).toBe('QTN-0333')
+    expect(result.record.systemNo).toBe('QTN-0334')
     expect(result.record.status).toBe('draft')
     expect(result.record.version).toBe(1)
     expect(result.record.finalPayablePremium).toBeNull()
@@ -759,6 +865,8 @@ describe('creating records', () => {
     const result = await repos.deals.create({
       actorId: ACTOR,
       quotationId: 'qtn-0332',
+      quotationVersion: 2,
+      acceptedColumnKeys: ['tata-travel'],
       customerId: 'cus-falguni-shah',
       ownerId: ACTOR,
       lineItems: [],
@@ -775,6 +883,9 @@ describe('creating records', () => {
     const withItems = await repos.deals.create({
       actorId: ACTOR,
       quotationId: 'qtn-0332',
+      quotationVersion: 2,
+      // Not the pair APP-0774 already holds, so this is a distinct award.
+      acceptedColumnKeys: ['tata-travel'],
       customerId: 'cus-falguni-shah',
       ownerId: ACTOR,
       lineItems: [
@@ -783,6 +894,14 @@ describe('creating records', () => {
           companyId: 'cmp-tata-aig',
           productId: 'prd-ta-tvg',
           label: 'Tata AIG Travel Guard',
+          quotationLineId: 'qln-0332-v2-a',
+          columnKey: 'tata-travel',
+          carriedFromVersion: 2,
+          acceptedFinalPayablePremium: money(4_838),
+          acceptedPremiumSource: 'typed',
+          netPremium: money(4_100),
+          gstAmount: money(738),
+          premiumMode: 'annual',
         },
       ],
     })
@@ -807,6 +926,10 @@ describe('creating records', () => {
       savedBy: ACTOR,
       premiumMode: 'annual' as const,
       retentionClass: 'health',
+      provenance: {
+        origin: 'captured' as const,
+        reason: 'Entered against the customer; no quotation was raised.',
+      },
     }
 
     const proposal = await repos.policies.create({ ...common, entryPath: 'proposal' })
@@ -822,7 +945,7 @@ describe('creating records', () => {
     const direct = await repos.policies.create({
       ...common,
       entryPath: 'direct',
-      dealId: 'app-0774',
+      provenance: { origin: 'deal', dealId: 'app-0774' },
       missingFields: ['nomineeName'],
       finalPremium: money(28_532, 40),
     })
@@ -837,7 +960,10 @@ describe('creating records', () => {
     // read the path back and let a direct entry skip proposal.
     const draft = await repos.policies.draft(direct.record.id)
     expect(draft?.entryPath).toBe('direct')
+    // Written from the provenance rather than passed twice, so the contract and
+    // the entry cannot end up naming different deals.
     expect(draft?.dealId).toBe('app-0774')
+    expect(direct.record.provenance).toEqual({ origin: 'deal', dealId: 'app-0774' })
     expect(draft?.missingFields).toEqual(['nomineeName'])
     expect((await repos.policies.completionQueue()).rows.map((row) => row.policyId)).toContain(
       direct.record.id,

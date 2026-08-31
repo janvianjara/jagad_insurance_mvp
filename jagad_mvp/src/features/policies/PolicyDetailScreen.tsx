@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import type { ReactNode } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
@@ -9,24 +10,42 @@ import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
 import { RollUp } from '../../components/guardrails'
 import type { RollUpComponent } from '../../components/guardrails'
-import type { Customer, Product, Repositories, RetentionClass } from '../../data/repo'
+import type {
+  Customer,
+  PolicyNcb,
+  PolicyPremiumComponent,
+  Product,
+  Repositories,
+  RetentionClass,
+  StaffUser,
+} from '../../data/repo'
 import { Button } from '../../ui/Button'
 import { EmptyState, Skeleton } from '../../ui/data'
 import { StatusPill } from '../../ui/signal'
-import { Panel } from '../../ui/surface'
+import { Panel, Tabs } from '../../ui/surface'
 import { KeyValueList, Money, RecordId } from '../../ui/type'
+import { DispatchPanel } from './DispatchPanel'
 import { IssuancePanel } from './IssuancePanel'
 import { PaymentFork } from './PaymentFork'
+import { PolicySchedule } from './PolicySchedule'
+import { PolicyVersions } from './PolicyVersions'
 import { policyDesk } from './data/policy-desk'
 import type { PolicyDossier } from './data/policy-desk'
+import { loadPolicyFacets } from './data/policy-facets'
+import type { PolicyFacets } from './data/policy-facets'
+import { POLICY_TABS, POLICY_TAB_LABEL, policyTabFromPath, policyTabHref } from './policy-tabs'
+import type { PolicyTab } from './policy-tabs'
+import { endorsementsInFlight, versionHistory } from './version-diff'
 import {
   ENTRY_PATH_LABEL,
   PAYMENT_LABEL,
   PAYMENT_TONE,
-  POLICY_LABEL,
-  POLICY_TONE,
+  LIVE_POLICY_STATES,
   PREMIUM_MODE_LABEL,
+  policyLabelFor,
+  policyToneFor,
 } from './policy-view'
+import { usePolicyNow } from './clock'
 import styles from './PolicyDetail.module.css'
 
 /**
@@ -56,6 +75,21 @@ import styles from './PolicyDetail.module.css'
  * the feature is unbuilt. So `canHardDeletePolicy()` renders its sentence, and
  * `retentionWindowElapsed` renders either the date the lock falls due or the
  * refusal that says why it has not. Both are the machine's own words.
+ *
+ * **The file has three faces, and each one is an address.** `/policies/:id/versions`
+ * and `/policies/:id/schedule` are facets of THIS record, not screens elsewhere,
+ * so they are tabs on this page whose deep routes are their addressable URLs —
+ * a person moves between what the policy is, what it has been and what it owes
+ * without ever leaving the record, and can send a colleague a link to any of the
+ * three. The tab is read off the path rather than held in state
+ * (`policyTabFromPath`), so landing cold on the schedule opens the schedule on
+ * the first paint: there is no effect that corrects the tab afterwards and
+ * therefore no frame in which the overview flashes.
+ *
+ * The facets load WITH the record rather than when a tab is opened, for the same
+ * reason the Customer 360 keys its resource on the customer alone: they are three
+ * views of one file, so putting the tab in the key would make every click throw
+ * away a good result and re-read the whole dossier.
  */
 
 type DetailData = {
@@ -63,6 +97,8 @@ type DetailData = {
   readonly customer: Customer | null
   readonly product: Product | null
   readonly retention: RetentionClass | null
+  readonly users: readonly StaffUser[]
+  readonly facets: PolicyFacets
 }
 
 async function loadDetail(
@@ -73,10 +109,12 @@ async function loadDetail(
   const dossier = await desk.dossier(policyId)
   if (!dossier) return null
 
-  const [customer, product, classes] = await Promise.all([
+  const [customer, product, classes, users, facets] = await Promise.all([
     repositories.customers.get(dossier.policy.customerId),
     repositories.products.get(dossier.policy.productId),
     repositories.config.retentionClasses(),
+    repositories.config.users(),
+    loadPolicyFacets(repositories, policyId),
   ])
 
   return {
@@ -84,31 +122,80 @@ async function loadDetail(
     customer,
     product,
     retention: classes.find((entry) => entry.key === dossier.policy.retentionClass) ?? null,
+    users,
+    facets,
   }
 }
 
 /**
  * The typed components this record carries, for the derived cross-check.
  *
- * `Policy` stores Net and GST as they were typed and stores Final separately, so
- * the roll-up here has exactly one component — the recorded Net. It is not the
- * sum of anything this screen worked out; it is the figure somebody entered,
- * handed to `<RollUp>` so the same relationship the entry screen showed is
- * visible on the record afterwards.
+ * Each one is a figure a person read off the insurer's schedule and typed, kept
+ * as it was entered. They are handed to `<RollUp>` so the record shows the same
+ * relationship the entry screen showed — and the derived Net it prints is a
+ * cross-check against `policy.netPremium`, never a replacement for it. Nothing
+ * on this screen writes the sum anywhere.
+ *
+ * A component nobody typed is dropped from the roll-up rather than counted as
+ * zero, because a total that silently included unrecorded rows would be a figure
+ * the platform asserted rather than one it was given. It is still listed above,
+ * as "Not recorded", so the omission is visible instead of invisible.
+ *
+ * A record captured before itemisation was kept falls back to the single stored
+ * Net. That is not an error state and is not drawn as one — it is an older record
+ * showing what it actually holds.
  */
-function recordedComponents(net: RollUpComponent['amount'] | null): readonly RollUpComponent[] {
-  if (net === null) return []
-  return [{ key: 'netPremium', label: 'Net premium, as recorded', amount: net }]
+function recordedComponents(
+  components: readonly PolicyPremiumComponent[],
+  net: RollUpComponent['amount'] | null,
+): readonly RollUpComponent[] {
+  if (components.length === 0) {
+    return net === null ? [] : [{ key: 'netPremium', label: 'Net premium, as recorded', amount: net }]
+  }
+
+  const rows: RollUpComponent[] = []
+  for (const component of components) {
+    if (component.amount === null) continue
+    rows.push({ key: component.key, label: component.label, amount: component.amount })
+  }
+  return rows
+}
+
+/** NCB as a percentage. Basis points in, a string out; never money. */
+function ncbReading(ncb: PolicyNcb | null): string {
+  if (ncb === null) return 'Not recorded'
+  return `${(ncb.percentBp / 100).toFixed(ncb.percentBp % 100 === 0 ? 0 : 2)}%`
 }
 
 export function PolicyDetailScreen() {
   const { id = '' } = useParams()
   const repositories = useRepositories()
   const navigate = useNavigate()
+  const location = useLocation()
   const user = useSessionStore((state) => state.user)
+  const now = usePolicyNow()
+
+  // Read off the address, not held in state. A cold landing on
+  // `/policies/:id/schedule` therefore opens the schedule on the first paint.
+  const tab = policyTabFromPath(location.pathname)
 
   const [reads, setReads] = useState(0)
   const loaded = useResource(() => loadDetail(repositories, id), `policy:${id}:${reads}`)
+
+  if (loaded.status === 'error') {
+    return (
+      <EmptyState
+        variant="error"
+        title="This policy could not be read"
+        explanation={loaded.error?.message ?? 'The read failed before the record came back.'}
+        action={
+          <Button variant="primary" onClick={() => loaded.reload()}>
+            Try again
+          </Button>
+        }
+      />
+    )
+  }
 
   if (loaded.status === 'ready' && !loaded.data) {
     return (
@@ -134,7 +221,7 @@ export function PolicyDetailScreen() {
     )
   }
 
-  const { dossier, customer, product, retention } = loaded.data
+  const { dossier, customer, product, retention, users, facets } = loaded.data
   const { policy, draft } = dossier
   const desk = policyDesk(repositories)
   const mayAct = can(user, 'edit', 'policies')
@@ -153,23 +240,32 @@ export function PolicyDetailScreen() {
     closedAt: undefined,
   })
 
-  return (
-    <div className={styles.screen}>
-      <PageHeader
-        title={customer?.fullName ?? 'Policy'}
-        meta={
-          <>
-            <RecordId systemNo={policy.systemNo} insurerNo={policy.insurerNo} />
-            {product ? <span>{product.name}</span> : null}
-          </>
-        }
-        actions={<StatusPill tone={POLICY_TONE[policy.status]}>{POLICY_LABEL[policy.status]}</StatusPill>}
-      />
+  const versions = versionHistory(dossier.versions, facets.endorsements)
+  const inFlight = endorsementsInFlight(facets.endorsements)
+  const staffName = (userId: string | null): string =>
+    userId === null ? 'Unassigned' : (users.find((person) => person.id === userId)?.name ?? userId)
 
+  const panels: Readonly<Record<PolicyTab, ReactNode>> = {
+    versions: (
+      <PolicyVersions entries={versions} inFlight={inFlight} staffName={staffName} />
+    ),
+
+    schedule: (
+      <PolicySchedule
+        packet={facets.schedule}
+        collections={dossier.collections}
+        premiumMode={policy.premiumMode}
+        now={now}
+        staffName={staffName}
+      />
+    ),
+
+    overview: (
+      <>
       <Panel title="The record" description="What this policy is, as it stands.">
         <KeyValueList
           items={[
-            { key: 'state', label: 'State', value: POLICY_LABEL[policy.status] },
+            { key: 'state', label: 'State', value: policyLabelFor(policy, now) },
             {
               key: 'entry',
               label: 'How it was entered',
@@ -205,8 +301,39 @@ export function PolicyDetailScreen() {
             )}
           </dd>
         </dl>
+        {dossier.ncb === null ? null : (
+          <dl className={styles.premium} data-policy-ncb="">
+            <dt className={styles.premiumLabel}>No claim bonus, as recorded</dt>
+            {/* A percentage, not money: it never goes near <Money> and it is
+                never part of the roll-up, because the discount it earned was
+                applied on the insurer's system and is already inside the
+                figures above. */}
+            <dd className={styles.premiumValue}>{ncbReading(dossier.ncb)}</dd>
+          </dl>
+        )}
+        {dossier.components.length === 0 ? (
+          <p className={styles.quiet}>
+            This record was captured before the premium was itemised, so it carries a single Net
+            figure. What follows is that figure, not a breakdown of it.
+          </p>
+        ) : (
+          <dl className={styles.components} data-premium-components="">
+            {dossier.components.map((component) => (
+              <div key={component.key} className={styles.componentRow}>
+                <dt className={styles.premiumLabel}>{component.label}</dt>
+                <dd className={styles.premiumValue}>
+                  {component.amount === null ? (
+                    'Not recorded'
+                  ) : (
+                    <Money paise={component.amount.paise} />
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
         <RollUp
-          components={recordedComponents(policy.netPremium)}
+          components={recordedComponents(dossier.components, policy.netPremium)}
           gst={policy.gstAmount}
           note="Net and Final below are the same cross-check the entry screen showed. The figure the policy carries is the recorded Final above."
         />
@@ -234,22 +361,23 @@ export function PolicyDetailScreen() {
         </Panel>
       ) : null}
 
-      <Panel title="Versions" description="Immutable. A version is written, never edited.">
-        {dossier.versions.length === 0 ? (
-          <p className={styles.quiet}>No endorsement has been written against this policy.</p>
-        ) : (
-          <ul className={styles.versions}>
-            {dossier.versions.map((version) => (
-              <li key={version.id}>
-                <RecordId
-                  systemNo={version.endorsementNo ?? `v${version.version}`}
-                  insurerNo={version.insurerEndorsementNo}
-                />
-                <span className={styles.quiet}>{version.note}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <Panel
+        title="Dispatch"
+        description="Where the document went, and whether it arrived. Delivery and the customer's own confirmation are recorded separately."
+      >
+        <DispatchPanel
+          policyId={policy.id}
+          dispatches={dossier.dispatches}
+          disabled={!mayAct || !LIVE_POLICY_STATES.includes(policy.status)}
+          disabledReason={
+            mayAct
+              ? 'A document can be sent once the policy has been issued.'
+              : 'Your role can read this record but not send from it.'
+          }
+          actorId={user?.id ?? ''}
+          desk={desk}
+          onChanged={() => setReads((count) => count + 1)}
+        />
       </Panel>
 
       <Panel title="Retention" description="A closed policy locks. It is never deleted.">
@@ -284,6 +412,43 @@ export function PolicyDetailScreen() {
           </ul>
         )}
       </Panel>
+      </>
+    ),
+  }
+
+  return (
+    <div className={styles.screen}>
+      <PageHeader
+        title={customer?.fullName ?? 'Policy'}
+        meta={
+          <>
+            <RecordId systemNo={policy.systemNo} insurerNo={policy.insurerNo} />
+            {product ? <span>{product.name}</span> : null}
+          </>
+        }
+        actions={
+          <StatusPill tone={policyToneFor(policy, now)}>{policyLabelFor(policy, now)}</StatusPill>
+        }
+      />
+
+      <Tabs
+        label="Policy file"
+        value={tab}
+        onChange={(next) => void navigate(policyTabHref(policy.id, next as PolicyTab))}
+        tabs={[
+          { id: POLICY_TABS.overview, label: POLICY_TAB_LABEL.overview },
+          {
+            id: POLICY_TABS.versions,
+            label: POLICY_TAB_LABEL.versions,
+            count: versions.length,
+          },
+          { id: POLICY_TABS.schedule, label: POLICY_TAB_LABEL.schedule },
+        ]}
+      >
+        {(activeId) => (
+          <div className={styles.tabPanel}>{panels[activeId as PolicyTab] ?? panels.overview}</div>
+        )}
+      </Tabs>
     </div>
   )
 }

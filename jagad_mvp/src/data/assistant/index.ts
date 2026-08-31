@@ -9,3 +9,4 @@
 
 export * from './projection'
 export * from './repository'
+export * from './provenance'

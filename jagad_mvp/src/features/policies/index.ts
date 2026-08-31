@@ -14,6 +14,40 @@ export { PolicyEntryScreen } from './PolicyEntryScreen'
 export { PolicyDetailScreen } from './PolicyDetailScreen'
 export { PolicyDraftsScreen } from './PolicyDraftsScreen'
 
+export { PolicyVersions } from './PolicyVersions'
+export type { PolicyVersionsProps } from './PolicyVersions'
+export { PolicySchedule } from './PolicySchedule'
+export type { PolicyScheduleProps } from './PolicySchedule'
+
+export { POLICY_TABS, POLICY_TAB_LABEL, policyTabFromPath, policyTabHref } from './policy-tabs'
+export type { PolicyTab } from './policy-tabs'
+
+export {
+  CHANGE_NOT_ATTRIBUTED,
+  PRIOR_VALUES_NOT_KEPT,
+  changeFieldLabel,
+  endorsementsInFlight,
+  versionHistory,
+} from './version-diff'
+export type { VersionChange, VersionEntry } from './version-diff'
+
+export {
+  MANDATE_KIND_LABEL,
+  MANDATE_LABEL,
+  MANDATE_NEXT_STEP,
+  MANDATE_TONE,
+  NEEDS_A_PERSON,
+  NO_MANDATE_NOTE,
+  instalmentTally,
+  isSettled,
+  nextDue,
+  readMandate,
+} from './schedule-view'
+export type { MandateReading, NextDue } from './schedule-view'
+
+export { loadPolicyFacets } from './data/policy-facets'
+export type { PolicyFacets, SchedulePacket } from './data/policy-facets'
+
 export { PremiumBlock } from './PremiumBlock'
 export type { PremiumBlockProps } from './PremiumBlock'
 export { PaymentFork } from './PaymentFork'
@@ -55,6 +89,15 @@ export {
   PAYMENT_TONE,
   POLICY_LABEL,
   POLICY_TONE,
+  DELIVERY_LABEL,
+  DELIVERY_TONE,
+  DISPATCH_CHANNEL_LABEL,
+  LIVE_POLICY_STATES,
+  isCourier,
+  policyExpired,
+  policyInForce,
+  policyLabelFor,
+  policyToneFor,
   PREMIUM_MODE_LABEL,
   draftSeverity,
   nameOf,

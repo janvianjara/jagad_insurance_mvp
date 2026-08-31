@@ -23,6 +23,8 @@
 
 import { addMoney, money } from '../../domain/money'
 import type { Money } from '../../domain/money'
+import type { Activity } from '../repo/activities'
+import type { RequirementRecord } from '../repo/requirements'
 import type { Agency } from '../repo/agencies'
 import type { Claim } from '../repo/claims'
 import type { LedgerEntry } from '../repo/commission'
@@ -36,20 +38,23 @@ import type {
 } from '../repo/customers'
 import type { Deal } from '../repo/deals'
 import type { DocumentRecord } from '../repo/documents'
-import type { Inquiry } from '../repo/inquiries'
+import type { Inquiry, ReferrerKind } from '../repo/inquiries'
 import type {
   CollectionRecord,
   InstalmentDue,
   Mandate,
   MandateEvent,
   Policy,
+  PolicyDispatch,
   PolicyEntryDraft,
+  PolicyNcb,
+  PolicyPremiumComponent,
   PolicyVersion,
   PremiumSchedule,
 } from '../repo/policies'
 import type { Quotation, QuotationLine } from '../repo/quotations'
 import type { RenewalTask, Task } from '../repo/tasks'
-import { AGENT_IDS, TEAM_IDS, USER_IDS, companyId, productId } from './config-seed'
+import { AGENT_IDS, RECIPES, TEAM_IDS, USER_IDS, companyId, productId } from './config-seed'
 import { FIXTURE_NOW, addDays, addMinutes, addMonths, isoDate, isoTime } from './clock'
 import { localNo, systemNo } from './ids'
 
@@ -92,6 +97,13 @@ type CustomerSeed = {
   readonly aadhaarLast4?: string | null
   readonly panNumber?: string | null
   readonly createdDaysAgo: number
+  /**
+   * When the last consent link went out, and how many have. Omitted means never
+   * chased, which is what `not_sent` should look like — and the derivation below
+   * refuses to let a seed claim a chase count with no date, or the reverse.
+   */
+  readonly chasedDaysAgo?: number
+  readonly chaseCount?: number
 }
 
 function buildCustomer(seed: CustomerSeed): Customer {
@@ -107,6 +119,11 @@ function buildCustomer(seed: CustomerSeed): Customer {
     subAgentId: seed.subAgentId ?? null,
     kycState: seed.kycState,
     consentState: seed.consentState,
+    lastConsentChaseAt:
+      seed.chasedDaysAgo === undefined ? null : isoTime(addDays(NOW, -seed.chasedDaysAgo)),
+    // A chase that happened has a count of at least one. A file nobody has
+    // chased has a count of zero and no date, and there is no third shape.
+    consentChaseCount: seed.chasedDaysAgo === undefined ? 0 : (seed.chaseCount ?? 1),
     fullName: seed.fullName,
     mobile: seed.mobile,
     altMobile: null,
@@ -141,6 +158,10 @@ export const CUSTOMERS: readonly Customer[] = [
     aadhaarLast4: '4102',
     panNumber: 'ABCPP1234K',
     createdDaysAgo: 900,
+    // The same two days his consent record was issued. A file whose link is out
+    // must agree with itself about when it went out.
+    chasedDaysAgo: 2,
+    chaseCount: 2,
   }),
   buildCustomer({
     id: 'cus-jayesh-kapadia',
@@ -156,6 +177,7 @@ export const CUSTOMERS: readonly Customer[] = [
     aadhaarLast4: '7731',
     panNumber: 'ABCPK5678L',
     createdDaysAgo: 640,
+    chasedDaysAgo: 638,
   }),
   buildCustomer({
     id: 'cus-nilesh-bhatt',
@@ -169,6 +191,8 @@ export const CUSTOMERS: readonly Customer[] = [
     dateOfBirth: '1981-07-19',
     aadhaarLast4: '2288',
     createdDaysAgo: 1100,
+    chasedDaysAgo: 1096,
+    chaseCount: 2,
   }),
   buildCustomer({
     id: 'cus-bhavesh-trivedi',
@@ -182,6 +206,7 @@ export const CUSTOMERS: readonly Customer[] = [
     dateOfBirth: '1990-01-30',
     aadhaarLast4: '5560',
     createdDaysAgo: 420,
+    chasedDaysAgo: 418,
   }),
   buildCustomer({
     id: 'cus-falguni-shah',
@@ -196,6 +221,7 @@ export const CUSTOMERS: readonly Customer[] = [
     dateOfBirth: '1988-09-08',
     aadhaarLast4: '9014',
     createdDaysAgo: 500,
+    chasedDaysAgo: 497,
   }),
   buildCustomer({
     id: 'cus-hitesh-mehta',
@@ -208,6 +234,22 @@ export const CUSTOMERS: readonly Customer[] = [
     consentState: 'not_sent',
     ownerId: USER_IDS.nita,
     agentId: null,
+    /*
+     * The last four, matching the confirmed OCR on `doc-aadhaar-hitesh` and
+     * `doc-pan-hitesh` below.
+     *
+     * They were absent, and the absence was not visible: both documents carry
+     * `confirmed: true` extractions, so the file read as one whose identity had
+     * been checked while the record it belongs to held nothing. The vault's
+     * masking test picks this customer, found no identity values, and so never
+     * rendered the block it was written to inspect — a masking invariant that
+     * timed out before it could look, which reads as coverage and is not.
+     *
+     * `aadhaarNumber` stays null, as it is on every row: the platform holds no
+     * representation of a full Aadhaar anywhere.
+     */
+    aadhaarLast4: '4471',
+    panNumber: 'ABCPM4471N',
     createdDaysAgo: 12,
   }),
   buildCustomer({
@@ -348,6 +390,12 @@ type InquirySeed = {
   readonly agentId?: string | null
   readonly subAgentId?: string | null
   readonly customerId?: string | null
+  /** Required on a referral, refused otherwise — asserted in `fixtures.test.ts`. */
+  readonly referral?: {
+    readonly kind: ReferrerKind
+    readonly referrerId?: string
+    readonly referrerName?: string
+  }
   readonly productInterest: readonly string[]
   readonly createdMinutesAgo: number
   readonly assignedMinutesAgo?: number
@@ -355,7 +403,35 @@ type InquirySeed = {
   readonly assignmentHistory?: Inquiry['assignmentHistory']
   readonly escalationLevel?: number
   readonly notes?: string
+  /** Engagement, FR-06.12 to .17. Omitted means nobody has made contact yet. */
+  readonly stageKey?: string
+  readonly stageEnteredMinutesAgo?: number
+  readonly contactAttempts?: number
+  readonly lastActivityMinutesAgo?: number
+  readonly nextActionInMinutes?: number
 }
+
+/**
+ * The inquiry the engagement story is told on — FR-06.13 to .17.
+ *
+ * It has to be one that is accepted (only an accepted inquiry has a pipeline
+ * position) and old enough for a week of contact to fit inside its life. Named
+ * here rather than repeated so the activities, the stage and the overdue date
+ * cannot drift apart into a record that says two different things.
+ */
+export const ENGAGED_INQUIRY_ID = 'inq-1039'
+
+/**
+ * The lead that is being worked properly, and the contrast that gives the other
+ * one its meaning.
+ *
+ * Both are accepted and both have stopped their turnaround clocks, so before the
+ * engagement layer they were indistinguishable on every screen in the product.
+ * One was contacted yesterday and has a call booked for tomorrow; the other has
+ * heard nothing for two days and its next action went past yesterday. The
+ * pipeline, the pin order and the coverage KPI all exist to tell them apart.
+ */
+export const WORKED_INQUIRY_ID = 'inq-1031'
 
 function buildInquiry(seed: InquirySeed): Inquiry {
   const createdAt = addMinutes(NOW, -seed.createdMinutesAgo)
@@ -383,10 +459,33 @@ function buildInquiry(seed: InquirySeed): Inquiry {
     escalationLevel: seed.escalationLevel ?? 0,
     createdAt: isoTime(createdAt),
     customerId: seed.customerId ?? null,
+    referral:
+      seed.referral === undefined
+        ? null
+        : {
+            kind: seed.referral.kind,
+            referrerId: seed.referral.referrerId ?? null,
+            referrerName: seed.referral.referrerName ?? null,
+            capturedAt: isoTime(createdAt),
+          },
     contactName: seed.contactName,
     contactMobile: seed.contactMobile,
     contactEmail: null,
     notes: seed.notes ?? null,
+    stageKey: seed.stageKey ?? null,
+    stageEnteredAt:
+      seed.stageEnteredMinutesAgo === undefined
+        ? null
+        : isoTime(addMinutes(NOW, -seed.stageEnteredMinutesAgo)),
+    contactAttempts: seed.contactAttempts ?? 0,
+    lastActivityAt:
+      seed.lastActivityMinutesAgo === undefined
+        ? null
+        : isoTime(addMinutes(NOW, -seed.lastActivityMinutesAgo)),
+    nextActionAt:
+      seed.nextActionInMinutes === undefined
+        ? null
+        : isoTime(addMinutes(NOW, seed.nextActionInMinutes)),
   }
 }
 
@@ -396,6 +495,8 @@ export const INQUIRIES: readonly Inquiry[] = [
     id: 'inq-1025',
     status: 'converted',
     source: 'referral',
+    /* Sent over by the sub-agent who works that society. */
+    referral: { kind: 'sub_agent', referrerId: AGENT_IDS.meera },
     categoryId: 'cat-health',
     contactName: 'Rakesh Patel',
     contactMobile: '9825110001',
@@ -442,12 +543,20 @@ export const INQUIRIES: readonly Inquiry[] = [
     assignedMinutesAgo: 60 * 24 * 14,
     tatMinutes: 60,
     assignmentHistory: [{ assigneeId: USER_IDS.nita, assignedAt: isoTime(addDays(NOW, -14)) }],
+    /* Worked properly: spoken to yesterday, and a call booked for tomorrow. */
+    stageKey: 'follow_up_scheduled',
+    stageEnteredMinutesAgo: 60 * 24,
+    contactAttempts: 0,
+    lastActivityMinutesAgo: 60 * 24,
+    nextActionInMinutes: 60 * 24,
   }),
   buildInquiry({
     sequence: 1032,
     id: 'inq-1032',
     status: 'accepted',
     source: 'referral',
+    /* Rakesh Patel sent his neighbour. The referrer is a customer on the books. */
+    referral: { kind: 'customer', referrerId: 'cus-rakesh-patel' },
     categoryId: 'cat-health',
     contactName: 'Nilesh Bhatt',
     contactMobile: '9825110003',
@@ -497,6 +606,7 @@ export const INQUIRIES: readonly Inquiry[] = [
     id: 'inq-1039',
     status: 'accepted',
     source: 'referral',
+    referral: { kind: 'customer', referrerId: 'cus-bhavesh-trivedi' },
     categoryId: 'cat-life',
     contactName: 'Jayesh Kapadia',
     contactMobile: '9825110002',
@@ -507,6 +617,18 @@ export const INQUIRIES: readonly Inquiry[] = [
     assignedMinutesAgo: 60 * 24 * 7,
     tatMinutes: 120,
     assignmentHistory: [{ assigneeId: USER_IDS.nita, assignedAt: isoTime(addDays(NOW, -7)) }],
+    /*
+     * A week of contact, and then it went quiet: two no-answers, one call that
+     * connected, an inbound question two days ago, and a next action that came
+     * and went yesterday. This is the shape the engagement layer exists to make
+     * visible, and before it existed this record and a freshly accepted one
+     * looked identical on every screen.
+     */
+    stageKey: 'needs_info',
+    stageEnteredMinutesAgo: 60 * 24 * 2,
+    contactAttempts: 2,
+    lastActivityMinutesAgo: 60 * 24 * 2,
+    nextActionInMinutes: -60 * 24,
   }),
 
   // Canvas 1.6 — a sub-agent in the field saved a name and a mobile, nothing else.
@@ -589,6 +711,8 @@ export const INQUIRIES: readonly Inquiry[] = [
     id: 'inq-1045',
     status: 'assigned',
     source: 'referral',
+    /* Nobody on the books — a name off a phone call, which is all there is. */
+    referral: { kind: 'external', referrerName: 'Chirag Desai' },
     categoryId: 'cat-health',
     contactName: 'Tejas Amin',
     contactMobile: '9825110045',
@@ -666,12 +790,15 @@ export const QUOTATIONS: readonly Quotation[] = [
     inquiryId: 'inq-1025',
     ownerId: USER_IDS.kiran,
     agentId: AGENT_IDS.kiran,
+    subAgentId: null,
     companyIds: [companyId('hdfc-ergo'), companyId('niva-bupa'), companyId('icici-lombard')],
     productIds: [productId('HE-OPS'), productId('NB-RA2'), productId('IL-CHI')],
     benefitRows: healthRows({ key: 'opd-dental', label: 'OPD dental cover' }),
     premiumMode: 'annual',
     finalPayablePremium: null,
     sharedAt: null,
+    acceptedColumnKeys: [],
+    awardedAt: null,
     revisionReason: null,
     lostReason: null,
     createdAt: isoTime(addDays(NOW, -20)),
@@ -689,12 +816,15 @@ export const QUOTATIONS: readonly Quotation[] = [
     inquiryId: 'inq-1035',
     ownerId: USER_IDS.nita,
     agentId: null,
+    subAgentId: null,
     companyIds: [companyId('hdfc-ergo'), companyId('bajaj-allianz')],
     productIds: [productId('HE-OPS'), productId('HE-OPR'), productId('BA-HGD')],
     benefitRows: healthRows(),
     premiumMode: 'annual',
     finalPayablePremium: null,
     sharedAt: isoTime(addDays(NOW, -6)),
+    acceptedColumnKeys: [],
+    awardedAt: null,
     revisionReason: null,
     lostReason: null,
     createdAt: isoTime(addDays(NOW, -8)),
@@ -712,16 +842,55 @@ export const QUOTATIONS: readonly Quotation[] = [
     inquiryId: 'inq-1036',
     ownerId: USER_IDS.nita,
     agentId: null,
+    subAgentId: null,
     companyIds: [companyId('tata-aig')],
     productIds: [productId('TA-TVG'), productId('TA-MCP')],
     benefitRows: healthRows(),
     premiumMode: 'annual',
     finalPayablePremium: money(18_644),
     sharedAt: isoTime(addDays(NOW, -4)),
+    // Both columns were accepted, which is why the header figure is the sum
+    // of the two and why APP-0774 opened with two line items.
+    acceptedColumnKeys: ['tata-travel', 'tata-medicare'],
+    awardedAt: isoTime(addDays(NOW, -3)),
     revisionReason: 'Customer asked for a higher sum insured on the health column.',
     lostReason: null,
     createdAt: isoTime(addDays(NOW, -9)),
     documentId: 'doc-qtn-0332',
+  },
+
+  // The second won quotation, and the one APP-0775 came out of. Won and then
+  // left alone: somebody opened the application and never put the line items on
+  // it, which is precisely the state canvas 2.8 blocks.
+  //
+  // It exists so that APP-0775 has an accepted column of its own. It used to
+  // share QTN-0332 with APP-0774, and two applications off one accepted column
+  // is the duplicate a deal must never be.
+  {
+    id: 'qtn-0333',
+    systemNo: systemNo('quotation', 333),
+    version: 1,
+    status: 'won',
+    customerId: 'cus-dipika-shah',
+    inquiryId: null,
+    ownerId: USER_IDS.nita,
+    agentId: AGENT_IDS.kiran,
+    // Dipika came in through Meera, who sits under Kiran. This is the one
+    // quotation in the cast that exercises a full three-level chain.
+    subAgentId: AGENT_IDS.meera,
+    companyIds: [companyId('bajaj-allianz')],
+    productIds: [productId('BA-HGD')],
+    benefitRows: healthRows(),
+    premiumMode: 'annual',
+    // The accepted column's typed figure, carried across. Never recalculated.
+    finalPayablePremium: money(19_352),
+    sharedAt: isoTime(addDays(NOW, -3)),
+    acceptedColumnKeys: ['bajaj-healthguard'],
+    awardedAt: isoTime(addDays(NOW, -2)),
+    revisionReason: null,
+    lostReason: null,
+    createdAt: isoTime(addDays(NOW, -5)),
+    documentId: null,
   },
 ]
 
@@ -750,6 +919,11 @@ function buildLine(seed: LineSeed): QuotationLine {
     productId: productId(seed.product),
     finalPayablePremium: finalFrom(seed.net, seed.gst),
     finalPremiumSource: 'typed',
+    // The components were always here as seed inputs and were thrown away once
+    // the final figure was built. Keeping them is what lets a deal roll the
+    // accepted columns up as Net plus GST rather than as a bare total.
+    netPremium: seed.net,
+    gstAmount: seed.gst,
     benefitValues: seed.values,
     locked: seed.locked ?? false,
   }
@@ -930,6 +1104,20 @@ export const QUOTATION_LINES: readonly QuotationLine[] = [
     gst: money(2_106),
     values: { ...MEHTA_VALUES, 'sum-insured': '10,00,000' },
   }),
+
+  // QTN-0333's single column, typed like every other figure here.
+  buildLine({
+    id: 'qln-0333-a',
+    quotationId: 'qtn-0333',
+    version: 1,
+    columnKey: 'bajaj-healthguard',
+    label: 'Bajaj Allianz Health Guard',
+    company: 'bajaj-allianz',
+    product: 'BA-HGD',
+    net: money(16_400),
+    gst: money(2_952),
+    values: { ...MEHTA_VALUES, 'sum-insured': '3,00,000' },
+  }),
 ]
 
 /* --------------------------------------------------------------------- deals */
@@ -946,19 +1134,44 @@ export const DEALS: readonly Deal[] = [
     subAgentId: null,
     agencyId: 'agy-jagad-general',
     lineItems: [
+      // Both figures are QTN-0332 v2's own, carried across column for column.
+      // They add up to the 18,644 on the quotation header because the customer
+      // accepted both columns, which is what a two-line deal means.
       {
         id: 'dli-0774-a',
         companyId: companyId('tata-aig'),
         productId: productId('TA-TVG'),
         label: 'Tata AIG Travel Guard',
+        quotationLineId: 'qln-0332-v2-a',
+        columnKey: 'tata-travel',
+        carriedFromVersion: 2,
+        acceptedFinalPayablePremium: money(4_838),
+        acceptedPremiumSource: 'typed',
+        netPremium: money(4_100),
+        gstAmount: money(738),
+        premiumMode: 'annual',
       },
       {
         id: 'dli-0774-b',
         companyId: companyId('tata-aig'),
         productId: productId('TA-MCP'),
         label: 'Tata AIG MediCare Premier',
+        quotationLineId: 'qln-0332-v2-b',
+        columnKey: 'tata-medicare',
+        carriedFromVersion: 2,
+        acceptedFinalPayablePremium: money(13_806),
+        acceptedPremiumSource: 'typed',
+        netPremium: money(11_700),
+        gstAmount: money(2_106),
+        premiumMode: 'annual',
       },
     ],
+    quotationVersion: 2,
+    acceptedColumnKeys: ['tata-travel', 'tata-medicare'],
+    // Sorted, so the same award keys the same whichever order the columns were
+    // ticked in. `awardKeyFor` is the one place this string is built.
+    awardKey: 'qtn-0332:v2:tata-medicare+tata-travel',
+    salesCreditSource: null,
     createdAt: isoTime(addDays(NOW, -3)),
     consumedByPolicyId: null,
   },
@@ -969,13 +1182,20 @@ export const DEALS: readonly Deal[] = [
     id: 'app-0775',
     systemNo: systemNo('deal', 775),
     status: 'created',
-    quotationId: 'qtn-0332',
-    customerId: 'cus-falguni-shah',
+    quotationId: 'qtn-0333',
+    customerId: 'cus-dipika-shah',
     ownerId: USER_IDS.nita,
-    agentId: null,
-    subAgentId: null,
+    // Sold through a sub-agent. INQ-1039 records Meera under Kiran and the
+    // agent record carries the same parentage, so the chain a commission
+    // booking needs is real rather than invented here.
+    agentId: AGENT_IDS.kiran,
+    subAgentId: AGENT_IDS.meera,
     agencyId: null,
     lineItems: [],
+    quotationVersion: 1,
+    acceptedColumnKeys: ['bajaj-healthguard'],
+    awardKey: 'qtn-0333:v1:bajaj-healthguard',
+    salesCreditSource: 'customer',
     createdAt: isoTime(addDays(NOW, -1)),
     consumedByPolicyId: null,
   },
@@ -1004,6 +1224,8 @@ type PolicySeed = {
   readonly retentionClass?: string
   readonly schemaVersion?: number
   readonly nomineeAadhaarLast4?: string | null
+  /** Defaults to `captured`: entered against the customer, with no quotation behind it. */
+  readonly provenance?: Policy['provenance']
 }
 
 function buildPolicy(seed: PolicySeed): Policy {
@@ -1029,6 +1251,13 @@ function buildPolicy(seed: PolicySeed): Policy {
     paymentState: seed.paymentState ?? 'unpaid',
     memberIds: seed.memberIds ?? [],
     retentionClass: seed.retentionClass ?? 'standard',
+    // Most of the story cast is walk-in business with no quotation behind it,
+    // which is ordinary rather than a missing link — so `captured` is the
+    // default and the deal-backed entry names its deal explicitly.
+    provenance: seed.provenance ?? {
+      origin: 'captured',
+      reason: 'Entered against the customer; no quotation was raised.',
+    },
     schemaVersion: seed.schemaVersion ?? 2,
     proposerBankAccount: null,
     nomineeAadhaarLast4: seed.nomineeAadhaarLast4 ?? null,
@@ -1228,6 +1457,9 @@ export const POLICIES: readonly Policy[] = [
     agentId: null,
     status: 'draft',
     premiumMode: 'annual',
+    // The one entry on the cast that walks the whole spine: inquiry to quotation
+    // to deal to policy. Its draft names the same deal, written from this.
+    provenance: { origin: 'deal', dealId: 'app-0774' },
   }),
   buildPolicy({
     id: 'pol-draft-0224',
@@ -1306,6 +1538,174 @@ export const POLICY_VERSIONS: readonly PolicyVersion[] = [
     insurerEndorsementNo: null,
     note: 'Issued on a monthly premium schedule.',
     createdAt: isoTime(new Date('2026-02-24T06:00:00.000Z')),
+  },
+]
+
+/**
+ * One component row. `sortOrder` is the position in the block rather than a
+ * ranking, so the record renders in the order somebody typed it.
+ */
+function premiumComponent(
+  policyId: string,
+  key: string,
+  label: string,
+  amount: Money,
+  sortOrder: number,
+  schemaVersion: number,
+): PolicyPremiumComponent {
+  return {
+    id: `ppc-${policyId.replace('pol-', '')}-${key}`,
+    policyId,
+    key,
+    label,
+    amount,
+    schemaVersion,
+    sortOrder,
+    recordedBy: USER_IDS.priya,
+    recordedAt: isoTime(addDays(NOW, -30)),
+  }
+}
+
+/** The motor block's three parts, named as `policy-motor` names them. */
+function motorComponents(
+  policyId: string,
+  ownDamage: Money,
+  thirdParty: Money,
+  addOns: Money,
+): readonly PolicyPremiumComponent[] {
+  return [
+    premiumComponent(policyId, 'ownDamagePremium', 'Own damage premium', ownDamage, 0, 2),
+    premiumComponent(policyId, 'thirdPartyPremium', 'Third party premium', thirdParty, 1, 2),
+    premiumComponent(policyId, 'addOnPremiumTotal', 'Add-on premium as printed', addOns, 2, 2),
+  ]
+}
+
+/** The health block's two. `pol-4388` was captured under schema version 1. */
+function healthComponents(
+  policyId: string,
+  base: Money,
+  loading: Money,
+): readonly PolicyPremiumComponent[] {
+  const schemaVersion = policyId === 'pol-4388' ? 1 : 2
+  return [
+    premiumComponent(policyId, 'basePremium', 'Base premium', base, 0, schemaVersion),
+    premiumComponent(policyId, 'loadingAmount', 'Loading', loading, 1, schemaVersion),
+  ]
+}
+
+/**
+ * Dispatch — §5's "dispatch" row on the policy record, FR-10.9.
+ *
+ * `pol-4388` shows the pair that makes the entity worth having: an e-policy that
+ * went out by email on the day of issue and reached the customer, and a physical
+ * copy the courier brought back. Two rows, because one mutable status could only
+ * tell the half that happened last.
+ *
+ * `pol-4425` sits at `delivered` without a customer confirmation, which is the
+ * ordinary case and is deliberately not drawn as complete: the courier says it
+ * arrived, and nobody has heard from the customer.
+ */
+export const POLICY_DISPATCHES: readonly PolicyDispatch[] = [
+  {
+    id: 'dsp-4388-e',
+    policyId: 'pol-4388',
+    channel: 'e_policy_email',
+    documentId: null,
+    state: 'confirmed_by_customer',
+    recipientName: 'Rakesh Patel',
+    recipientContactMasked: 'r****h@gmail.com',
+    courierName: null,
+    trackingRef: null,
+    dispatchedBy: USER_IDS.priya,
+    dispatchedAt: isoTime(addDays(NOW, -160)),
+    deliveredAt: isoTime(addDays(NOW, -160)),
+    confirmedAt: isoTime(addDays(NOW, -158)),
+    confirmedBy: USER_IDS.priya,
+    returnReason: null,
+  },
+  {
+    id: 'dsp-4388-c',
+    policyId: 'pol-4388',
+    channel: 'courier',
+    documentId: null,
+    state: 'returned',
+    recipientName: 'Rakesh Patel',
+    recipientContactMasked: '******7731',
+    courierName: 'Blue Dart',
+    trackingRef: 'BD-4471902288',
+    dispatchedBy: USER_IDS.priya,
+    dispatchedAt: isoTime(addDays(NOW, -155)),
+    deliveredAt: null,
+    confirmedAt: null,
+    confirmedBy: null,
+    returnReason: 'Premises locked on three attempts.',
+  },
+  {
+    id: 'dsp-4425-e',
+    policyId: 'pol-4425',
+    channel: 'e_policy_whatsapp',
+    documentId: null,
+    state: 'delivered',
+    recipientName: 'Rakesh Patel',
+    recipientContactMasked: '******4402',
+    courierName: null,
+    trackingRef: null,
+    dispatchedBy: USER_IDS.priya,
+    dispatchedAt: isoTime(addDays(NOW, -100)),
+    deliveredAt: isoTime(addDays(NOW, -100)),
+    confirmedAt: null,
+    confirmedBy: null,
+    returnReason: null,
+  },
+]
+
+/**
+ * The typed parts of a premium, kept as they were recorded.
+ *
+ * Every set here sums to the `net` its policy carries, which is the point: the
+ * roll-up on the record is a cross-check a person can hold against the insurer's
+ * schedule, and a cast where the two disagreed would be teaching the wrong thing.
+ * The agreement is a property of these figures, not something the code enforces —
+ * nothing sums these into `netPremium`, and when a real record disagrees the
+ * screen says so rather than choosing a side.
+ *
+ * Third-party premium is identical across the two motor policies on purpose. It
+ * is a regulated figure for the vehicle class, so it does not vary by customer,
+ * and a cast that varied it would misrepresent how motor pricing reads.
+ */
+export const POLICY_PREMIUM_COMPONENTS: readonly PolicyPremiumComponent[] = [
+  ...motorComponents('pol-4425', money(5_480), money(2_890), money(750)),
+  ...motorComponents('pol-4437', money(4_310), money(2_890), money(440)),
+  ...healthComponents('pol-4388', money(21_180), money(3_000)),
+  ...healthComponents('pol-4431', money(16_400), money(2_000)),
+]
+
+/**
+ * No-claim bonus, in basis points.
+ *
+ * Recorded because the next renewal has to carry it forward, and because it is
+ * the figure a customer argues about. The platform never applies it: the discount
+ * it earned was applied on the insurer's system, and the premium that came back
+ * is the one somebody typed.
+ */
+export const POLICY_NCBS: readonly PolicyNcb[] = [
+  {
+    id: 'ncb-4425',
+    policyId: 'pol-4425',
+    percentBp: 2_500,
+    source: 'previous_insurer',
+    carriedFromPolicyId: null,
+    recordedBy: USER_IDS.priya,
+    recordedAt: isoTime(addDays(NOW, -102)),
+  },
+  {
+    id: 'ncb-4437',
+    policyId: 'pol-4437',
+    percentBp: 5_000,
+    source: 'previous_insurer',
+    carriedFromPolicyId: null,
+    recordedBy: USER_IDS.priya,
+    recordedAt: isoTime(addDays(NOW, -366)),
   },
 ]
 
@@ -1700,6 +2100,78 @@ export const DOCUMENTS: readonly DocumentRecord[] = [
     extractedText: null,
     ocrFields: [],
   },
+
+  /*
+   * Hitesh Mehta's KYC file, on file rather than asserted.
+   *
+   * Before the state was derived, the cast could walk him to `complete` with an
+   * empty vault: the guard compared two lists the caller supplied and never
+   * asked what existed. It cannot now, so the documents that were always implied
+   * by his being completable are written down. The seed checklist asks for four
+   * lines; three have a document type and are here, and "Address proof" has none,
+   * so it is answered by a desk receipt the way that line always was.
+   */
+  {
+    id: 'doc-aadhaar-hitesh',
+    systemNo: localNo('DOC', 7),
+    subjectEntity: 'Customer',
+    subjectId: 'cus-hitesh-mehta',
+    docType: 'aadhaar',
+    version: 1,
+    submittedAt: isoTime(addDays(NOW, -6)),
+    verifiedAt: isoTime(addDays(NOW, -5)),
+    verifiedBy: USER_IDS.priya,
+    reviewState: 'verified',
+    retentionClass: 'standard',
+    isPresent: true,
+    uploadedByName: 'Hitesh Mehta',
+    fileName: 'aadhaar-front.jpg',
+    fileUrl: 'mock://documents/aadhaar-hitesh.jpg',
+    mimeType: 'image/jpeg',
+    extractedText: null,
+    // Masked at extraction, per §9. The full number never reaches storage.
+    ocrFields: [{ name: 'aadhaarLast4', value: '4471', confirmed: true }],
+  },
+  {
+    id: 'doc-pan-hitesh',
+    systemNo: localNo('DOC', 8),
+    subjectEntity: 'Customer',
+    subjectId: 'cus-hitesh-mehta',
+    docType: 'pan',
+    version: 1,
+    submittedAt: isoTime(addDays(NOW, -6)),
+    verifiedAt: isoTime(addDays(NOW, -5)),
+    verifiedBy: USER_IDS.priya,
+    reviewState: 'verified',
+    retentionClass: 'standard',
+    isPresent: true,
+    uploadedByName: 'Hitesh Mehta',
+    fileName: 'pan-card.jpg',
+    fileUrl: 'mock://documents/pan-hitesh.jpg',
+    mimeType: 'image/jpeg',
+    extractedText: null,
+    ocrFields: [{ name: 'panNumber', value: 'ABCPM4471N', confirmed: true }],
+  },
+  {
+    id: 'doc-photo-hitesh',
+    systemNo: localNo('DOC', 9),
+    subjectEntity: 'Customer',
+    subjectId: 'cus-hitesh-mehta',
+    docType: 'photo',
+    version: 1,
+    submittedAt: isoTime(addDays(NOW, -6)),
+    verifiedAt: isoTime(addDays(NOW, -5)),
+    verifiedBy: USER_IDS.priya,
+    reviewState: 'verified',
+    retentionClass: 'standard',
+    isPresent: true,
+    uploadedByName: 'Hitesh Mehta',
+    fileName: 'photograph.jpg',
+    fileUrl: 'mock://documents/photo-hitesh.jpg',
+    mimeType: 'image/jpeg',
+    extractedText: null,
+    ocrFields: [],
+  },
 ]
 
 /* -------------------------------------------------------------------- claims */
@@ -1877,7 +2349,27 @@ type RenewalSeed = {
   readonly remindersSent?: number
 }
 
-const RENEWAL_LEAD_DAYS = 45
+/**
+ * The lead the `renewal.schedule` recipe carries, read from the seed the screens
+ * read rather than repeated here.
+ *
+ * A fixture holding its own copy of the number is how an admin edits the recipe
+ * to 60 days and every seeded `dueOn` stays put at 45 — silently, because both
+ * numbers are individually correct. That is the precise failure `lead-days.ts`
+ * refuses a default in order to prevent, and it would have been reintroduced one
+ * layer down. There is no fallback here for the same reason: a seed with no lead
+ * configured is a broken seed, not a seed with a fortnight in it.
+ */
+const RENEWAL_LEAD_DAYS = ((): number => {
+  const recipe = RECIPES.find((row) => row.key === 'renewal.schedule' && row.active)
+  const value = recipe?.parameters.leadDays
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(
+      'The renewal.schedule recipe carries no lead time, so no renewal task can be seeded against it.',
+    )
+  }
+  return value
+})()
 
 function buildRenewal(seed: RenewalSeed): RenewalTask {
   const expiry = new Date(`${seed.expiryDate}T00:00:00.000Z`)
@@ -1942,6 +2434,133 @@ export const RENEWAL_TASKS: readonly RenewalTask[] = [
     expiryDate: '2025-06-30',
     state: 'win_back_list',
   }),
+]
+
+/**
+ * What was actually said, on the record — FR-06.13.
+ *
+ * The story cast needs a worked example of each shape the timeline has to
+ * render, because a log with one kind of row in it proves nothing: a connected
+ * call that moved the stage, two no-answers that moved the attempt counter, and
+ * an inbound reply the customer sent unprompted. The notes read as somebody
+ * would actually type them after a call, which is the point — they are also why
+ * the field is classified `document-content` and never reaches the Assistant.
+ */
+export const ACTIVITIES: readonly Activity[] = [
+  {
+    id: 'act-0001',
+    systemNo: systemNo('activity', 1),
+    subjectEntity: 'Inquiry',
+    subjectId: ENGAGED_INQUIRY_ID,
+    channel: 'call',
+    direction: 'outbound',
+    occurredAt: isoTime(addDays(NOW, -6)),
+    actorId: USER_IDS.nita,
+    dispositionKey: 'not_reachable',
+    notes: 'Rang twice in the afternoon, no answer either time.',
+    nextTaskId: null,
+    attemptNo: 1,
+    messageLogId: null,
+    createdAt: isoTime(addDays(NOW, -6)),
+  },
+  {
+    id: 'act-0002',
+    systemNo: systemNo('activity', 2),
+    subjectEntity: 'Inquiry',
+    subjectId: ENGAGED_INQUIRY_ID,
+    channel: 'call',
+    direction: 'outbound',
+    occurredAt: isoTime(addDays(NOW, -5)),
+    actorId: USER_IDS.nita,
+    dispositionKey: 'not_reachable',
+    notes: 'Tried again before lunch. Still ringing out.',
+    nextTaskId: null,
+    attemptNo: 2,
+    messageLogId: null,
+    createdAt: isoTime(addDays(NOW, -5)),
+  },
+  {
+    id: 'act-0003',
+    systemNo: systemNo('activity', 3),
+    subjectEntity: 'Inquiry',
+    subjectId: ENGAGED_INQUIRY_ID,
+    channel: 'call',
+    direction: 'outbound',
+    occurredAt: isoTime(addDays(NOW, -4)),
+    actorId: USER_IDS.nita,
+    dispositionKey: 'call_back',
+    notes: 'Spoke to him at last. Travelling until the weekend, asked me to ring back after.',
+    nextTaskId: null,
+    attemptNo: 2,
+    messageLogId: null,
+    createdAt: isoTime(addDays(NOW, -4)),
+  },
+  {
+    /*
+     * The inbound row — FR-06.18. The customer moved first, and it lands on the
+     * same timeline as the calls rather than in a message log nobody opens.
+     */
+    id: 'act-0004',
+    systemNo: systemNo('activity', 4),
+    subjectEntity: 'Inquiry',
+    subjectId: ENGAGED_INQUIRY_ID,
+    channel: 'whatsapp',
+    direction: 'inbound',
+    occurredAt: isoTime(addDays(NOW, -2)),
+    actorId: USER_IDS.nita,
+    dispositionKey: 'needs_info',
+    notes: 'He messaged asking what the premium looks like if he adds his wife.',
+    nextTaskId: null,
+    attemptNo: 2,
+    messageLogId: null,
+    createdAt: isoTime(addDays(NOW, -2)),
+  },
+  {
+    id: 'act-0005',
+    systemNo: systemNo('activity', 5),
+    subjectEntity: 'Inquiry',
+    subjectId: WORKED_INQUIRY_ID,
+    channel: 'call',
+    direction: 'outbound',
+    occurredAt: isoTime(addDays(NOW, -1)),
+    actorId: USER_IDS.nita,
+    dispositionKey: 'call_back',
+    notes: 'Wants to compare against his existing motor cover. Ringing back tomorrow.',
+    nextTaskId: null,
+    attemptNo: 0,
+    messageLogId: null,
+    createdAt: isoTime(addDays(NOW, -1)),
+  },
+]
+
+/**
+ * What the customer said they need — FR-06.16.
+ *
+ * One, on the lead that is being worked properly. It is the input the quotation
+ * composer opens with: before this record existed, §9.2 step 4 assumed the agent
+ * remembered the vehicle, the cover and the no-claim position from a phone call.
+ */
+export const REQUIREMENTS: readonly RequirementRecord[] = [
+  {
+    id: `req-${WORKED_INQUIRY_ID}`,
+    inquiryId: WORKED_INQUIRY_ID,
+    formSchemaId: 'frm-requirement-motor-v1',
+    objectKey: 'inquiry_requirement_motor',
+    schemaVersion: 1,
+    values: {
+      vehicleType: 'private_car',
+      makeModel: 'Maruti Baleno Zeta',
+      manufactureYear: 2021,
+      isNewVehicle: false,
+      coverKind: 'comprehensive',
+      addOnsWanted: 'Asked about zero depreciation and roadside assistance.',
+      hasClaimedBefore: false,
+      urgency: 'this_month',
+    },
+    capturedBy: USER_IDS.nita,
+    capturedAt: isoTime(addDays(NOW, -1)),
+    revisedAt: null,
+  },
 ]
 
 export const TASKS: readonly Task[] = [

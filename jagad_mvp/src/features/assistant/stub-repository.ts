@@ -228,6 +228,13 @@ export function anInquiry(over: Partial<AssistantInquiry> = {}): AssistantInquir
     escalationLevel: 0,
     createdAt: new Date(Date.now() - 2 * HOUR_MS).toISOString(),
     customerId: null,
+    // Engagement, FR-06.12 to .17. A stub inquiry has not been contacted, which
+    // is the state every inquiry is in before somebody rings.
+    stageKey: null,
+    stageEnteredAt: null,
+    contactAttempts: 0,
+    lastActivityAt: null,
+    nextActionAt: null,
     contactName: 'Rakesh Patel',
     contactMobile: '9800000000',
     contactEmail: null,

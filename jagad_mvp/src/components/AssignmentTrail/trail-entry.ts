@@ -31,6 +31,15 @@ export const TRAIL_KINDS = {
   converted: 'converted',
   lost: 'lost',
   notified: 'notified',
+  /**
+   * A contact that actually happened — FR-06.13. Distinct from `notified`, which
+   * is the platform having sent something: a message going out is not somebody
+   * having spoken to the customer, and a timeline that renders them the same way
+   * cannot answer the question the engagement layer exists to answer.
+   */
+  contacted: 'contacted',
+  /** The customer moved first. */
+  replied: 'replied',
 } as const
 
 export type TrailKind = (typeof TRAIL_KINDS)[keyof typeof TRAIL_KINDS]
@@ -46,6 +55,8 @@ export const TRAIL_KIND_STYLE: Readonly<Record<TrailKind, { tone: Tone; icon: Ic
   converted: { tone: 'ok', icon: 'doc' },
   lost: { tone: 'idle', icon: 'close' },
   notified: { tone: 'info', icon: 'msg' },
+  contacted: { tone: 'info', icon: 'users' },
+  replied: { tone: 'attn', icon: 'msg' },
 }
 
 /** One holder carried into an escalation. */

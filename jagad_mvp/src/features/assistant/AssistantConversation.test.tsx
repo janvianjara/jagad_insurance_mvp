@@ -17,7 +17,13 @@ import type { AssistantSession } from './use-assistant'
  * threshold rules and the real Ask cards, over projections.
  */
 const session: { current: AssistantSession } = {
-  current: { repo: null, templateKey: 'salesManager', userName: 'Nikunj Shah', enabled: true },
+  current: {
+    repo: null,
+    templateKey: 'salesManager',
+    userName: 'Nikunj Shah',
+    roleLabel: 'Sales · Team pipeline',
+    enabled: true,
+  },
 }
 
 vi.mock('./use-assistant', async (importOriginal) => {
@@ -38,16 +44,36 @@ function at(offsetMs: number): string {
 
 function signedInAs(templateKey: string, rows: StubRows, enabled = true) {
   const repo = stubAssistantRepository(rows, { enabled, userId: `usr-${templateKey}` })
-  session.current = { repo, templateKey, userName: 'Test person', enabled }
+  session.current = { repo, templateKey, userName: 'Test person', roleLabel: 'Test role', enabled }
 }
 
-function draw() {
+/**
+ * `noticeDelayMs={0}` everywhere below.
+ *
+ * The wait before a notice arrives is behaviour and has its own test; making
+ * every other test in this file sit through it would add twenty seconds to the
+ * suite to re-assert the same setTimeout twelve times.
+ */
+function draw(props: Partial<Parameters<typeof AssistantConversation>[0]> = {}) {
   return render(
     <MemoryRouter>
       <IconSprite />
-      <AssistantConversation />
+      <AssistantConversation noticeDelayMs={0} {...props} />
     </MemoryRouter>,
   )
+}
+
+/**
+ * The conversation's name as the HEADER shows it.
+ *
+ * It collides on purpose: "New conversation" is also the restart button's label,
+ * and once something has been asked the name is also the person's own turn in
+ * the feed. The header's copy is the `<span>`, so that is what is read.
+ */
+function threadName(): string {
+  const header = screen.getByRole('heading', { name: 'Assistant' }).closest('header')
+  const name = header?.querySelector('[class*="threadName"]')
+  return name?.textContent ?? ''
 }
 
 const AT_RISK = anInquiry({
@@ -155,7 +181,10 @@ describe('the suggestion chips', () => {
 
     expect(await screen.findByText('What is open in my book right now?')).toBeInTheDocument()
     await waitFor(() => expect(screen.getAllByText('Ask').length).toBeGreaterThan(0))
-    expect(screen.getAllByText('INQ-1044').length).toBeGreaterThan(0)
+
+    // The answer arrives after the thinking pause, so it is awaited rather than
+    // asserted straight away — the pause is behaviour, not a race in the test.
+    await waitFor(() => expect(screen.getAllByText('INQ-1044').length).toBeGreaterThan(0))
   })
 
   it('answers with nothing, and says why, when the scope is empty', async () => {
@@ -242,5 +271,151 @@ describe('an account with no Assistant grant', () => {
 
     expect(await screen.findByText(/does not hold the Assistant/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'My queue' })).toBeDisabled()
+  })
+})
+
+describe('a notice arrives rather than being there — FR-22.8', () => {
+  /**
+   * The delay is the whole difference between the two readings of the same
+   * rows. Something on screen when you arrive is part of the page; something
+   * that appears while you are reading is the system telling you it noticed.
+   * So this asserts the absence first, which is the half that carries meaning.
+   */
+  it('is not on the screen when the briefing lands, and is a moment later', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-old', raisedAt: at(-40 * DAY) })] })
+    draw({ noticeDelayMs: 40 })
+
+    await screen.findByText('1 claim')
+    expect(screen.queryByText('Assistant · noticed just now')).toBeNull()
+
+    expect(await screen.findByText('Assistant · noticed just now')).toBeInTheDocument()
+  })
+
+  /**
+   * Pushing an unrelated notice on top of an answer somebody is mid-way through
+   * reading is the exact behaviour that makes people switch notifications off.
+   */
+  it('holds off once the person has asked something', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-old', raisedAt: at(-40 * DAY) })] })
+    const user = userEvent.setup()
+    draw({ noticeDelayMs: 5_000 })
+
+    await screen.findByText('1 claim')
+    await user.click(screen.getByRole('button', { name: 'My claims' }))
+    await screen.findByText('Which claims are open in my queue?')
+
+    expect(screen.queryByText('Assistant · noticed just now')).toBeNull()
+  })
+})
+
+describe('the conversation is a conversation, not a menu', () => {
+  /**
+   * The thread's name is in the meta line rather than the heading — the heading
+   * names the screen, as every heading in this product does. See the note on
+   * `title` in AssistantConversation.tsx for why that is the one place this
+   * screen does not take the prototype's layout.
+   */
+  it('names itself after the first thing asked', async () => {
+    signedInAs('agent', { inquiries: [anInquiry({ id: 'inq-mine' })] })
+    const user = userEvent.setup()
+    draw({ withHeader: true })
+
+    await screen.findByRole('heading', { name: 'Assistant' })
+    expect(threadName()).toBe('New conversation')
+
+    await user.click(screen.getByRole('button', { name: 'My leads' }))
+
+    await waitFor(() => expect(threadName()).toBe('What is open in my book right now?'))
+  })
+
+  it('offers what follows an answer rather than the same chips again', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-old', raisedAt: at(-40 * DAY) })] })
+    const user = userEvent.setup()
+    draw()
+
+    await screen.findByText('1 claim')
+    const before = screen
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+      .join('|')
+
+    await user.click(screen.getByRole('button', { name: 'Past thirty days' }))
+    await screen.findByRole('heading', { name: 'What usually follows' })
+
+    await waitFor(() => {
+      const after = screen
+        .getAllByRole('button')
+        .map((button) => button.textContent)
+        .join('|')
+      expect(after).not.toBe(before)
+    })
+  })
+
+  it('starts over on request, and carries nothing across', async () => {
+    signedInAs('agent', { inquiries: [anInquiry({ id: 'inq-mine' })] })
+    const user = userEvent.setup()
+    draw({ withHeader: true })
+
+    await screen.findByText(/1 open lead/)
+    await user.click(screen.getByRole('button', { name: 'My leads' }))
+    await waitFor(() => expect(threadName()).toBe('What is open in my book right now?'))
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+
+    await waitFor(() => expect(threadName()).toBe('New conversation'))
+
+    // The exchange is gone — the question, and the answer under it.
+    expect(screen.queryByText('What is open in my book right now?')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New conversation' })).toBeDisabled()
+  })
+})
+
+describe('a produced document — FR-22.9', () => {
+  it('offers no Documents control until something has been produced', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-1' })] })
+    draw({ withHeader: true })
+
+    await screen.findByText('1 claim')
+    expect(screen.queryByRole('button', { name: /Documents/ })).toBeNull()
+  })
+
+  it('produces a sheet on agency letterhead and opens it beside the conversation', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-1', systemNo: 'CLM-0412' })] })
+    const user = userEvent.setup()
+    draw({ withHeader: true })
+
+    await screen.findByText('1 claim')
+    await user.click(screen.getByRole('button', { name: /Claim summary/ }))
+
+    // The feed gets a receipt for the document, naming it.
+    expect(await screen.findByText(/Claim Summary — CLM-0412\.pdf/)).toBeInTheDocument()
+    // The header now offers the conversation's documents.
+    expect(await screen.findByRole('button', { name: /Documents/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Open' }))
+
+    // The sheet itself, with the agency masthead on it.
+    expect(await screen.findByText('Jagad Insurance')).toBeInTheDocument()
+    expect(screen.getByText('Claim summary and current position')).toBeInTheDocument()
+  })
+
+  /**
+   * FR-22.14. A claim summary the Assistant produced may name the checklist and
+   * may not name the illness — health data is outside the projection entirely,
+   * so this is asserting a thing that cannot be reached rather than a filter.
+   */
+  it('names the checklist and never the diagnosis', async () => {
+    signedInAs('claims', { claims: [aClaim({ id: 'clm-1', systemNo: 'CLM-0412' })] })
+    const user = userEvent.setup()
+    draw({ withHeader: true })
+
+    await screen.findByText('1 claim')
+    await user.click(screen.getByRole('button', { name: /Claim summary/ }))
+    await screen.findByText(/Claim Summary — CLM-0412\.pdf/)
+    await user.click(screen.getByRole('button', { name: 'Open' }))
+
+    await screen.findByText('Claim summary and current position')
+    expect(screen.getByText(/It states no opinion on the outcome/)).toBeInTheDocument()
+    expect(screen.queryByText(/diagnosis/i)).toBeNull()
   })
 })

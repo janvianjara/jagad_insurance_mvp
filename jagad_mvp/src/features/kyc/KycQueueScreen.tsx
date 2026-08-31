@@ -1,4 +1,5 @@
 import { useRepositories } from '../../app/repositories-context'
+import { useSessionStore } from '../../app/store'
 import { useResource } from '../../lib/useResource'
 import { WorkQueue } from '../../components/WorkQueue'
 import { Skeleton } from '../../ui/data'
@@ -18,14 +19,21 @@ export function KycQueueScreen() {
   const repositories = useRepositories()
   const desk = customerDesk(repositories)
   const now = useCustomerNow()
+  // Sending a consent link is an outward mutation, so it is somebody's act and
+  // the queue has to know whose.
+  const user = useSessionStore((state) => state.user)
 
   const users = useResource(() => repositories.config.users(), 'kyc:queue-users')
 
-  if (!users.data) {
+  if (!users.data || !user) {
     return <Skeleton width="100%" height="20rem" />
   }
 
-  return <WorkQueue config={kycQueueConfig({ desk, users: users.data, now })} />
+  return (
+    <WorkQueue
+      config={kycQueueConfig({ desk, users: users.data, now, actorId: user.id })}
+    />
+  )
 }
 
 export default KycQueueScreen

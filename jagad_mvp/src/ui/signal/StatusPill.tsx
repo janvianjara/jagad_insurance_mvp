@@ -14,6 +14,13 @@ export type StatusPillProps = {
   size?: 'sm' | 'md'
   /** Drop the leading dot — for a pill that already carries an icon or stands alone. */
   dot?: boolean
+  /**
+   * The sentence behind the state, on hover. A pill is two or three words by
+   * design, so where the state has a reason — "KYC partial because the address
+   * proof is unverified" — this is where it goes. Never the only place a reason
+   * appears: a tooltip is unreachable by touch and by keyboard.
+   */
+  title?: string
   className?: string
 }
 
@@ -29,10 +36,16 @@ export function StatusPill({
   icon,
   size = 'sm',
   dot = true,
+  title,
   className,
 }: StatusPillProps) {
   return (
-    <span className={cx(tones.tone, styles.pill, className)} data-tone={tone} data-size={size}>
+    <span
+      className={cx(tones.tone, styles.pill, className)}
+      data-tone={tone}
+      data-size={size}
+      title={title}
+    >
       {icon ? <Icon name={icon} size="sm" /> : dot ? <span className={styles.dot} /> : null}
       <span className={styles.text}>{children}</span>
     </span>

@@ -288,6 +288,10 @@ export function toQuotationLines(draft: MatrixDraft): readonly DraftQuotationLin
       productId: column.productId,
       finalPayablePremium: premium,
       finalPremiumSource: premium ? ('typed' as const) : null,
+      // The matrix captures the final figure per column and never asks for its
+      // parts, so the components go down unrecorded rather than as zero.
+      netPremium: null,
+      gstAmount: null,
       benefitValues,
     }
   })

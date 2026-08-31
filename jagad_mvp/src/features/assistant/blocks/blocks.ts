@@ -3,9 +3,19 @@
  *
  * The prototype's renderer takes objects tagged `b: 'para' | 'rows' | 'table' |
  * 'kv' | 'note' | 'act' | 'choice' | 'file' | 'stop'` and turns each into
- * markup. Five of those nine are Ask-shaped and land here; `act`, `choice`,
- * `file` and `stop` all write, produce or extract, and they arrive with the
- * features that need them rather than as empty cases nobody can exercise.
+ * markup. All nine are here. Five are Ask-shaped and read; the other four are
+ * the ones that make the Assistant more than a search box, and each is bound to
+ * a product invariant rather than to a visual:
+ *
+ *   act     an intended change, spelled out, behind `<ConfirmGate>` (FR-22.4)
+ *   choice  a short list of alternatives, one of which is picked
+ *   file    a document this answer produced, on agency letterhead (FR-22.9)
+ *   stop    the money boundary, drawn — the figures a person types (D3, FR-22.5)
+ *
+ * `stop` is the one worth reading twice. It is not a missing feature drawn as a
+ * form: it is the platform stating, at the exact point where a lesser product
+ * would guess, that a premium or a settlement is the insurer's figure and has to
+ * be typed. Every field in it is a `<RecordOnlyAmount>`.
  *
  * Two rules shape the model, and both are product invariants rather than taste:
  *
@@ -78,6 +88,14 @@ export const BLOCK_KINDS = {
   kv: 'kv',
   /** The quiet framing line under an answer — where a notice states its reason. */
   note: 'note',
+  /** An intended change, previewed before anything happens (FR-22.4). */
+  act: 'act',
+  /** A short list of alternatives, one of which the person picks. */
+  choice: 'choice',
+  /** A document this answer produced, on agency letterhead (FR-22.9). */
+  file: 'file',
+  /** The money boundary: the figures only a person may type (D3, FR-22.5). */
+  stop: 'stop',
 } as const
 
 export type BlockKind = (typeof BLOCK_KINDS)[keyof typeof BLOCK_KINDS]
@@ -168,7 +186,120 @@ export type KvBlock = {
   readonly items: readonly KvItem[]
 }
 
-export type Block = ParaBlock | NoteBlock | RowsBlock | TableBlock | KvBlock
+/* ------------------------------------------------- act, choice, file, stop */
+
+/**
+ * An intended change, spelled out before anything happens — FR-22.4.
+ *
+ * The items are the change itself, in the same key-value shape a `kv` block
+ * uses, because a preview a person cannot read is a confirm button over an
+ * empty box. `<ConfirmGate>` refuses to confirm one with nothing in it, and that
+ * refusal is tested rather than described.
+ *
+ * `receipt` is what the turn says once it has been confirmed, and the rule for
+ * writing one is short: it may only claim what confirming actually does. This
+ * build's Assistant reads through a projection facade with no write methods on
+ * it, so an Act drafts the change and hands it to the module that owns the
+ * write — and the receipt says exactly that, and names where the change is
+ * made. A receipt claiming a mutation that did not happen would be worse than
+ * having no Act at all.
+ */
+export type ActBlock = {
+  readonly kind: 'act'
+  readonly title: string
+  readonly tag?: string
+  /** The change, spelled out. An empty list is refused by the gate. */
+  readonly items: readonly KvItem[]
+  /** The line beside the buttons: who is affected, what cannot be undone. */
+  readonly hint: string
+  readonly confirmLabel: string
+  /** True of what confirming does, and no more than that. */
+  readonly receipt: string
+  /** The module that owns the write, and where to find it. */
+  readonly handOff?: { readonly label: string; readonly to: string }
+}
+
+export type ChoiceOption = {
+  readonly id: string
+  readonly label: string
+}
+
+/**
+ * A short list of alternatives, one of which the person picks.
+ *
+ * The prototype's `choice`, and its most-repeated demonstration: rescheduling
+ * something is two taps rather than five screens. `current` states what the
+ * record says now, so the person is choosing against a fact rather than into a
+ * void, and `receipt` carries `{choice}` where the chosen label belongs.
+ */
+export type ChoiceBlock = {
+  readonly kind: 'choice'
+  readonly title: string
+  readonly tag?: string
+  /** What the record says now, before anything is picked. */
+  readonly current: string
+  readonly options: readonly ChoiceOption[]
+  /** `{choice}` is replaced with the chosen option's label. */
+  readonly receipt: string
+  readonly handOff?: { readonly label: string; readonly to: string }
+}
+
+/**
+ * A document this answer produced — FR-22.9.
+ *
+ * The block carries the document's id and how it reads in the feed; the page
+ * itself travels beside the blocks in `CardAnswer.documents` and is rendered by
+ * the drawer. Splitting them keeps this module free of the document model and
+ * keeps the feed's card honest about what it is: a receipt for something that
+ * was generated, not the thing itself.
+ */
+export type FileBlock = {
+  readonly kind: 'file'
+  /** Looks up the page in the documents this conversation produced. */
+  readonly documentId: string
+  readonly name: string
+  /** What is in it — pages, sections, letterhead. */
+  readonly meta: string
+  /** Where the figures came from. */
+  readonly note: string
+}
+
+export type StopField = {
+  readonly key: string
+  readonly label: string
+}
+
+/**
+ * The money boundary, drawn — D3 and FR-22.5.
+ *
+ * Everything around the figure is filled from records; the figure is not, and
+ * this block is where the product says so in as many words. Each field renders
+ * as a `<RecordOnlyAmount>`, which has no placeholder a system could fill and no
+ * seam a computation could be threaded through.
+ *
+ * There is deliberately no `total` on this type. A block that could carry one
+ * would be a block that could carry a sum the Assistant worked out.
+ */
+export type StopBlock = {
+  readonly kind: 'stop'
+  readonly title: string
+  /** Why the figure cannot come from here. Plain words, not an apology. */
+  readonly body: string
+  readonly fields: readonly StopField[]
+  /** Where the figure is actually recorded. */
+  readonly handOff?: { readonly label: string; readonly to: string }
+}
+
+export type Block =
+  | ParaBlock
+  | NoteBlock
+  | RowsBlock
+  | TableBlock
+  | KvBlock
+  | ActBlock
+  | ChoiceBlock
+  | FileBlock
+  | StopBlock
 
 /* ----------------------------------------------------------- row filtering */
 

@@ -20,3 +20,8 @@
 .density {
   justify-content: flex-start;
 }
+
+.signOut {
+  width: 100%;
+  justify-content: center;
+}

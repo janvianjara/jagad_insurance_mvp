@@ -1,8 +1,11 @@
+import { Suspense } from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { RouterProvider, createMemoryRouter } from 'react-router'
+import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createAppRoutes } from '../../app/router'
+import { builtRoutePaths, createAppRoutes } from '../../app/router'
+import { ROUTE_MAP } from '../../app/route-map'
+import { PlannedRoute } from '../../app/route-screens'
 import { RepositoriesProvider } from '../../app/repositories'
 import { useDrawerStore, useSessionStore } from '../../app/store'
 import { NO_LATENCY, createMockRepositories } from '../../data/mock'
@@ -157,15 +160,47 @@ describe('live counts', () => {
 })
 
 describe('routes', () => {
-  it('resolves a built-nowhere-yet route to a stub that says which phase owns it', async () => {
-    // Deliberately a P2 route. An M0 route would be built out from under this
-    // test by the very next step, which is what happened when it pointed at
-    // /inquiries: the assertion was correct and went stale the moment P-11
-    // landed. A phase the M0 slice never reaches keeps the stub honest.
-    renderApp('/claims')
+  it('leaves no route in the map resolving to a stub', () => {
+    // This assertion used to point at a live unbuilt route and went stale three
+    // times: /inquiries until P-11 built it, /claims until the client asked for
+    // claims, then /wallet. It has now gone stale for the last possible reason -
+    // every one of the 65 routes in section 4 is built, so there is no route left
+    // to point it at.
+    //
+    // So it is inverted rather than deleted. The property worth holding is no
+    // longer "an unbuilt route lands somewhere honest" but the stronger fact that
+    // replaced it, and this is what will say so on the day a route is added to
+    // the map with no screen behind it.
+    const built = new Set(builtRoutePaths())
+    const stubbed = ROUTE_MAP.filter((spec) => !built.has(spec.path)).map((spec) => spec.path)
 
-    expect(await screen.findByText('Claims is not built yet')).toBeInTheDocument()
-    expect(screen.getByText(/Planned for phase P2/)).toBeInTheDocument()
+    expect(stubbed).toEqual([])
+  })
+
+  it('still renders an honest stub for a spec with no screen behind it', async () => {
+    // The mechanism outlives its last live caller. A route added to the map
+    // tomorrow must still land on something that names the phase that owns it
+    // rather than on a blank page, so it is exercised directly against a spec
+    // rather than through a route that no longer exists. `PlannedScreen` is
+    // lazy, hence the boundary and the async find.
+    render(
+      <MemoryRouter>
+        <Suspense fallback={null}>
+          <PlannedRoute
+            spec={{
+              path: '/not-a-route',
+              title: 'Something later',
+              phase: 'P3',
+              layout: 'app',
+              resource: null,
+            }}
+          />
+        </Suspense>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Something later is not built yet')).toBeInTheDocument()
+    expect(screen.getByText(/Planned for phase P3/)).toBeInTheDocument()
   })
 
   it('renders the tokenised consent page with no shell and no session', async () => {
@@ -212,5 +247,54 @@ describe('the Assistant drawer', () => {
 
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assistant' })).toBeNull())
+  })
+})
+
+/**
+ * Search is the other half of the Cmd-K pair: Cmd-K asks a question, Cmd-/ finds
+ * a record. Both are summoned from the shell because both are asked from
+ * wherever the person already is, so both are tested here rather than in the
+ * feature — what is under test is the summoning, not the palette.
+ */
+describe('the search palette', () => {
+  it('opens on Cmd-/ from any screen, and closes on Escape', async () => {
+    const user = userEvent.setup()
+    renderApp('/policies')
+    await screen.findByRole('navigation', { name: 'Main' })
+
+    await user.keyboard('{Meta>}/{/Meta}')
+
+    const palette = await screen.findByRole('dialog', { name: 'Search records' })
+    expect(within(palette).getByRole('searchbox', { name: 'Search records' })).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Search records' })).toBeNull())
+  })
+
+  it('opens from the rail, so the keyboard path is not the only path', async () => {
+    const user = userEvent.setup()
+    renderApp('/policies')
+    await screen.findByRole('navigation', { name: 'Main' })
+
+    await user.click(screen.getByRole('button', { name: /Search/ }))
+
+    expect(await screen.findByRole('dialog', { name: 'Search records' })).toBeInTheDocument()
+  })
+
+  it('reopens on an empty field rather than holding the last question', async () => {
+    const user = userEvent.setup()
+    renderApp('/policies')
+    await screen.findByRole('navigation', { name: 'Main' })
+
+    await user.keyboard('{Control>}/{/Control}')
+    const field = await screen.findByRole('searchbox', { name: 'Search records' })
+    await user.type(field, 'Patel')
+    expect(field).toHaveValue('Patel')
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Search records' })).toBeNull())
+
+    await user.keyboard('{Control>}/{/Control}')
+    expect(await screen.findByRole('searchbox', { name: 'Search records' })).toHaveValue('')
   })
 })

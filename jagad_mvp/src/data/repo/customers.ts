@@ -16,6 +16,7 @@
  */
 
 import type { ConsentState, KycCompletionRoute, KycConsentState, ExtractedField } from '../../domain/workflows'
+import type { CustomerFacts, DerivedCustomerState } from '../../domain/derive'
 import type { MessageChannel } from './config'
 import type { MutationResult } from './result'
 import type { ListQuery, Page, ReadRepository } from './query'
@@ -66,6 +67,20 @@ export type Customer = {
   readonly subAgentId: string | null
   readonly kycState: KycConsentState
   readonly consentState: ConsentState
+  /**
+   * When a consent link was last sent to this person, and how many have been.
+   *
+   * Both are written by `advanceConsent` on the way into `link_issued`, so a
+   * chase recorded by the bulk action and one recorded by a person opening the
+   * file are the same fact written the same way — there is no path that sends a
+   * link without leaving this behind.
+   *
+   * `null` means never chased, which is a different thing from chased long ago
+   * and is the reason this is not a number of days. The KYC queue sorts on it,
+   * and FR-21's cadence reads it to decide whether a resend is due.
+   */
+  readonly lastConsentChaseAt: string | null
+  readonly consentChaseCount: number
   readonly fullName: string
   readonly mobile: string
   readonly altMobile: string | null
@@ -174,16 +189,39 @@ export type CreateCustomerCommand = {
   readonly now?: Date
 }
 
-/** Everything the KYC machine's guards need, supplied by the desk doing the work. */
+/**
+ * What the desk supplies to move KYC on.
+ *
+ * Two fields used to live here and no longer do: `requiredDocuments` and
+ * `presentDocuments`. The guard compared them against each other, so a caller
+ * could satisfy completion by describing a file rather than by having one. The
+ * repository now derives both from its own document ledger — see `kycFacts`.
+ *
+ * `receipts` survives because it is genuinely the desk's to assert: a
+ * back-office user recording that a checklist line arrived outside the vault is
+ * a real action by a real person, not a claim about stored evidence.
+ */
 export type KycCommand = {
   readonly actorId: string
   readonly route: KycCompletionRoute
-  readonly requiredDocuments: readonly string[]
-  readonly presentDocuments: readonly string[]
+  /** Checklist lines the desk has recorded as arrived, by their configured wording. */
+  readonly receipts?: readonly string[]
   /** OCR output. Any unconfirmed entry blocks the move, per the OCR invariant. */
   readonly extractedFields: readonly ExtractedField[]
   readonly aadhaarLast4?: string
   readonly now?: Date
+}
+
+export type KycFactsOptions = {
+  readonly now?: Date
+  /** Checklist lines recorded as arrived at the desk, by their configured wording. */
+  readonly receipts?: readonly string[]
+  /**
+   * A masked Aadhaar arriving in this same command, before it is on the record.
+   * Without it a first completion would be refused for missing the very value it
+   * is carrying.
+   */
+  readonly pendingAadhaarLast4?: string
 }
 
 export type ConsentCommand = {
@@ -208,6 +246,20 @@ export type CustomerRepository = ReadRepository<Customer> & {
   members(customerId: string): Promise<readonly Member[]>
   consent(customerId: string): Promise<ConsentRecord | null>
   credentials(customerId: string): Promise<readonly CustomerCredential[]>
+
+  /**
+   * The KYC file as evidence, assembled from the document ledger, the configured
+   * checklist and the customer's policies.
+   *
+   * One source, two readers: the screen draws its checklist from this and the
+   * machine decides its transition from this, so the header and the checklist
+   * below it cannot disagree. `receipts` are folded in by the caller that holds
+   * them until they have a table of their own.
+   */
+  kycFacts(customerId: string, options?: KycFactsOptions): Promise<CustomerFacts | null>
+
+  /** `kycFacts` run through `deriveCustomerState`. What a badge renders. */
+  derivedState(customerId: string, options?: KycFactsOptions): Promise<DerivedCustomerState | null>
 
   /**
    * Puts a customer on the books, numbered, with KYC pending and no consent link

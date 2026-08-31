@@ -1,0 +1,119 @@
+/**
+ * `/back-office/collections` — the verification queue and its drawer.
+ *
+ * The table itself is `<WorkQueue>`'s, so nothing here styles a list. What is
+ * left is the two row cells that carry more than a word, and the drawer where
+ * the two §9 moves are made.
+ *
+ * No colour is written here. Every value is a token from `src/styles/tokens.css`,
+ * which is what `npm run check` enforces and what keeps lime meaning "needs a
+ * person" on this screen as well as everywhere else.
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+/* ------------------------------------------------------------------- cells */
+
+.modeCell {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-tight);
+}
+
+/**
+ * §9's rule, on the row: an on-field collection cannot close until the back
+ * office has verified it. Said in words rather than in colour — the stripe is
+ * already carrying this row's severity, and a second signal in the cell would be
+ * two things saying one thing.
+ */
+.blocking {
+  margin-top: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ drawer */
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: var(--text-ui);
+}
+
+.facts dt {
+  color: var(--ink-3);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.factNote {
+  display: block;
+  margin-top: var(--sp-1);
+  max-width: var(--measure-tight);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hair);
+}
+
+/**
+ * Why a control is unavailable, said next to it rather than as a tooltip. A
+ * disabled button with no sentence beside it is the thing people file bugs about.
+ */
+.blocked {
+  margin: 0;
+  max-width: var(--measure-tight);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+/** The machine's own refusal, rendered as written. */
+.refusal {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+  max-width: var(--measure-tight);
+}
+
+.receiptNote {
+  display: block;
+  margin-top: var(--sp-2);
+  color: var(--ink-3);
+}
+
+.bounceForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hair);
+}

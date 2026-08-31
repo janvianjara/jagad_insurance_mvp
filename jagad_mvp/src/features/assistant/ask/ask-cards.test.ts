@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { ASK_CARDS, askCardById, chipsFor } from './ask-cards'
-import type { Block } from '../blocks/blocks'
+import { ALL_CARDS, ASK_CARDS, askCardById, chipsFor, followUpsFor } from './ask-cards'
+
+import type { CardAnswer } from './card-kit'
 import { aClaim, aQuotation, aRenewal, aTask, anInquiry, stubAssistantRepository } from '../stub-repository'
 
 const NOW = new Date('2026-08-26T09:30:00.000Z')
@@ -13,14 +14,14 @@ function at(offsetMs: number): string {
 
 const ROLES = ['admin', 'salesManager', 'agent', 'backOffice', 'claims', 'renewals'] as const
 
-function textOf(blocks: readonly Block[]): string {
-  return blocks
+function textOf(answer: CardAnswer): string {
+  return answer.blocks
     .map((block) => (block.kind === 'para' || block.kind === 'note' ? block.text : ''))
     .join(' ')
 }
 
-function tableOf(blocks: readonly Block[]) {
-  const table = blocks.find((block) => block.kind === 'table')
+function tableOf(answer: CardAnswer) {
+  const table = answer.blocks.find((block) => block.kind === 'table')
   return table?.kind === 'table' ? table : null
 }
 
@@ -59,8 +60,51 @@ describe('the chips differ per role', () => {
     ])
   })
 
-  it('tags every M0 card as an Ask — nothing here writes', () => {
+  it('splits the registry by the four request kinds FR-22.2 names', () => {
     for (const card of ASK_CARDS) expect(card.kind).toBe('Ask')
+    expect(new Set(ALL_CARDS.map((card) => card.kind))).toEqual(
+      new Set(['Ask', 'Analyse', 'Act', 'Produce']),
+    )
+  })
+
+  it('gives every role more than one kind of request to make', () => {
+    for (const role of ROLES) {
+      expect(new Set(chipsFor(role).map((card) => card.kind)).size).toBeGreaterThan(1)
+    }
+  })
+})
+
+describe('an answer proposes what follows it', () => {
+  it('offers something other than the role’s own chips after an answer', () => {
+    const role = chipsFor('claims').map((card) => card.id)
+    const after = followUpsFor('aged-claims', 'claims').map((card) => card.id)
+
+    expect(after.length).toBeGreaterThan(0)
+    expect(after).not.toEqual(role)
+  })
+
+  it('never offers a card whose subject this role has no work in', () => {
+    // The repository would return an empty answer anyway, so this is not a leak
+    // — it is the difference between a chip that is useless and one that is
+    // absent. A renewals officer must not be offered claim work.
+    for (const card of followUpsFor('renewals-lapsed', 'renewals')) {
+      expect(card.id).not.toContain('claim')
+    }
+  })
+
+  it('falls back to the role’s own chips rather than leaving a dead end', () => {
+    const role = chipsFor('agent').map((card) => card.id)
+    expect(followUpsFor('a-card-that-does-not-exist', 'agent').map((card) => card.id)).toEqual(role)
+  })
+
+  it('never names a follow-up that is not in the registry', () => {
+    for (const role of ROLES) {
+      for (const card of chipsFor(role)) {
+        for (const next of followUpsFor(card.id, role)) {
+          expect(ALL_CARDS.map((known) => known.id)).toContain(next.id)
+        }
+      }
+    }
   })
 })
 
@@ -69,22 +113,22 @@ describe('a card is a query over the projection, run as the person asking', () =
     const mine = anInquiry({ id: 'inq-mine', systemNo: 'INQ-1041' })
     const repo = stubAssistantRepository({ inquiries: [mine] })
 
-    const blocks = await askCardById('my-leads')!.run(repo, NOW)
-    const table = tableOf(blocks)
+    const answer = await askCardById('my-leads')!.run(repo, NOW)
+    const table = tableOf(answer)
 
     expect(table?.rows).toHaveLength(1)
     expect(table?.rows[0].id).toBe('inq-mine')
-    expect(textOf(blocks)).toContain('1 open lead')
+    expect(textOf(answer)).toContain('1 open lead')
   })
 
   it('gives nothing back — and says so — when the scope holds nothing', async () => {
     // What an agent asking about a customer they did not source actually gets:
     // the facade returned no rows, so the card has nothing to answer with.
-    const blocks = await askCardById('my-leads')!.run(stubAssistantRepository({}), NOW)
+    const answer = await askCardById('my-leads')!.run(stubAssistantRepository({}), NOW)
 
-    expect(tableOf(blocks)).toBeNull()
-    expect(textOf(blocks)).toContain('Nothing in your book matches that')
-    expect(textOf(blocks)).toContain('it was never in the query')
+    expect(tableOf(answer)).toBeNull()
+    expect(textOf(answer)).toContain('Nothing in your book matches that')
+    expect(textOf(answer)).toContain('it was never in the query')
   })
 
   it('gives an account with no Assistant grant nothing from any card', async () => {
@@ -93,9 +137,76 @@ describe('a card is a query over the projection, run as the person asking', () =
       { enabled: false },
     )
 
-    for (const card of ASK_CARDS) {
+    // Every card of every kind, not only the reads: an account with no grant
+    // gets an empty answer from Analyse, Act and Produce too.
+    for (const card of ALL_CARDS) {
       expect(tableOf(await card.run(repo, NOW))).toBeNull()
     }
+  })
+
+  /**
+   * FR-06.19 — the question the prototype has been promising and the model could
+   * not answer.
+   *
+   * Both of these leads are `accepted` with a stopped clock, so nothing else in
+   * the product tells them apart. The engagement fields do.
+   */
+  it('separates a lead that went quiet from one being worked, and never reads the note', async () => {
+    const repo = stubAssistantRepository({
+      inquiries: [
+        anInquiry({
+          id: 'quiet',
+          systemNo: 'INQ-2001',
+          status: 'accepted',
+          stageKey: 'contacted',
+          lastActivityAt: at(-12 * 24 * HOUR),
+          nextActionAt: at(-2 * 24 * HOUR),
+        }),
+        anInquiry({
+          id: 'never',
+          systemNo: 'INQ-2002',
+          status: 'accepted',
+          stageKey: null,
+          lastActivityAt: null,
+          nextActionAt: null,
+        }),
+        anInquiry({
+          id: 'worked',
+          systemNo: 'INQ-2003',
+          status: 'accepted',
+          stageKey: 'follow_up_scheduled',
+          lastActivityAt: at(-HOUR),
+          nextActionAt: at(24 * HOUR),
+        }),
+      ],
+    })
+
+    const answer = await askCardById('quiet-leads')!.run(repo, NOW)
+    expect(textOf(answer)).toContain('2 leads have')
+
+    const rows = answer.blocks.flatMap((block) => (block.kind === 'rows' ? block.rows : []))
+    const primaries = rows.map((row) => row.primary)
+    expect(primaries).toContain('A next action that came and went')
+    expect(primaries).toContain('No next action ever set')
+
+    // The one with a date still to come is not quiet, and is not named.
+    expect(primaries).not.toContain('INQ-2003')
+    // The quietest first, and the one nobody rang says exactly that.
+    expect(primaries).toContain('INQ-2002')
+    expect(rows.map((row) => row.secondary).join(' ')).toContain(
+      'Nobody has logged a contact against this one at all',
+    )
+  })
+
+  it('says so plainly when nothing has gone quiet', async () => {
+    const repo = stubAssistantRepository({
+      inquiries: [
+        anInquiry({ id: 'ok', status: 'accepted', nextActionAt: at(24 * HOUR) }),
+      ],
+    })
+
+    const text = textOf(await askCardById('quiet-leads')!.run(repo, NOW))
+    expect(text).toContain('Nothing has gone quiet')
   })
 
   it('narrows to the three-hour window for TAT at risk', async () => {
@@ -157,9 +268,12 @@ describe('a card is a query over the projection, run as the person asking', () =
     const many = Array.from({ length: 12 }, (_, index) =>
       anInquiry({ id: `inq-${index}`, systemNo: `INQ-11${index}` }),
     )
-    const blocks = await askCardById('open-inquiries')!.run(stubAssistantRepository({ inquiries: many }), NOW)
+    const answer = await askCardById('open-inquiries')!.run(
+      stubAssistantRepository({ inquiries: many }),
+      NOW,
+    )
 
-    expect(tableOf(blocks)?.rows).toHaveLength(8)
-    expect(textOf(blocks)).toContain('Showing the first 8 of 12')
+    expect(tableOf(answer)?.rows).toHaveLength(8)
+    expect(textOf(answer)).toContain('Showing the first 8 of 12')
   })
 })

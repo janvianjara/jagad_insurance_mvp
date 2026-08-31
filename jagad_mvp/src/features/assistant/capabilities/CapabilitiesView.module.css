@@ -1,0 +1,300 @@
+/*
+ * A reading page — the prototype's `#cap`.
+ *
+ * One column, capped at a comfortable measure, with four bordered groups down
+ * it. Nothing here is a dashboard and nothing here is a card grid: the page's
+ * job is to be read and believed, and the layout that does that is the one a
+ * document uses. It stays in the UI face — it is a screen about the product,
+ * not a generated document.
+ */
+
+.page {
+  padding-block: var(--page-gutter-top) var(--page-gutter-bottom);
+  padding-inline: var(--page-gutter-x);
+}
+
+.inner {
+  display: grid;
+  gap: var(--sp-5);
+  inline-size: 100%;
+  max-inline-size: 52rem;
+  margin-inline: auto;
+}
+
+.back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--action);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Points back, not forward. The sprite has one chevron and it is right-facing. */
+.back svg {
+  transform: scaleX(-1);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-reading);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ groups */
+
+.group {
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-xl);
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+}
+
+.groupHead h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.groupHead p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.groupNote {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--hair);
+  background: var(--sunken);
+  font-size: var(--text-sm);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------- the kinds */
+
+.kind {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+}
+
+.kind:last-child {
+  border-bottom: none;
+}
+
+/*
+ * The stripe stands for the kind, and takes the colour that kind already has
+ * elsewhere on this screen. Act is navy because it leads to a change; the other
+ * three are neutral, because a read is not an action and not a status.
+ */
+.kindBar {
+  flex: none;
+  inline-size: 2px;
+  align-self: stretch;
+  border-radius: 1px;
+  background: var(--border);
+}
+
+.kind[data-kind='Act'] .kindBar {
+  background: var(--action);
+}
+
+.kindName {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.kindTag {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--sp-1);
+}
+
+.kind[data-kind='Act'] .kindTag {
+  color: var(--action-ink);
+  background: var(--action);
+  border-color: var(--action);
+}
+
+.kindSummary {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+/* The examples are things a person could type, so they are set as the input
+   would show them: bordered, quiet, and in the sentence case they'd be typed. */
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.examples li {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  background: var(--sunken);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  padding: var(--sp-1) var(--sp-3);
+}
+
+/* -------------------------------------------------------------- the tables */
+
+.scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-inline-size: 36rem;
+}
+
+.table th[scope='col'] {
+  text-align: start;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--hair);
+  white-space: nowrap;
+}
+
+.table th[scope='row'] {
+  text-align: start;
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  inline-size: 20%;
+}
+
+.table td,
+.table th[scope='row'] {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+  color: var(--ink-2);
+  vertical-align: top;
+  line-height: var(--leading-loose);
+}
+
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
+  border-bottom: none;
+}
+
+/* What it looks like today, which is the half being replaced. */
+.was {
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------- the refusals */
+
+.never {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+}
+
+.never:last-child {
+  border-bottom: none;
+}
+
+/*
+ * A refusal mark. Red, because it is the one thing on this page that is a hard
+ * stop — and drawn as a rule rather than a cross so it reads as a line that is
+ * not crossed rather than as an error.
+ */
+.no {
+  flex: none;
+  inline-size: var(--sp-3);
+  block-size: 2px;
+  margin-block-start: 0.7em;
+  border-radius: 1px;
+  background: var(--bad);
+}
+
+.neverClaim {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.neverClaim strong {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* Where the rule is enforced. Mono, because it names code. */
+.neverWhere {
+  margin: var(--sp-1) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+@media (max-width: 60rem) {
+  .page {
+    padding-inline: var(--sp-4);
+  }
+}

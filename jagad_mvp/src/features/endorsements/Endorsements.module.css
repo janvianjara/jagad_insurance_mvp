@@ -1,0 +1,205 @@
+/* The endorsement module's own layout. Colour comes from tokens only. */
+
+.page {
+  display: grid;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  align-content: start;
+}
+
+.loading {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.columns {
+  display: grid;
+  gap: var(--sp-5);
+  grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+  align-items: start;
+}
+
+@media (max-width: 68rem) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stack {
+  display: grid;
+  gap: var(--sp-4);
+  align-content: start;
+}
+
+.prose {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.note {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  line-height: var(--leading-normal);
+}
+
+.absent {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.amountCell {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.amountLabel {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* Lime: something needs a person, and nothing is wrong. */
+.needsPerson {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--attn);
+  border-radius: var(--radius-md);
+  background: var(--attn-soft);
+  color: var(--ink);
+  max-inline-size: var(--measure);
+}
+
+/* Amber: at risk, or refused. Never red — nothing here has gone wrong. */
+.blocked {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--ink);
+  max-inline-size: var(--measure);
+}
+
+.blockedBody {
+  display: grid;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.blockedTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.blockedReason {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.fieldGrid {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.checkList {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.figure {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.figureValue {
+  font-size: var(--text-xl);
+}
+
+.figureSource {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.reference {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.versionList {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+}
+
+.versionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-ui);
+}
+
+.versionNumbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.versionNote {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.actionsFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.claims {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.claimIds {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}

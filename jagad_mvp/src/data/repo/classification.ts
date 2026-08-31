@@ -25,7 +25,9 @@
 
 import type { DataClass, EntityName, FieldOf } from '../../domain/dataclass'
 import type { Customer, Household, Member, ConsentRecord, CustomerCredential } from './customers'
+import type { Activity } from './activities'
 import type { Inquiry } from './inquiries'
+import type { RequirementRecord } from './requirements'
 import type { Quotation, QuotationLine } from './quotations'
 import type { Deal } from './deals'
 import type {
@@ -34,7 +36,10 @@ import type {
   Mandate,
   MandateEvent,
   Policy,
+  PolicyDispatch,
   PolicyEntryDraft,
+  PolicyNcb,
+  PolicyPremiumComponent,
   PolicyVersion,
   PremiumSchedule,
 } from './policies'
@@ -44,12 +49,18 @@ import type { DocChecklist, Product } from './products'
 import type { BenefitItem, PolicyBenefitMap } from './benefits'
 import type { Agency, AgencyPolicyScope } from './agencies'
 import type { Agent, CommissionSplit } from './agents'
+import type { RecipeRun } from './recipes'
 import type { RenewalTask, Task } from './tasks'
 import type { CommissionRule, LedgerEntry } from './commission'
 import type { Claim } from './claims'
+import type { Endorsement } from './endorsements'
+import type { IntegrationConfig } from './integrations'
+import type { NoticeBatch, NoticeMatch, OcrTemplate } from './notices'
 import type {
+  Disposition,
   FormSchema,
   InquiryCategory,
+  InquiryStage,
   MasterType,
   MasterValue,
   MessageLog,
@@ -111,8 +122,52 @@ export const DATA_FIELD_CLASSES = {
     productId: 'operational',
     finalPayablePremium: 'operational',
     finalPremiumSource: 'operational',
+    netPremium: 'operational',
+    gstAmount: 'operational',
     benefitValues: 'operational',
     locked: 'operational',
+  },
+
+  PolicyDispatch: {
+    id: 'operational',
+    policyId: 'operational',
+    channel: 'operational',
+    documentId: 'document-content',
+    state: 'operational',
+    // Who it went to and how to reach them: `contact`, so the Assistant can say
+    // "the courier returned it" without being able to read who it went to or how.
+    recipientName: 'contact',
+    recipientContactMasked: 'contact',
+    courierName: 'operational',
+    trackingRef: 'operational',
+    dispatchedBy: 'operational',
+    dispatchedAt: 'operational',
+    deliveredAt: 'operational',
+    confirmedAt: 'operational',
+    confirmedBy: 'operational',
+    returnReason: 'operational',
+  },
+
+  PolicyPremiumComponent: {
+    id: 'operational',
+    policyId: 'operational',
+    key: 'operational',
+    label: 'operational',
+    amount: 'operational',
+    schemaVersion: 'operational',
+    sortOrder: 'operational',
+    recordedBy: 'operational',
+    recordedAt: 'operational',
+  },
+
+  PolicyNcb: {
+    id: 'operational',
+    policyId: 'operational',
+    percentBp: 'operational',
+    source: 'operational',
+    carriedFromPolicyId: 'operational',
+    recordedBy: 'operational',
+    recordedAt: 'operational',
   },
 
   PolicyVersion: {
@@ -283,6 +338,7 @@ export const DATA_FIELD_CLASSES = {
     productId: 'operational',
     commissionPercentBp: 'operational',
     effectiveFrom: 'operational',
+    effectiveTo: 'operational',
     active: 'operational',
   },
 
@@ -316,6 +372,31 @@ export const DATA_FIELD_CLASSES = {
     effectiveFrom: 'operational',
   },
 
+  /**
+   * A run is machine output about machine behaviour, so nearly all of it is
+   * operational. `reason` is the exception worth naming: it is prose the
+   * dispatcher wrote, and a recipe acting on a task carries that task's title
+   * into its sentence — and a task title routinely names the customer it is
+   * about, which is why `Task.title` is `contact` two entries below.
+   */
+  RecipeRun: {
+    id: 'operational',
+    idempotencyKey: 'operational',
+    recipeKey: 'operational',
+    recipeVersion: 'operational',
+    trigger: 'operational',
+    subjectEntity: 'operational',
+    subjectId: 'operational',
+    phase: 'operational',
+    decision: 'operational',
+    reason: 'contact',
+    emitted: 'operational',
+    evaluatedAt: 'operational',
+    clockAt: 'operational',
+    causedBy: 'operational',
+    chain: 'operational',
+  },
+
   Task: {
     id: 'operational',
     systemNo: 'operational',
@@ -333,6 +414,87 @@ export const DATA_FIELD_CLASSES = {
     raisedBy: 'operational',
     /** A task title routinely names the customer it is about. */
     title: 'contact',
+  },
+
+  /**
+   * Every field here is `operational` except one, and that one is the reason the
+   * Assistant can be useful about engagement at all.
+   *
+   * `notes` is what a staff member typed after a call. On a health inquiry that
+   * routinely includes a diagnosis — "his father is diabetic, wants PED cover" —
+   * so it is `document-content` and sits outside the allow-list permanently.
+   * Everything around it stays operational, which means the Assistant can answer
+   * that contact happened, when, on which channel, with what outcome and how
+   * many attempts it took, while never learning a word of what was said. That
+   * split is what makes "which leads haven't been touched in 10 days" a question
+   * this platform can answer safely.
+   */
+  Activity: {
+    id: 'operational',
+    systemNo: 'operational',
+    subjectEntity: 'operational',
+    subjectId: 'operational',
+    channel: 'operational',
+    direction: 'operational',
+    occurredAt: 'operational',
+    actorId: 'operational',
+    dispositionKey: 'operational',
+    nextTaskId: 'operational',
+    attemptNo: 'operational',
+    messageLogId: 'operational',
+    createdAt: 'operational',
+    notes: 'document-content',
+  },
+
+  /**
+   * `values` is the whole conversation, so it is classified for the worst thing
+   * it can hold rather than the average one.
+   *
+   * The health schema asks whether any pre-existing conditions were declared,
+   * and a motor one carries free text in the customer's own words. Neither is a
+   * field the Assistant has any business reading, and the bag is one value so it
+   * cannot be classified field by field. `document-content` is therefore the
+   * honest class: the Assistant may know a requirement was captured and when —
+   * both operational — and never what is in it.
+   */
+  RequirementRecord: {
+    id: 'operational',
+    inquiryId: 'operational',
+    formSchemaId: 'operational',
+    objectKey: 'operational',
+    schemaVersion: 'operational',
+    capturedBy: 'operational',
+    capturedAt: 'operational',
+    revisedAt: 'operational',
+    values: 'document-content',
+  },
+
+  Disposition: {
+    id: 'operational',
+    key: 'operational',
+    label: 'operational',
+    channelKeys: 'operational',
+    stageKey: 'operational',
+    requiresNextAction: 'operational',
+    requiresReason: 'operational',
+    incrementsAttempt: 'operational',
+    suggestedTemplateKey: 'operational',
+    defaultRetryMinutes: 'operational',
+    sortOrder: 'operational',
+    active: 'operational',
+  },
+
+  InquiryStage: {
+    id: 'operational',
+    key: 'operational',
+    label: 'operational',
+    allowedFromKeys: 'operational',
+    requiresNextAction: 'operational',
+    countsAsOpen: 'operational',
+    terminal: 'operational',
+    parksTheLead: 'operational',
+    sortOrder: 'operational',
+    active: 'operational',
   },
 
   RenewalTask: {
@@ -455,7 +617,114 @@ export const DATA_FIELD_CLASSES = {
     channel: 'operational',
     subject: 'operational',
     body: 'operational',
+    recipeKey: 'operational',
+    version: 'operational',
     active: 'operational',
+    updatedAt: 'operational',
+    updatedBy: 'operational',
+  },
+
+  /**
+   * The two figures are `operational` because they are amounts, and every amount
+   * in this registry is: the Assistant's allow-list decides which amounts it may
+   * see, and it does that per field rather than per class. `reason` is `contact`
+   * because an endorsement reason routinely names the person being corrected.
+   */
+  Endorsement: {
+    id: 'operational',
+    systemNo: 'operational',
+    insurerEndorsementNo: 'operational',
+    policyId: 'operational',
+    customerId: 'operational',
+    type: 'operational',
+    state: 'operational',
+    ownerId: 'operational',
+    requestedAt: 'operational',
+    effectiveFrom: 'operational',
+    changedFields: 'operational',
+    replacesInsuredEntity: 'operational',
+    delta: 'operational',
+    refund: 'operational',
+    claimsVerdict: 'operational',
+    policyVersionId: 'operational',
+    approvedBy: 'operational',
+    approvedAt: 'operational',
+    reason: 'contact',
+    documentId: 'document-content',
+  },
+
+  NoticeBatch: {
+    id: 'operational',
+    systemNo: 'operational',
+    companyId: 'operational',
+    ocrTemplateId: 'operational',
+    state: 'operational',
+    sourceDocumentId: 'operational',
+    expiryMonth: 'operational',
+    uploadedBy: 'operational',
+    uploadedAt: 'operational',
+    ocrStartedAt: 'operational',
+    ocrCompletedAt: 'operational',
+    rowCount: 'operational',
+    sentBy: 'operational',
+    sentAt: 'operational',
+    /** An insurer's own file name, in the same class as every other file name. */
+    fileName: 'document-content',
+  },
+
+  /**
+   * `ocrFields` is `document-content` for exactly the reason `Document.ocrFields`
+   * is: it is what the paper said, lifted verbatim. `noticeCustomerName` is the
+   * customer as the insurer printed them, so it is `contact`.
+   */
+  NoticeMatch: {
+    id: 'operational',
+    batchId: 'operational',
+    rowNumber: 'operational',
+    state: 'operational',
+    noticePolicyNo: 'operational',
+    noticeExpiryDate: 'operational',
+    noticePremium: 'operational',
+    noticePremiumSource: 'operational',
+    matchedPolicyId: 'operational',
+    matchedCustomerId: 'operational',
+    manuallyLinkedBy: 'operational',
+    linkedAt: 'operational',
+    rejectReason: 'operational',
+    noticeCustomerName: 'contact',
+    ocrFields: 'document-content',
+  },
+
+  OcrTemplate: {
+    id: 'operational',
+    companyId: 'operational',
+    key: 'operational',
+    label: 'operational',
+    docType: 'operational',
+    version: 'operational',
+    fields: 'operational',
+    active: 'operational',
+    updatedAt: 'operational',
+  },
+
+  /**
+   * Every field is `operational` because there is nothing else on this type. The
+   * platform records that an integration exists; the credential lives in the
+   * provider's console, and `settings` is refused any key that reads like one.
+   */
+  IntegrationConfig: {
+    id: 'operational',
+    key: 'operational',
+    kind: 'operational',
+    label: 'operational',
+    providerName: 'operational',
+    enabled: 'operational',
+    settings: 'operational',
+    lastCheckedAt: 'operational',
+    lastCheckOutcome: 'operational',
+    lastCheckNote: 'operational',
+    updatedAt: 'operational',
+    updatedBy: 'operational',
   },
 
   MessageLog: {
@@ -544,6 +813,9 @@ export const DATA_ENTITIES_ARE_CLASSIFIED = {
   ConsentRecord: true satisfies Registered<'ConsentRecord', ConsentRecord>,
   CustomerCredential: true satisfies Registered<'CustomerCredential', CustomerCredential>,
   QuotationLine: true satisfies Registered<'QuotationLine', QuotationLine>,
+  PolicyDispatch: true satisfies Registered<'PolicyDispatch', PolicyDispatch>,
+  PolicyPremiumComponent: true satisfies Registered<'PolicyPremiumComponent', PolicyPremiumComponent>,
+  PolicyNcb: true satisfies Registered<'PolicyNcb', PolicyNcb>,
   PolicyVersion: true satisfies Registered<'PolicyVersion', PolicyVersion>,
   PolicyEntryDraft: true satisfies Registered<'PolicyEntryDraft', PolicyEntryDraft>,
   PremiumSchedule: true satisfies Registered<'PremiumSchedule', PremiumSchedule>,
@@ -561,7 +833,12 @@ export const DATA_ENTITIES_ARE_CLASSIFIED = {
   AgencyPolicyScope: true satisfies Registered<'AgencyPolicyScope', AgencyPolicyScope>,
   Agent: true satisfies Registered<'Agent', Agent>,
   CommissionSplit: true satisfies Registered<'CommissionSplit', CommissionSplit>,
+  RecipeRun: true satisfies Registered<'RecipeRun', RecipeRun>,
   Task: true satisfies Registered<'Task', Task>,
+  Activity: true satisfies Registered<'Activity', Activity>,
+  RequirementRecord: true satisfies Registered<'RequirementRecord', RequirementRecord>,
+  Disposition: true satisfies Registered<'Disposition', Disposition>,
+  InquiryStage: true satisfies Registered<'InquiryStage', InquiryStage>,
   RenewalTask: true satisfies Registered<'RenewalTask', RenewalTask>,
   CommissionRule: true satisfies Registered<'CommissionRule', CommissionRule>,
   LedgerEntry: true satisfies Registered<'LedgerEntry', LedgerEntry>,
@@ -576,6 +853,11 @@ export const DATA_ENTITIES_ARE_CLASSIFIED = {
   MessageTemplate: true satisfies Registered<'MessageTemplate', MessageTemplate>,
   MessageLog: true satisfies Registered<'MessageLog', MessageLog>,
   Claim: true satisfies Registered<'Claim', Claim>,
+  Endorsement: true satisfies Registered<'Endorsement', Endorsement>,
+  NoticeBatch: true satisfies Registered<'NoticeBatch', NoticeBatch>,
+  NoticeMatch: true satisfies Registered<'NoticeMatch', NoticeMatch>,
+  OcrTemplate: true satisfies Registered<'OcrTemplate', OcrTemplate>,
+  IntegrationConfig: true satisfies Registered<'IntegrationConfig', IntegrationConfig>,
 } as const
 
 export function dataClassOf<E extends DataEntityName>(entity: E, field: DataFieldOf<E>): DataClass {

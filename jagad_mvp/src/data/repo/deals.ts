@@ -7,7 +7,7 @@
  * placement offers only what the selected agency is appointed for.
  */
 
-import type { DealLineItem, DealState } from '../../domain/workflows'
+import type { DealLineItem, DealState, SalesCreditSource } from '../../domain/workflows'
 import type { ListQuery, Page, ReadRepository } from './query'
 import type { MutationResult } from './result'
 
@@ -22,6 +22,13 @@ export type Deal = {
   readonly subAgentId: string | null
   readonly agencyId: string | null
   readonly lineItems: readonly DealLineItem[]
+  /* ---- the award this application was opened against ---- */
+  readonly quotationVersion: number
+  readonly acceptedColumnKeys: readonly string[]
+  /** Unique across live deals. `awardKeyFor` is the one place it is built. */
+  readonly awardKey: string
+  /** Which record the sales credit was read off, for tracing a booking later. */
+  readonly salesCreditSource: SalesCreditSource | null
   readonly createdAt: string
   readonly consumedByPolicyId: string | null
 }
@@ -38,11 +45,14 @@ export type Deal = {
 export type CreateDealCommand = {
   readonly actorId: string
   readonly quotationId: string
+  readonly quotationVersion: number
+  readonly acceptedColumnKeys: readonly string[]
   readonly customerId: string
   readonly ownerId: string
   readonly lineItems: readonly DealLineItem[]
   readonly agentId?: string | null
   readonly subAgentId?: string | null
+  readonly salesCreditSource?: SalesCreditSource | null
   readonly now?: Date
 }
 
@@ -62,10 +72,22 @@ export type ConsumeDealCommand = {
 export type DealRepository = ReadRepository<Deal> & {
   bySystemNo(systemNo: string): Promise<Deal | null>
   forCustomer(customerId: string, query?: ListQuery): Promise<Page<Deal>>
+  /** The deals opened off one quotation — the middle hop of the audit spine. */
+  forQuotation(quotationId: string): Promise<readonly Deal[]>
   /** Deals that have line items and no policy yet — the policy-entry worklist. */
   awaitingPolicyEntry(query?: ListQuery): Promise<Page<Deal>>
 
-  /** Opens a deal in `created`. Refuses an empty line-item list, per §9. */
+  /**
+   * The application already open on an award, if there is one. Read before every
+   * create so `dealIsUniquePerAward` has the fact it needs.
+   */
+  byAwardKey(awardKey: string): Promise<Deal | null>
+
+  /**
+   * Opens a deal in `created`. Refuses an empty line-item list per §9, a carried
+   * premium that was computed, a sub-agent with no agent, and a second
+   * application on an award that already has one.
+   */
   create(command: CreateDealCommand): Promise<MutationResult<Deal>>
   setLineItems(id: string, command: SetDealLineItemsCommand): Promise<MutationResult<Deal>>
   consume(id: string, command: ConsumeDealCommand): Promise<MutationResult<Deal>>

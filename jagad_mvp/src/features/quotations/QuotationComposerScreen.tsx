@@ -4,11 +4,14 @@ import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
 import {
+  awardKeyFor,
   dealHasLineItems,
   finalPayablePremiumPresentPerColumn,
   quotationLostRequiresReason,
+  resolveSalesCredit,
   revisionRequiresReason,
   shouldAutoShare,
+  subAgentRequiresAgent,
 } from '../../domain/workflows'
 import type { QuotationColumn, QuotationOrigin } from '../../domain/workflows'
 import type { DomainEvent } from '../../domain/events'
@@ -144,7 +147,22 @@ export function QuotationComposerScreen() {
   const mayAct = can(user, 'edit', 'quotations')
   const liveLines = linesOfVersion(allLines, quotation.version)
   const versions = versionsOf(allLines)
-  const editable = quotation.status === 'draft' || quotation.status === 'revision_requested'
+  /*
+   * Which states can still be typed into.
+   *
+   * `composed` MUST be here. Section 9's only move out of composed is `generated`,
+   * guarded by finalPayablePremiumPresentPerColumn - so the premium has to be
+   * typed while the quotation is composed. Leaving composed read-only deadlocked
+   * the headline flow: the banner said "Final Payable Premium is missing - type
+   * the figure from each insurer's quote", the matrix underneath refused to
+   * accept one, and Generate could never unblock. The premium-mode radios were
+   * absent for the same reason, which is what made it look like the screen had
+   * half vanished.
+   */
+  const editable =
+    quotation.status === 'draft' ||
+    quotation.status === 'composed' ||
+    quotation.status === 'revision_requested'
   const customerName = customer?.fullName ?? quotation.customerId
 
   function fail(reason: string) {
@@ -262,28 +280,90 @@ export function QuotationComposerScreen() {
     setRefusal(null)
     const acceptedLines = liveLines.filter((line) => accepted.includes(line.columnKey))
 
-    const won = await repositories.quotations.markWon(id, {
-      actorId,
-      acceptedColumnKey: acceptedLines[0]?.columnKey,
+    // Carry first. A quotation must not reach `won` when the columns it was won
+    // on cannot produce line items — that leaves a sale recorded with nothing
+    // behind it, and nothing downstream can tell the difference.
+    const carried = dealLineItemsFor(acceptedLines, quotation.premiumMode)
+    if (!carried.ok) {
+      fail(carried.reason)
+      return
+    }
+
+    const credit = resolveSalesCredit({
+      quotation: { agentId: quotation.agentId, subAgentId: quotation.subAgentId },
+      customer: customer
+        ? { agentId: customer.agentId, subAgentId: customer.subAgentId }
+        : null,
     })
-    if (!won.ok) {
-      fail(won.reason)
+    // The refusal the commission chain would raise at booking, asked now.
+    const arrangement = subAgentRequiresAgent(credit)
+    if (!arrangement.ok) {
+      fail(arrangement.reason)
+      return
+    }
+
+    const acceptedColumnKeys = acceptedLines.map((line) => line.columnKey)
+    const awardKey = awardKeyFor(id, quotation.version, acceptedColumnKeys)
+
+    /*
+     * The replay check, and the reason a second click is harmless.
+     *
+     * The handoff is three writes, and a person who clicks twice — or whose
+     * first attempt failed halfway — must not end up with two applications for
+     * one sale. Asking for the award's existing deal first turns the repeat into
+     * a no-op that lands them on the application they already have. The deal
+     * machine refuses a duplicate as well; this is what stops the refusal being
+     * the normal experience of clicking twice.
+     */
+    const already = await repositories.deals.byAwardKey(awardKey)
+    if (already) {
+      toaster.notify({ title: `${already.systemNo} is already open for this award`, tone: 'ok' })
+      void navigate(`/deals/${already.id}`)
+      return
+    }
+
+    // Record the decision. Nothing is placed yet and `won` is still out of
+    // reach — that is the whole point of the state existing.
+    const awarded = await repositories.quotations.markAwarded(id, {
+      actorId,
+      acceptedColumnKeys,
+    })
+    if (!awarded.ok) {
+      fail(awarded.reason)
       return
     }
 
     const deal = await repositories.deals.create({
       actorId,
       quotationId: id,
+      quotationVersion: quotation.version,
+      acceptedColumnKeys,
       customerId: quotation.customerId,
       ownerId: quotation.ownerId,
-      agentId: quotation.agentId,
-      subAgentId: customer?.subAgentId ?? null,
-      lineItems: dealLineItemsFor(acceptedLines),
+      // One rung decides the agent. Reading the agent off the quotation and the
+      // sub-agent off an unrelated record would pair two people who were never
+      // on the same arrangement, and the sub-agent share is carved from that
+      // agent's own cut — so the pairing is the fact, not either half of it.
+      agentId: credit.agentId,
+      subAgentId: credit.subAgentId,
+      salesCreditSource: credit.source,
+      lineItems: carried.lineItems,
     })
     if (!deal.ok) {
       // The deal machine's own sentence, unedited — including the zero
-      // line-item block, which is checked at birth rather than re-stated here.
+      // line-item block and the duplicate-award refusal. The quotation stays in
+      // `awarded`: the decision was real even though the application failed, and
+      // rolling it back would lose the fact that the customer said yes.
       fail(deal.reason)
+      reread()
+      return
+    }
+
+    // `won` last, and only with the application in hand. The guard on this
+    // transition is what makes the status mean what every screen reads it as.
+    const won = await repositories.quotations.markWon(id, { actorId, dealId: deal.record.id })
+    if (!won.ok) {
+      fail(won.reason)
       reread()
       return
     }
@@ -414,7 +494,14 @@ export function QuotationComposerScreen() {
     lostReason,
   })
   const acceptedLines = liveLines.filter((line) => accepted.includes(line.columnKey))
-  const dealVerdict = dealHasLineItems({ lineItems: dealLineItemsFor(acceptedLines) })
+  // The carriage is attempted before the deal is offered, so a column with no
+  // typed premium blocks here with its own sentence rather than at creation.
+  const carriage = dealLineItemsFor(acceptedLines, quotation.premiumMode)
+  // `refuse` is a machine primitive and stays inside the domain, so a carriage
+  // failure is reported in the same two fields the control already reads.
+  const dealVerdict = carriage.ok
+    ? dealHasLineItems({ lineItems: carriage.lineItems })
+    : { ok: false as const, reason: carriage.reason }
 
   const showDocument =
     liveLines.length > 0 &&
@@ -837,12 +924,12 @@ export function QuotationComposerScreen() {
               {
                 key: 'agent',
                 label: 'Agent',
-                value: quotation.agentId ?? 'None recorded',
+                value: agentName(data.agents, quotation.agentId),
               },
               {
                 key: 'subAgent',
                 label: 'Sub-agent',
-                value: customer?.subAgentId ?? 'None recorded',
+                value: agentName(data.agents, customer?.subAgentId ?? null),
               },
               {
                 key: 'autoShare',
@@ -854,7 +941,9 @@ export function QuotationComposerScreen() {
               {
                 key: 'inquiry',
                 label: 'From inquiry',
-                value: quotation.inquiryId ?? 'Raised directly',
+                // The system number, not the storage id: INQ-1025 is what the
+                // person sees on every other screen and says down the phone.
+                value: data.inquiryNo ?? 'Raised directly',
               },
             ]}
           />
@@ -990,6 +1079,12 @@ function documentFor(
     preparedBy: nameOf(users, quotation.ownerId),
     agencyName,
   })
+}
+
+/** An agent id is a storage key; a person needs the name against it. */
+function agentName(agents: readonly { id: string; name: string }[], id: string | null): string {
+  if (!id) return 'None recorded'
+  return agents.find((agent) => agent.id === id)?.name ?? id
 }
 
 export default QuotationComposerScreen

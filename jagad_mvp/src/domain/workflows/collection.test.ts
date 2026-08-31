@@ -114,7 +114,16 @@ describe('cheque bounce', () => {
       { bus },
     )
     expect(bounce.ok).toBe(true)
-    expect(seen.map((event) => event.name)).toEqual(['cheque.bounced', 'task.created', 'message.sent'])
+    /*
+     * One event, not three. The edge used to also emit `task.created` and
+     * `message.sent` with the COLLECTION as their subject, while writing neither
+     * a task nor a message log — so the audit trail claimed a follow-up the FR-15
+     * queue never had. The follow-up is now raised by the
+     * `collection.bounceFollowUp` recipe through `TaskRepository.create`, which
+     * emits a `task.created` carrying the task's own id. The guard above still
+     * refuses a bounce that promises no follow-up.
+     */
+    expect(seen.map((event) => event.name)).toEqual(['cheque.bounced'])
 
     const reopen = collectionMachine.transition(
       COLLECTION_STATES.bounced,

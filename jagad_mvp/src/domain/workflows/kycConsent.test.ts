@@ -16,6 +16,8 @@ import {
   maskAadhaarToLast4,
 } from './kycConsent'
 import type { ConsentContext, KycContext } from './kycConsent'
+import { deriveCustomerState } from '../derive'
+import type { DerivedCustomerState } from '../derive'
 
 const NOW = new Date('2026-08-26T09:00:00.000Z')
 
@@ -26,11 +28,36 @@ function recordingBus() {
   return { bus, seen }
 }
 
+/**
+ * A file with both required documents on it.
+ *
+ * Built through `deriveCustomerState` rather than hand-written, because that is
+ * the only shape the guard now accepts — a test that could assemble a passing
+ * `derived` by hand would be re-creating the hole this replaced.
+ */
+function derivedFor(present: readonly string[]): DerivedCustomerState {
+  return deriveCustomerState({
+    now: NOW,
+    requirements: [
+      { key: 'Aadhaar card', docType: 'aadhaar' },
+      { key: 'PAN card', docType: 'pan' },
+    ],
+    documents: present.map((docType) => ({
+      docType,
+      isPresent: true,
+      reviewState: 'verified',
+      expiresAt: null,
+    })),
+    receipts: [],
+    policies: [],
+    aadhaarLast4Present: true,
+  })
+}
+
 function kycContext(overrides: Partial<KycContext> = {}): KycContext {
   return {
     now: NOW,
-    requiredDocuments: ['aadhaar', 'pan'],
-    presentDocuments: ['aadhaar', 'pan'],
+    derived: derivedFor(['aadhaar', 'pan']),
     extractedFields: [
       { name: 'aadhaarLast4', value: '4417', confirmed: true },
       { name: 'panNumber', value: 'ABCPD1234K', confirmed: true },
@@ -107,11 +134,11 @@ describe('KYC completion', () => {
     const verdict = kycMachine.canTransition(
       KYC_CONSENT_STATES.partial,
       KYC_CONSENT_STATES.complete,
-      kycContext({ presentDocuments: ['aadhaar'] }),
+      kycContext({ derived: derivedFor(['aadhaar']) }),
     )
 
     expect(verdict.ok).toBe(false)
-    expect(reasonOf(verdict)).toContain('pan')
+    expect(reasonOf(verdict)).toContain('PAN card')
   })
 
   it('will not complete while an extraction is unconfirmed, because OCR never silent-commits', () => {

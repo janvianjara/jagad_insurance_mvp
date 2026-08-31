@@ -45,7 +45,15 @@ import type { Agent } from '../repo/agents'
 import type { BenefitItem, PolicyBenefitMap } from '../repo/benefits'
 import type { Claim } from '../repo/claims'
 import type { Company } from '../repo/companies'
-import type { InquiryCategory, MessageLog, StaffUser, Team } from '../repo/config'
+import type { Activity } from '../repo/activities'
+import type {
+  Disposition,
+  InquiryCategory,
+  InquiryStage,
+  MessageLog,
+  StaffUser,
+  Team,
+} from '../repo/config'
 import type { ConsentRecord, Customer, Household, Member } from '../repo/customers'
 import type { Deal } from '../repo/deals'
 import type { DocumentRecord } from '../repo/documents'
@@ -192,6 +200,18 @@ export const ASSISTANT_ALLOW = {
     'escalationLevel',
     'createdAt',
     'customerId',
+    /*
+     * Engagement, FR-06.12 to .17 — and the reason the Assistant can now answer
+     * "which leads haven't been touched in ten days" honestly. It learns that
+     * contact happened, when, how many attempts it took and what is booked next.
+     * `Activity.notes` — the words themselves — is `document-content` and is not
+     * on this list, so what was said never enters the context at all.
+     */
+    'stageKey',
+    'stageEnteredAt',
+    'contactAttempts',
+    'lastActivityAt',
+    'nextActionAt',
     'contactName',
     'contactMobile',
     'contactEmail',
@@ -398,6 +418,34 @@ export const ASSISTANT_ALLOW = {
     'raisedBy',
   ],
 
+  /**
+   * What happened, minus what was said.
+   *
+   * `notes` is absent, and its absence is the whole design. A call note on a
+   * health inquiry routinely carries a diagnosis, so the field is classified
+   * `document-content` and `auditAllowList` below would throw at import if
+   * anybody added it here. Everything that is listed is operational: the shape
+   * of the contact, never its content.
+   */
+  Activity: [
+    'id',
+    'systemNo',
+    'subjectEntity',
+    'subjectId',
+    'channel',
+    'direction',
+    'occurredAt',
+    'actorId',
+    'dispositionKey',
+    'nextTaskId',
+    'attemptNo',
+    'createdAt',
+  ],
+
+  Disposition: ['id', 'key', 'label', 'stageKey', 'requiresNextAction', 'sortOrder', 'active'],
+
+  InquiryStage: ['id', 'key', 'label', 'countsAsOpen', 'terminal', 'sortOrder', 'active'],
+
   RenewalTask: [
     'id',
     'policyId',
@@ -558,6 +606,10 @@ export type AssistantCollection = AssistantView<CollectionRecord, 'CollectionRec
 export type AssistantDocument = AssistantView<DocumentRecord, 'Document'>
 
 export type AssistantTask = AssistantView<Task, 'Task'>
+/** What happened, minus what was said — FR-06.13. */
+export type AssistantActivity = AssistantView<Activity, 'Activity'>
+export type AssistantDisposition = AssistantView<Disposition, 'Disposition'>
+export type AssistantInquiryStage = AssistantView<InquiryStage, 'InquiryStage'>
 export type AssistantRenewal = AssistantView<RenewalTask, 'RenewalTask'>
 export type AssistantClaim = AssistantView<Claim, 'Claim'>
 export type AssistantMessage = AssistantView<MessageLog, 'MessageLog'>

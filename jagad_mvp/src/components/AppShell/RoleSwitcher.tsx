@@ -16,12 +16,20 @@ import styles from './RoleSwitcher.module.css'
  *
  * The density toggle lives here too: U2 makes density a product feature for
  * people working a queue all day, not a setting buried in a preferences dialog.
+ *
+ * Signing out is a document navigation rather than a router one, and
+ * deliberately so. `/login` is registered outside this shell and carries no
+ * session at mount (§11.1); leaving through the router would unmount the shell
+ * while the store behind it is still populated, so the session would outlive the
+ * act meant to end it. A full navigation drops everything, which is what signing
+ * out means.
  */
 export function RoleSwitcher() {
   const navigate = useNavigate()
   const accounts = useSessionStore((state) => state.accounts)
   const user = useSessionStore((state) => state.user)
   const switchAccount = useSessionStore((state) => state.switchAccount)
+  const reset = useSessionStore((state) => state.reset)
   const density = useSessionStore((state) => state.density)
   const setDensity = useSessionStore((state) => state.setDensity)
   const account = useSessionStore(activeAccount)
@@ -56,6 +64,18 @@ export function RoleSwitcher() {
         className={styles.density}
       >
         {density === 'compact' ? 'Comfortable rows' : 'Compact rows'}
+      </Button>
+
+      <Button
+        size="sm"
+        icon="lock"
+        className={styles.signOut}
+        onClick={() => {
+          reset()
+          window.location.assign('/login')
+        }}
+      >
+        Sign out
       </Button>
     </div>
   )

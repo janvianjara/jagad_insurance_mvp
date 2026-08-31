@@ -186,6 +186,38 @@ describe('the dev clock advance makes a TAT lapse demonstrable', () => {
     expect(screen.getAllByText(/breached by/).length).toBeGreaterThan(0)
     expect(within(clock).getByText('+60 min ahead')).toBeInTheDocument()
   })
+
+  it('holds a hand-picked assignee until the allowance is spent, then offers the next person', async () => {
+    const user = userEvent.setup()
+    // INQ-1044 is unassigned. Nita takes it by hand rather than by routing.
+    renderInquiries(repositories, '/inquiries/inq-1044')
+
+    await user.click(await screen.findByRole('button', { name: 'Assign' }))
+    await user.selectOptions(screen.getByLabelText(/^Assign to/), WHO.nita)
+    await user.click(screen.getByRole('button', { name: 'Assign and notify' }))
+    expect(await screen.findByText('Assigned')).toBeInTheDocument()
+
+    // Picking the person by hand buys no exemption: it sits with Nita, and the
+    // machine says so, until the allowance runs out.
+    const reassign = await screen.findByRole('button', {
+      name: 'Auto-reassign to the next person',
+    })
+    expect(reassign).toBeDisabled()
+    expect(screen.getByText(/The TAT has not elapsed yet — it runs until/)).toBeInTheDocument()
+
+    // Assigned at the clock's own instant, so it takes two hours to be past a
+    // sixty-minute allowance rather than exactly level with it.
+    const clock = screen.getByRole('group', { name: 'Demo clock' })
+    await user.click(within(clock).getByRole('button', { name: '+1 hr' }))
+    await user.click(within(clock).getByRole('button', { name: '+1 hr' }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Auto-reassign to the next person' }),
+      ).toBeEnabled(),
+    )
+    expect(screen.getAllByText(/breached by/).length).toBeGreaterThan(0)
+  })
 })
 
 describe('the convert-to-quotation CTA', () => {
@@ -246,7 +278,7 @@ describe('§5 — the queue pins unassigned and TAT-at-risk rows, and assigns in
 
     await user.click(await screen.findByRole('button', { name: 'Assign' }))
     const second = await screen.findByRole('dialog')
-    await user.click(within(second).getByRole('button', { name: 'Route and notify' }))
+    await user.click(within(second).getByRole('button', { name: 'Assign and notify' }))
 
     // The receipt in the gate, and the toast that says the same thing.
     expect((await screen.findAllByText('1 routed and notified')).length).toBeGreaterThan(0)
@@ -257,6 +289,35 @@ describe('§5 — the queue pins unassigned and TAT-at-risk rows, and assigns in
     await waitFor(() => {
       const row = queueRows().find((candidate) => candidate.textContent?.includes('INQ-1044'))
       expect(row).toHaveTextContent('Kiran Solanki')
+    })
+  })
+
+  it('assigns a selection to the person named in the gate, and previews them before writing', async () => {
+    const user = userEvent.setup()
+    renderInquiries(repositories, '/inquiries')
+
+    await waitFor(() => expect(queueRows().length).toBeGreaterThan(0))
+    await user.click(screen.getByRole('checkbox', { name: 'Select row inq-1044' }))
+    await user.click(await screen.findByRole('button', { name: 'Assign' }))
+
+    // Routing's own pick, until somebody says otherwise.
+    const gate = await screen.findByRole('dialog')
+    expect(within(gate).getByText('Kiran Solanki · TAT 60 min')).toBeInTheDocument()
+
+    // Naming somebody redraws the preview before anything is written.
+    await user.selectOptions(within(gate).getByLabelText(/^Assign to/), WHO.nita)
+    expect(within(gate).getByText('Nita Shah · TAT 60 min')).toBeInTheDocument()
+    expect(within(gate).queryByText('Kiran Solanki · TAT 60 min')).not.toBeInTheDocument()
+
+    await user.click(within(gate).getByRole('button', { name: 'Assign and notify' }))
+    expect((await screen.findAllByText('1 assigned to Nita Shah')).length).toBeGreaterThan(0)
+
+    const closes = within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Close' })
+    await user.click(closes.find((button) => button.textContent?.trim() === 'Close') as HTMLElement)
+
+    await waitFor(() => {
+      const row = queueRows().find((candidate) => candidate.textContent?.includes('INQ-1044'))
+      expect(row).toHaveTextContent('Nita Shah')
     })
   })
 })

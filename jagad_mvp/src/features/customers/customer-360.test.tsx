@@ -38,6 +38,12 @@ describe('customer 360', () => {
 
     expect(await screen.findByRole('heading', { name: 'Rakesh Patel' })).toBeInTheDocument()
 
+    const referred = panel('Leads they sent us')
+    // FR-06.2: Rakesh referred Nilesh Bhatt, and the point of recording a
+    // referrer is being able to ask the question from this side of it.
+    expect(within(referred).getByText('INQ-1032')).toBeInTheDocument()
+    expect(within(referred).getByText('Nilesh Bhatt')).toBeInTheDocument()
+
     const members = panel('Members and relationships')
     for (const name of ['Rakesh Patel', 'Nita Patel', 'Aarav Patel', 'Kavya Patel']) {
       expect(within(members).getByText(name)).toBeInTheDocument()

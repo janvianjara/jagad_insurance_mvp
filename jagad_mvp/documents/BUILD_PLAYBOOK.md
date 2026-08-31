@@ -81,6 +81,11 @@ any code."*
 | P-15 | Policy entry, premium roll-up, issuance | P-12, P-13, P-14 | direct | §5, §9 |
 | P-16 | Commission chain + read-only view | P-15 | **plan** | §9 |
 | P-17 | Scenario smoke tests, demo script, M0 tag | all | direct | §11.2 |
+| P-18a | Spec delta: inquiry engagement layer | P-17 | direct | §5, §8, §9 |
+| P-18b | Activity, disposition, next-action mandate | P-18a | direct | §9 |
+| P-18c | Master-driven stages, attempts, dormancy | P-18b | direct | §9 |
+| P-18d | Requirement capture | P-18c, P-12 | direct | §5, §9 |
+| P-18e | Inbound activities, pipeline, next-action KPI | P-18d | direct | §5 |
 
 Parallel after P-08: `{P-09} · {P-10a→P-10b} · {P-11} · {P-12}` are independent tracks.
 
@@ -418,11 +423,150 @@ Commit: `test: M0 scenario harness and demo script — golden path complete`
 
 ---
 
+### P-18a — Spec delta: the inquiry engagement layer
+Depends: P-17 · Plan: §5 front office, §8 entity set, §9 inquiry engagement
+
+The PRD models the artifact and not the process around it: §8.15 is titled "Task & Activity Engine"
+but FR-15 owns only `Task, WorkQueue`, and §9.1 ends at the TAT fork while §9.2 opens with the
+customer and candidate policies already chosen. The discovery conversation — the call, what was
+said, when to speak next — falls in the seam.
+Write it down before building it: §8's entity set gains Activity, RequirementRecord, Disposition and
+InquiryStage; §9 gains the engagement stage model; §5 gains three screens;
+`documents/PRD_DELTA_v0_4_1_engagement.md` carries FR-06.12–.19, the disposition matrix, the revised
+§9.1 narrative and the next-action KPI for client sign-off.
+Done when: the delta doc stands on its own for a reader who has not seen this thread.
+Commit: `docs(spec): inquiry engagement layer — activity, disposition, next-action mandate`
+
+### P-18b — Activity, disposition, next-action mandate
+Depends: P-18a · Plan: §9 inquiry engagement · FR-06.13, .14, .15
+
+`src/data/repo/activities.ts`: `Activity` — polymorphic subject like `Task`, channel, direction,
+occurredAt, actor, dispositionKey, notes, nextTaskId, attemptNo. `ActivityRepository` is
+`forSubject` / `list` / `log` and **nothing else** — append-only is the type, not a convention.
+`Disposition` config record + seeded matrix; `TaskRepository.create` lands here (existing Backlog
+line) because the next action *is* a Task. `src/domain/workflows/nextAction.ts` holds the one rule
+that makes this a CRM rather than a list: **an open inquiry may not be saved without a dated next
+action or a terminal outcome.** `Activity.notes` is `document-content` — a call note on a health
+inquiry carries a diagnosis — and every other field is operational, which is exactly what lets the
+Assistant answer "not touched in 10 days" without reading what was said.
+Log-activity is outward (it notifies and schedules) so it goes behind `<ConfirmGate>`.
+Tests: the mandate refuses and writes nothing; callback creates the task and the reminder; the
+timeline merges activities with the assignment trail; the boundary test stays green.
+Commit: `feat(inquiries): activity log, disposition matrix and the next-action mandate`
+
+### P-18c — Master-driven stages, attempts, dormancy
+Depends: P-18b · Plan: §9 inquiry engagement · FR-06.12, .17
+
+`InquiryStage` config rows carry `allowedFromKeys`, `requiresNextAction`, `countsAsOpen`, `terminal`
+— stages are configuration, and the lifecycle machine is untouched. The compiler no longer proves a
+stage move is legal, so the proof moves to `src/domain/workflows/inquiryStage.ts`: one pure tested
+place returning the same allow/refuse-with-a-sentence shape every machine returns. Inquiry gains
+`stageKey`, `stageEnteredAt`, `contactAttempts`, `lastActivityAt`, `nextActionAt`. Dormancy is the
+`inquiry.dormancy` recipe's parameters, never a constant, read the way the TAT already is. A dormant
+lead recycles — Lost must not be its only exit or the win-back list is destroyed.
+Tests: a move outside `allowedFromKeys` refuses in the module's words; a stage move on a
+non-accepted inquiry refuses; three no-answers reach dormant, not Lost.
+Commit: `feat(inquiries): master-driven stages, attempt tracking and dormancy`
+
+### P-18d — Requirement capture
+Depends: P-18c, P-12 · Plan: §5 requirement capture row · FR-06.16
+
+Requirement schemas per category through the existing `defineFormSchema` — no new renderer. Members,
+DOBs, budget band, existing cover, urgency, port-in; pinned to `schemaVersion` like every other
+record. Classification is the careful part: DOBs `contact`, any health declaration `sensitive`,
+free text `document-content`. The values feed `/quotations/new?inquiry=` — this is the input §9.2
+step 4 has been assuming the agent already had.
+Tests: branch rendering per category; a captured requirement pre-fills the Composer header.
+Commit: `feat(inquiries): requirement capture feeding the quotation composer`
+
+### P-18e — Inbound activities, pipeline, the honest KPI
+Depends: P-18d · Plan: §5 pipeline row · FR-06.18, .19
+
+Inbound replies become activities with `direction: 'inbound'` linked to the `MessageLog` thread; no
+live channel exists, so this ships as a logged action plus a seeded inbound activity — an honest
+stub naming the gap, the pattern this build already uses for collections and templates, never a fake
+integration. `REPORT_KEYS.pipeline`: by stage, count, median age in stage, conversion to the next.
+Beside it the KPI that replaces a vanity number — **% of open inquiries with a dated next action** —
+on the report and on the sales-manager briefing. Assistant ask-cards for stalled and untouched leads.
+Done when: the pipeline report reconciles against a direct repository read; the boundary test proves
+`notes` is absent from the projection.
+Commit: `feat(inquiries): inbound activities, pipeline report and the next-action KPI`
+
+---
+
+### P-19a — Derived customer state (audit CUS-0251, Gap 1)
+Depends: P-14, P-15 · Plan: §9 KYC · FR-09.3, FR-20.4 · audit CUS-0251
+
+`kycState` was a column on `Customer`, written by whoever called `advanceKyc`, while the checklist a
+screen drew came from the document vault - two sources of truth on one screen, so a header could
+read "KYC complete" above a checklist showing nothing on file and neither half was wrong. Worse,
+`everyRequiredDocumentPresent` compared `ctx.requiredDocuments` against `ctx.presentDocuments`, both
+supplied by the caller, so the guard checked that the caller's own claim was internally consistent
+and never read the ledger; `requiredDocuments: []` satisfied it vacuously.
+
+`src/domain/derive/customerState.ts` computes the file from what is actually on it: requirements
+resolved against vault presence and desk receipts, rejection and expiry and supersession all
+decaying the state because it is recomputed rather than remembered, and an unconfigured checklist
+reading as an open question rather than an empty one. The mock adapter builds the facts from its own
+tables, so a screen can no longer assert completeness. The badge names what is missing instead of
+asserting a state, and a live policy held against an incomplete file raises an integrity alarm on
+the compliance desk - not a customer-facing nudge.
+
+Done when: a customer with no documents cannot reach `complete` by any path; a complete file falls
+back to `partial` when one document is rejected, with no transition invoked; an empty checklist
+never completes; `kycState` appears in no `apply` anywhere in `src/`.
+Commit: `fix(customers): derive the KYC file instead of storing what someone claimed`
+
+---
+
+### P-20a — The tokenised upload engine (audit CLM-0412)
+Depends: P-14, P-19a · Plan: §5 page inventory, §11.1 · FR-11.1, FR-16.8, D21 · audit CLM-0412
+
+`/upload/:token` sat in `route-map.ts` as a declared P2 row with no owning step and no screen, while
+`ClaimDetailScreen` already promised "Link sent. It is login-free and it expires." on the
+`picked_up -> upload_link_sent` edge. Nothing was sent and no link existed, so the receipt was a
+sentence rather than a fact. `upload_link_sent -> summary_received` was likewise an unguarded
+operator move: a desk could mark the discharge summary received while the link was still empty.
+
+`src/domain/workflows/uploadLink.ts` holds the rule half - what a link is, when it stops working,
+and that a claim link may never collect an identity document, since a photographed Aadhaar at a
+hospital desk is the full number the constitution forbids everywhere. `src/features/upload/` holds
+the page, reached only through `lazy()` so the chunk boundary is the bundler's rather than a promise,
+with `upload-isolation.test.ts` walking the module graph the way the consent page's does. The desk
+records presence and never content: name, type and size off the `File`, never its bytes, and
+`extractedText` and `ocrFields` stay empty by construction. An unknown token, an expired one and a
+withdrawn one render identically, because the difference between them is what a guesser is looking
+for.
+
+`dischargeSummaryReceived` now reads the ledger, and `presentDocTypes` is threaded through
+`ClaimTransitionCommand` so the screen's `canTransition` and the write ask the same question.
+
+Done when: the isolation walk is green and the Assistant boundary test is unchanged; an expired and
+an unknown token are indistinguishable in the DOM; a document accepted through the link records
+presence with no extracted text; canvas 4.5 walks customer-side upload to desk-side record.
+Commit: `feat(claims): the tokenised upload link, and a state that stops lying about the file`
+
+---
+
 ## 5. Backlog / discoveries
 
 Sessions append one line here instead of widening their step. Format:
 `- [ ] (found in P-xx) description — belongs to P-yy | P1 | P2`
 
+- [ ] (found in claims audit CLM-0412) the cashless fork has no query loop: `query_open` hangs off `filed_with_insurer` only, so a cashless claim in `tracked` that receives an insurer query has no state to move to - two transition rows plus a fork-aware `pipelineIndex` fold - belongs to P-20b | P2
+- [ ] (found in claims audit CLM-0414) `blocked` has no outgoing transition, so a claim blocked on a lapsed policy is permanently stuck even after reinstatement, with no reopen and no correction path - belongs to P-20b | P2
+- [ ] (found in claims audit) `IntimateClaimCommand` takes `policyActive` from the caller, so the dead-policy guard judges a value the desk never verifies; re-read the policy inside `claimDesk.intimate` - belongs to P-20b | P2
+- [ ] (found in claims audit CLM-0417) the insurer query is stored in `companyRemark`, which is the settlement remark feeding the insurer rating - two facts in one field, no language, no rounds - belongs to P-20b | P2
+- [ ] (found in claims audit) repudiation is unmodelled; a declined claim can only close as a zero settlement, indistinguishable from settled-at-nil - belongs to P-20b | P2
+- [ ] (found in claims audit) `companyRemark` is collected by the close gate and read by nothing; FR-04.6's insurer rating has no read model, so the gate's friction currently buys no data - belongs to P-20c | P2
+- [ ] (found in claims audit) `ClaimDetailScreen` renders one link, to `/claims`; policy, customer and agent are text though `Claim` carries all three foreign keys - belongs to P-20c | P2
+- [ ] (found in claims audit) nothing watches an ageing claim: CLM-0414 is `raised` and unassigned for 8 days with no task, nudge or threshold. Same shape as the P-09 proactive-notice and quotation-stall entries - build one `SlaRule` engine in the domain, claims as first consumer - belongs to P-20c | P2
+- [ ] (found in P-20a) `desk.messages` in `claim-desk.ts` is session memory, has no channel field, and recomputes routing at render, so message history rewrites itself when an agent flips the direct-updates toggle - collapses onto the `MessageLog` repository edge - belongs to P1 | P1
+- [ ] (found in P-20a) the upload ledger lives in a feature desk because `DocumentRepository` is read-only, so `presentDocTypes` is a command field rather than something the store derives; it collapses to a store-side read when documents gain a write API - belongs to orchestrator integration | P1
+
+- [ ] (found in FR-08.3/08.4 work) `<BulkActionGate>` passes `confirmTitle` to BOTH the `Modal` title and the `<ConfirmGate>` title, so every bulk action in the product renders its sentence twice in the DOM. Harmless visually inside the dialog chrome, but it makes any test that queries the title ambiguous and reads as a stutter to a screen reader — drop it from one of the two — belongs to P-17 polish | P1
+- [ ] (found in FR-08.3 work) `<WorkQueue>`'s `board()` equivalent on `/back-office` reads its six depths with no ABAC predicate, so a sub-agent sees the agency's whole 131. Either scope the six reads or say on the page that the board is agency-wide; it currently implies the former while doing the latter — belongs to P1 | P1
+- [ ] (found in FR-08.4 work) `CONSENT_CADENCE.resendAfterDays` and `quietHours` in `src/features/kyc/chase-rules.ts` are written down but unread: there is no scheduler in the MVP, so only `maxAttempts` is enforced (by the bulk action). FR-21's cadence should read the same constant rather than a second copy — belongs to P1 | P1
 - [ ] (found in P-06a/b) chevron, close, sort and maximise marks are drawn in CSS in `Glyph.tsx` and `controls.module.css`; the sprite gained that geometry at wave integration — swap them to `<Icon>` — belongs to P-06b polish | P1
 - [ ] (found in P-06a) `cx()` class-joiner is duplicated once per ui group; fold into a shared `src/ui/lib` when one exists — belongs to P-06b polish | P1
 - [ ] (found in P-06b) `Card.module.css` and `StatCard.module.css` still repeat the six status branches; compose the shared `src/ui/tones.module.css` class instead — belongs to P-06b polish | P1
@@ -441,6 +585,7 @@ Sessions append one line here instead of widening their step. Format:
 - [ ] (found in perf work) ~1.0s of the remaining cold load is four SERIALISED rounds of the section 8 simulated latency: shell waits for session, screen waits for its context, then WorkQueue queries. Correct-by-design but worth collapsing to two rounds if a list ever needs to be faster - belongs to P1 | P1
 - [x] (found across waves) the suite is timeout-sensitive under parallel load: 12-21 failures at the default 5s timeout, 1281/1283 at 25s. Raise the default `testTimeout` in `vite.config.ts` or make the slow scenario tests cheaper - a suite that fails differently by machine load is a suite nobody trusts - belongs to P-17 | M0
       **RESOLVED: `asyncUtilTimeout` raised in `src/test/setup.ts` and `testTimeout`/`hookTimeout` in `vite.config.ts`. Full suite went from 12-21 varying failures to 1304/1304.**
+      **RECURS at the raised 30s timeout (found in FR-13 endorsement review).** On an 8-core / 8 GB machine a 7-file scoped run failed a DIFFERENT test each time, always by `Test timed out in 30000ms` and never by a failed assertion: two in `endorsement-reshape.test.tsx` on one run, one in `endorsement-approval.test.tsx` on the next (311/312). `endorsement-approval.test.tsx` then passed alone, 2/2 in 49.5s wall with 17.66s in tests. The trigger is memory, not the timeout value: vitest's default fork pool sizes to core count, and jsdom plus the React Compiler babel transform put node RSS at ~1.4 GB against ~57 MB free, so workers swap. Raising the timeout again treats the symptom; cap `test.poolOptions.forks.maxForks` (3-4 on an 8 GB box) or set `test.fileParallelism: false` for the scenario files. Until then a green local run is not evidence and a red one is not a defect - belongs to P-17 | M0
 - [x] (found in visual review) **Cold direct load of a queue screen takes 8-10s to usable on the PRODUCTION build.** Measured with CDP: of ~8.8s wall, ~7.5s is TaskDuration (3.6s script, 1.0s layout, 0.8s recalc-style) and only ~1.3s is idle - so this is NOT the 150-400ms simulated latency, it is real work. Fixture build is 22ms and store hydration 23ms, so it is not data generation either. Profile is dominated by `(program)` (parse/compile) plus GC with no single hot app frame, consistent with bundle parse plus a large amount of React work on boot. Warm in-app navigation settles in ~2.2s. Charter U12 budgets a list at under 2s - belongs to P-17 | M0
       **SUPERSEDED: the 8-10s figure was a Rosetta measurement artefact (see the entry below). Real cold load was 2.7s; the font-blocking fix in `index.html` brought it to 0.7-1.5s, inside the U12 budget.**
 - [x] (found in visual review) `src/features/config/products/benefit-map.test.tsx > takes a benefit off the sheet only once the change is confirmed` fails intermittently under full-suite parallel load at ~5.1s while passing in isolation. A timeout flake, not a logic fault, but a flaky gate is a gate nobody trusts - belongs to P-17 | M0
@@ -462,7 +607,42 @@ Sessions append one line here instead of widening their step. Format:
 - [ ] (found in P-16) there is no broker master, so a broker-channel placement uses the broking agency's own id as the payer party in `payerFor`. The chain already takes the payer as an input rather than inferring it, so a real `Broker` entity replaces two lines in `commission-desk.ts` and nothing else - belongs to P1 | P1
 - [ ] (found in P-16) `renewal.completed` and `endorsement.approved` are triggers `commissionChain` accepts and is tested against (the reversal case nets to zero exactly), but nothing calls it on those edges because neither machine has a screen yet. §9's delta hook is a call site, not new arithmetic - belongs to P2 | P2
 - [ ] (found in P-16) no screen in the build applies §11's row-level ABAC scope - `RequireAccess` gates the route, not the rows - and `/commission` is the first screen where that matters in money terms: an agent's grant is `{ level: 'own', includeSubAgents: true }`, but the ledger view shows the whole book. A shared `visibleTo(user, rows)` on the desk layer covers every queue at once - belongs to P1 | P1
+- [ ] (found in P-18b) the load flake is back and the earlier fix has been outgrown: the suite has gone from 1304 tests to 1690, and a default full run fails 1-4 tests that all pass in isolation, with a different set each run (quotation 2.7 one run, admin-config 6.1 the next). **The knob is `asyncUtilTimeout` in `src/test/setup.ts` (15s), NOT `testTimeout` in `vite.config.ts`** - `findBy*` waits on its own clock, which is why raising `--testTimeout` changes nothing and the failures still land at ~1.2s of test time. `npx vitest run --maxWorkers=2` is 1690/1690 green, which is the proof it is CPU contention and not logic. Raise `asyncUtilTimeout`, or cap workers in the config - a suite that fails differently by machine load is a suite nobody trusts - belongs to P-17 | M0
 - [ ] (found in P-04) `NoticeBatch`, `NoticeMatch`, `OcrTemplate` and `Endorsement` entities are unmodelled, so canvas flow 5 rows 5.3-5.5 and all of flow 7 are not walkable — both are P2 and outside P-04's cluster list — belongs to P2 | P2
+- [ ] (found in inquiry audit INQ-1032) `dormant()` filters on the literal `stageKey === 'dormant'` in `src/data/mock/pipeline.ts`, and `reports.test.tsx` repeats the literal, while stages are admin-editable rows — renaming or retiring that stage empties the win-back list with no error. Fix is a `parksTheLead` boolean on the `InquiryStage` row, read the way `countsAsOpen` already is — belongs to P-18c follow-up | P1
+- [ ] (found in inquiry audit INQ-1032) `referral` is a value in `CUSTOMER_SOURCES` with no subject anywhere: `Inquiry` carries `agentId` and `subAgentId` but no referrer, so a referred lead cannot be attributed, thanked or paid, and the enum reads as working attribution when it is a label. Wants a `referral` field and the biconditional `source === 'referral'` iff `referral !== null` enforced at create — belongs to P1 | P1
+- [ ] (found in inquiry audit INQ-1032) `renewal-scenarios.test.tsx > 5.5` is a calendar bomb that went off on 2026-08-30: it types a new term starting `2026-08-29`, and `RenewalDetailScreen` reads `today` off the real `new Date()`, so that date is now in the past, the backdating branch opens, and the confirm gate the test waits for never renders. Nothing to do with the renewal logic — the test needs a term date computed from the clock rather than typed as a literal. Green until yesterday, red every day from here — belongs to P-17 | M0
+- [ ] (found in quotation audit QTN-0331) `BenefitItem` carries `sortOrder` but no section, so the matrix and the generated sheet are flat and FR-06.4's Coverage / Add-on split cannot be expressed. Fix is a `section` field on the catalogue item in `src/data/repo/benefits.ts`, grouped in `<BenefitMatrix>` and in `DocumentSheet` — belongs to P1 | P1
+- [ ] (found in quotation audit QTN-0331) there is no portability flag anywhere in the quotation domain or `QuotationDocument`: `floater` is derived from the persons list, but PORT is a fact the client's reference header prints and nothing records it. Wants a field on the quotation, printed in the "Prepared for" block — belongs to P1 | P1
+- [ ] (found in quotation audit QTN-0331) `sideBySide` puts EVERY column on one letterhead (`DocumentViewer.tsx` builds one sheet unless the layout is `single`), so a four- or five-company comparison squeezes past the printable width. Chunk at three columns per sheet with continuation sheets — belongs to P-17 polish | P1
+- [ ] (found in quotation audit QTN-0331) a member with no date of birth prints `not recorded` on the CUSTOMER-FACING sheet, where age is the premium driver. Either gate generate on a complete persons block or suppress the column when every row is absent — a client copy should not show the agency's own gaps — belongs to P-17 polish | P1
+- [ ] (found in quotation audit QTN-0331) `SentPanel` logs origin, channel and the auto-share fork but no sent-at, no delivery status and no resend, and there is no download of the generated PDF, so "did the customer get it" is unanswerable from the record. Collapses onto the `MessageLog` repository edge already noted in the P-15 entries — belongs to P1 | P1
+- [ ] (found in quotation audit QTN-0332) `revisionReason` is a single field on the quotation header, overwritten by each revision, so v1's reason is lost when v2 opens and the version switcher shows tabs with no why. Same shape as the P-13 `benefitRows` entry above and wants the same fix - move it onto the version - plus a changed-cell diff against the prior version — belongs to P1 | P1
+- [ ] (found in quotation audit) nothing watches a stalled quotation: QTN-0329 sits composed-not-generated and QTN-0331 shared-with-no-decision with no task, nudge or age threshold against either. Same recipe shape as the P-09 proactive-notice thresholds — belongs to P1 | P1
+- [ ] (found in renewals audit POL-4437) the FR-21 recipe runtime is specified in plan §7 ("let mock recipes subscribe") but no P-step builds it: `src/domain/events.ts` exposes `on`/`onAny` and the only production subscriber in the tree is `bus.onAudit` in `src/data/mock/store.ts`. `renewal.reminder` is seeded active on trigger `renewal.due` with a real template and nothing listens, so a renewal reaches expiry having sent nothing. Not a renewals defect — the same hole silences inquiry TAT breach, stalled quotations and the bounced-cheque task — belongs to P1 | P1
+- [ ] (found in renewals audit POL-4437) `src/features/documents/documents.test.tsx > shows a customer's Aadhaar and PAN only as their last four characters` is red, and it fails BEFORE it asserts anything about masking: `findByText('What it evidences')` times out at line 164, so the drawer never renders and the `document.body.textContent` check at line 166 is never reached. Nothing is leaking — but a masking invariant whose test cannot get as far as looking is worse than a failing assertion, because it reads as coverage. Confirmed pre-existing against the renewals changes — belongs to P-17 | M0
+- [ ] (found in FR-13 endorsement review) **the claims-in-period check fails open on an unresolvable policy.** `claimsVerdictFor` (`src/data/mock/servicing.ts:140`) collects claims by matching `policyId`, so a policy that does not resolve matches nothing and `claimsInPeriodCheck` returns `refundEligible: true` — a broken link reads to the operator as "nothing was claimed inside this policy period" and opens the refund gate. The header comment defends the fallback as "the cautious direction", which is true for a policy with no dates and exactly backwards for a policy that is absent. Wants a `periodSource` on the verdict that forces `refundEligible: false` when the policy is missing, a `policyIsOnFile` guard on all three edges out of `type_selected`, and a resolve check in `create` — belongs to P1 | P1
+- [ ] (found in FR-13 endorsement review) `EndorsementDetailScreen` renders its spine before the context resource settles — the render gate at `:99` reads `loaded.isLoading` only, while policy, customer and versions load in a second resource at `:90-97` keyed on the loaded record — so `KeyValueList` prints "not recorded" against Policy and Customer on every visit for the length of the second read. A link that is still loading and one that is genuinely broken are rendered identically, which is how this was first misread as missing data. Skeleton the rows while loading and give an unresolved link its own state — belongs to P-17 polish | P1
+- [ ] (found in FR-13 endorsement review) `effectiveFrom` is optional on `CreateEndorsementCommand` and required only at `versionPolicy`, so a cancellation's refund eligibility is decided with no date on which cover ends: END-0033 and END-0036 both sit decided with `effectiveFrom: null`. Wants a `cancellationHasEffectiveDate` guard on both edges out of `claims_check`, refusing an effective date earlier than the policy start — belongs to P1 | P1
+- [ ] (found in FR-13 endorsement review) the claims-in-period window is `[policy.startDate, policy.expiryDate]` — the whole term rather than the cover actually consumed — so a claim raised after the cancellation effective date still blocks the refund, and on `pol-4419`'s twenty-year LIC term the window is twenty years wide. Whether the window closes at the effective date or at expiry is an insurer-facing rule and may differ per insurer, so it belongs in config; record `checkedFrom`/`checkedTo` on the verdict either way so the screen can state what was checked — belongs to P1 | P1
+- [ ] (found in FR-13 endorsement review) `changeFitsEndorsementScope` returns `allow()` when nothing passes a scope (`src/domain/workflows/endorsement.ts:164`), and `EndorsementDetailScreen`'s `ctxFor` (`:143`) passes neither `scope` nor `renderedFields`. The capture screen passes both, so the ordinary path is covered, but a record reaching `type_selected` by any other route can be typed from the detail page with the scope guard AND the non-financial premium-field guard both inert — the latter because an empty `renderedFields` is what a compliant form would also report. Derive both from `shapeFor(record.type)` — belongs to P1 | P1
+- [ ] (found in FR-13 endorsement review) FR-13.7's major-change guard is only `replacesInsuredEntity`, a boolean the person raising the endorsement ticks about their own request, and it is `false` on all six seeds. Nothing compares the proposal against the policy's current values, so a sum insured moved from 10 lakh to 95 lakh meets the same bar as a nominee spelling. Wants a `materialChangeCheck` against a policy snapshot with thresholds in config, suggesting fresh issue with a recorded override rather than refusing outright — a threshold nobody can override gets routed around by raising two smaller endorsements — belongs to P2 | P2
+- [ ] (found in FR-13 endorsement review) floater member changes are the strings `memberAdded`/`memberRemoved` inside `changedFields: readonly string[]`, so the record cannot say WHICH member. `Household`, `HouseholdView`, `Member.coveredUnderPolicyIds` and `Policy.memberIds` already exist and `fixtures.test.ts` asserts the link both ways; Scenario 6.2 needs a typed `memberChanges` array joining them, applied to the policy at `versionPolicy` so both sides of the link move together or neither does — belongs to P2 | P2
+- [ ] (found in FR-13 endorsement review) the endorsement commission delta is emitted and never booked: the `submitted -> approved` edge carries `alsoEmits: ['commission.booked']` with a note saying the hook fires here, and `src/domain/commission.ts:141,151` maps `endorsement.approved` to the `endorsement` source, but `approve()` (`src/data/mock/servicing.ts:379`) writes no ledger row — searching the servicing adapter for "commission" returns nothing. `chain(-x) === -chain(x)` is documented at `commission.ts:47` for exactly this delta and is never called. Booking must be additive against the original and idempotent on `(policyId, source, discriminator)` — belongs to P2 | P2
+- [ ] (found in FR-13 endorsement review) money only flows inward: `CollectionRecord` (`src/data/repo/policies.ts:364`) tracks premium in and there is no outbound counterpart, so END-0034's recorded refund can never be marked paid and nothing answers "which recorded refunds are still outstanding" — the question the customer actually rings about. Wants a record-only `Disbursement` ledger: amount due read from the endorsement figure so the two cannot drift, amount paid typed off the bank advice, a short payment recorded as a discrepancy and never reconciled here — belongs to P2 | P2
+- [ ] (found in FR-13 endorsement review) endorsement completion notifies nobody: `versionPolicy` writes the version and the document and emits no message, though channels, templates and the agent `directUpdatesEnabled` toggle all exist in the config module. FR-09.7/FR-17.6 want `policy.versioned`, `endorsement.refund_recorded` and `endorsement.refund_blocked` routed through one shared resolver (to the agent when direct updates are off, suppressed where consent does not cover the channel) and through `<ConfirmGate>` like every other outward send — a notification that fires automatically on a state change is an outward mutation with no cancel path — belongs to P2 | P2
+
+### Found in the demo-readiness wave (2026-08-31)
+
+All 65 routes are now built, so the backlog below is depth rather than absence.
+
+- [ ] (found in record-depth work) consent withdrawal is recorded on the customer desk, not on the record: `CONSENT_STATES` has no `withdrawn` member and `CustomerRepository` has no write for it, so the consent pill deliberately does not move and the screen says why. Closing it properly = add `withdrawn` to `CONSENT_STATES`, an edge `submitted -> withdrawn` on `consentMachine`, and a `consent.withdrawn` event name - all in `src/domain/` - belongs to P1 | P1
+- [ ] (found in record-depth work) the policy version diff has no before-and-after column: no per-version field snapshot exists anywhere in section 8, so the Versions tab lists which fields an endorsement changed and prints one honest line where the prior values would go - belongs to P1 | P1
+- [ ] (found in record-depth work) FR-17.3's skip log does not exist: the consent tab names which channels a withdrawal suppresses and states on screen that individual suppressed sends are not logged - belongs to P1 | P1
+- [ ] (found in dataport work) import commit lands only on the repositories that have a `create`; for the rest the Check step validates and says on screen that the entity cannot yet be written. Collapses to a real commit the day those repositories gain a write API - belongs to orchestrator integration | P1
+- [ ] (found in dataport work) `/config/masters` has no in-field add (FR-02.2), which is one of the client's own named acceptance criteria. The import path now covers bulk creation of master values, which is a different need and does not close it - belongs to P1 | P1
+- [ ] (found in wiring) `REPORTS[0]` was asserted positionally in `reports.test.tsx` and silently retargeted when the catalogue grew from five reports to ten. Fixed to look up by key; worth checking no other test indexes a catalogue by position - belongs to P-17 polish | M0
+- [ ] (found in wiring) multi-language content (FR-11.8, FR-17.4 - Gujarati / Hindi / English) is absent everywhere: no language field, no translated template. For a Gujarat agency this is a product gap, not a cosmetic one - belongs to P2 | P2
 
 ---
 

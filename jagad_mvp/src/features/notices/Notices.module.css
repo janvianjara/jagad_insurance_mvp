@@ -1,0 +1,149 @@
+/* The renewal-notice module's own layout. Colour comes from tokens only. */
+
+.page {
+  display: grid;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  align-content: start;
+}
+
+.loading {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.header {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: center;
+}
+
+.stats {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.prose {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.absent {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.printed {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Lime: something needs a person, and nothing is wrong. */
+.needsPerson {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--attn);
+  border-radius: var(--radius-md);
+  background: var(--attn-soft);
+  color: var(--ink);
+}
+
+.blocked {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--ink);
+}
+
+.blockedBody {
+  display: grid;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.blockedTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.blockedReason {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.drawer {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.section {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.extractions {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.years {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.year {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.yearLabel {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.rejectRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.uploadForm {
+  display: grid;
+  gap: var(--sp-4);
+}

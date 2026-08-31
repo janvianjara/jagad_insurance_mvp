@@ -1,0 +1,155 @@
+/*
+ * `/back-office` — the six-queue ops home.
+ *
+ * No hex anywhere. Every colour, space, size and weight is a token from
+ * `src/styles/tokens.css` (checked by `npm run check`), and the page padding is
+ * the shell's own gutter so this screen lines up with every other one.
+ *
+ * Two colour decisions, both from §2 rather than from taste:
+ *   - the tile's affordance is navy, because navy is action and navigation;
+ *   - a queue with rows waiting is marked in lime, because lime means something
+ *     needs a person. It does not mean anything is wrong, so nothing here goes
+ *     amber or red on a non-empty queue.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.lede {
+  max-width: var(--measure);
+  margin: 0;
+  font-size: var(--text-reading);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+/* --------------------------------------------------------------------- grid */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cell {
+  display: flex;
+}
+
+/* -------------------------------------------------------------------- tiles */
+
+.tile {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow-1);
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+a.tile:hover {
+  border-color: var(--action);
+  box-shadow: var(--shadow-2);
+}
+
+a.tile:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* A queue with no screen behind it reads as a note, not as a dead link. */
+.tile[data-planned] {
+  background: var(--surface);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ink-2);
+}
+
+.tileIcon {
+  color: var(--ink-3);
+}
+
+.tileTitle {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.tileCount {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--ink-3);
+}
+
+/* Lime: this queue needs a person. */
+.tileCount[data-waiting] {
+  color: var(--ink);
+}
+
+.tileCount[data-waiting]::before {
+  content: '';
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--attn);
+  align-self: center;
+}
+
+.tileCountUnit {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.tileWhat {
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.tileGo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--action);
+}
+
+.tilePlanned {
+  margin-top: auto;
+  padding-top: var(--sp-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}

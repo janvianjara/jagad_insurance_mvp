@@ -40,6 +40,13 @@ export type ClaimState = (typeof CLAIM_STATES)[keyof typeof CLAIM_STATES]
 export const CLAIM_TYPES = { cashless: 'cashless', file: 'file' } as const
 export type ClaimType = (typeof CLAIM_TYPES)[keyof typeof CLAIM_TYPES]
 
+/**
+ * What the cashless upload link collects. Named here rather than in the data
+ * layer because the guard below is what gives the state its meaning, and the
+ * layer rule runs domain to data, never back.
+ */
+export const CLAIM_UPLOAD_DOC_TYPE = 'discharge_summary'
+
 /** Where the settlement figure came from. Only the insurer's advice is acceptable. */
 export const SETTLEMENT_SOURCES = {
   insurerAdvice: 'insurer_advice',
@@ -68,6 +75,13 @@ export type ClaimContext = {
   readonly checklistItems?: readonly string[]
   /** FR-11: the agent's direct-updates switch. Decides who the status message goes to. */
   readonly agentDirectUpdates?: boolean
+  /**
+   * Document types actually present against the claim, read off the ledger.
+   *
+   * Read, never asserted: a caller passing its own opinion of what has arrived is
+   * the same mistake `everyRequiredDocumentPresent` was rewritten to stop making.
+   */
+  readonly presentDocTypes?: readonly string[]
 }
 
 export function policyActiveForClaim(ctx: ClaimContext): TransitionResult {
@@ -115,6 +129,25 @@ export function checklistDocumentsCollected(ctx: ClaimContext): TransitionResult
   const missing = required.filter((item) => !held.has(item))
   if (missing.length > 0) {
     return refuse(`Still waiting on: ${missing.join(', ')}.`)
+  }
+  return allow()
+}
+
+/**
+ * The cashless arm's equivalent of the checklist gate.
+ *
+ * `summary_received` is a statement about the file, not about the operator's
+ * intention, so it is read off the documents present rather than taken on trust.
+ * Without this the state could be reached with the upload link still empty, and
+ * a claim would say the summary had arrived while the customer was still
+ * standing at the discharge desk holding it.
+ */
+export function dischargeSummaryReceived(ctx: ClaimContext): TransitionResult {
+  const present = ctx.presentDocTypes ?? []
+  if (!present.includes(CLAIM_UPLOAD_DOC_TYPE)) {
+    return refuse(
+      'The discharge summary has not arrived yet. This step records a document that is on the file, so it cannot be marked received while the upload link is still empty.',
+    )
   }
   return allow()
 }
@@ -213,7 +246,12 @@ export const CLAIM_TRANSITIONS = {
     },
   },
   upload_link_sent: {
-    summary_received: { event: 'claim.status_changed', alsoEmits: ['message.sent'] },
+    summary_received: {
+      event: 'claim.status_changed',
+      alsoEmits: ['message.sent'],
+      guards: [dischargeSummaryReceived],
+      note: 'Read off the upload ledger. The link, not the operator, says it arrived.',
+    },
   },
   summary_received: {
     tracked: { event: 'claim.status_changed', alsoEmits: ['message.sent'] },

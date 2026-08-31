@@ -12,9 +12,11 @@
  */
 
 import { z } from 'zod'
+import { RUN_DECISIONS } from '../../domain/automation'
 import { isMoney } from '../../domain/money'
 import type { Money } from '../../domain/money'
 import {
+  AMOUNT_SOURCES,
   CLAIM_STATES,
   CLAIM_TYPES,
   COLLECTION_INSTRUMENTS,
@@ -23,14 +25,19 @@ import {
   COLLECTION_STATES,
   CONSENT_STATES,
   DEAL_STATES,
+  ENDORSEMENT_STATES,
+  ENDORSEMENT_TYPES,
   INQUIRY_STATES,
   INSTALMENT_AMOUNT_SOURCES,
   INSTALMENT_STATES,
   KYC_CONSENT_STATES,
   MANDATE_STATES,
+  NOTICE_BATCH_STATES,
+  NOTICE_ROW_STATES,
   POLICY_ENTRY_PATHS,
   POLICY_STATES,
   PREMIUM_MODES,
+  SALES_CREDIT_SOURCES,
   PREMIUM_SOURCES,
   QUOTATION_STATES,
   RENEWAL_STATES,
@@ -44,7 +51,20 @@ import { LEDGER_ENTRY_KINDS } from '../repo/commission'
 import { MESSAGE_CHANNELS, MESSAGE_STATES, FORM_FIELD_KINDS } from '../repo/config'
 import { CUSTOMER_SOURCES, CUSTOMER_STATUSES, MEMBER_RELATIONSHIPS } from '../repo/customers'
 import { DOCUMENT_REVIEW_STATES, DOCUMENT_TYPES } from '../repo/documents'
-import { MANDATE_KINDS, PAYMENT_STATES } from '../repo/policies'
+import { REFERRER_KINDS } from '../repo/inquiries'
+import {
+  INTEGRATION_CHECK_OUTCOMES,
+  INTEGRATION_KINDS,
+  secretLikeSettingKeys,
+} from '../repo/integrations'
+import {
+  DELIVERY_STATES,
+  DISPATCH_CHANNELS,
+  MANDATE_KINDS,
+  NCB_SOURCES,
+  PAYMENT_STATES,
+  POLICY_ORIGINS,
+} from '../repo/policies'
 import { CHECKLIST_PURPOSES } from '../repo/products'
 import { TASK_KINDS, TASK_PRIORITIES, TASK_STATES } from '../repo/tasks'
 
@@ -114,6 +134,73 @@ export const masterValueSchema = z.object({
   active: z.boolean(),
 })
 
+/**
+ * The engagement vocabulary, FR-06.12 and .14. `allowedFromKeys` is the
+ * adjacency a transition table would have held, so it is validated like one:
+ * a list of keys, possibly empty, never absent.
+ */
+/**
+ * A logged contact. `attemptNo` may be zero — a connected call is not an
+ * attempt at reaching somebody, it is having reached them — so the bound is
+ * non-negative rather than positive.
+ */
+export const activitySchema = z.object({
+  id,
+  systemNo: z.string().min(1),
+  subjectEntity: z.string().min(1),
+  subjectId: id,
+  channel: z.enum(['call', 'whatsapp', 'email', 'meeting', 'visit']),
+  direction: z.enum(['outbound', 'inbound']),
+  occurredAt: stamp,
+  actorId: id,
+  dispositionKey: z.string().min(1),
+  notes: z.string().nullable(),
+  nextTaskId: id.nullable(),
+  attemptNo: z.int().nonnegative(),
+  messageLogId: id.nullable(),
+  createdAt: stamp,
+})
+
+export const requirementSchema = z.object({
+  id,
+  inquiryId: id,
+  formSchemaId: id,
+  objectKey: z.string().min(1),
+  schemaVersion: z.int().positive(),
+  values: z.record(z.string(), z.unknown()),
+  capturedBy: id,
+  capturedAt: stamp,
+  revisedAt: stamp.nullable(),
+})
+
+export const inquiryStageSchema = z.object({
+  id,
+  key: z.string().min(1),
+  label,
+  allowedFromKeys: z.array(z.string().min(1)),
+  requiresNextAction: z.boolean(),
+  countsAsOpen: z.boolean(),
+  terminal: z.boolean(),
+  parksTheLead: z.boolean(),
+  sortOrder: z.int().positive(),
+  active: z.boolean(),
+})
+
+export const dispositionSchema = z.object({
+  id,
+  key: z.string().min(1),
+  label,
+  channelKeys: z.array(z.string().min(1)),
+  stageKey: z.string().min(1).nullable(),
+  requiresNextAction: z.boolean(),
+  requiresReason: z.boolean(),
+  incrementsAttempt: z.boolean(),
+  suggestedTemplateKey: z.string().min(1).nullable(),
+  defaultRetryMinutes: z.int().positive().nullable(),
+  sortOrder: z.int().positive(),
+  active: z.boolean(),
+})
+
 export const retentionClassSchema = z.object({
   id,
   key: z.string().min(1),
@@ -160,7 +247,55 @@ export const messageTemplateSchema = z.object({
   channel: z.enum(MESSAGE_CHANNELS),
   subject: z.string().nullable(),
   body: z.string().min(1),
+  recipeKey: z.string().min(1).nullable(),
+  version: z.int().positive(),
   active: z.boolean(),
+  updatedAt: stamp,
+  updatedBy: id,
+})
+
+const ocrTemplateFieldSchema = z.object({
+  key: z.string().min(1),
+  label,
+  anchor: z.string().min(1),
+  required: z.boolean(),
+})
+
+export const ocrTemplateSchema = z.object({
+  id,
+  companyId: id,
+  key: z.string().min(1),
+  label,
+  docType: z.enum(DOCUMENT_TYPES),
+  version: z.int().positive(),
+  fields: z.array(ocrTemplateFieldSchema).min(1),
+  active: z.boolean(),
+  updatedAt: stamp,
+})
+
+/**
+ * The integration posture, enforced on the data rather than only in the UI: a
+ * setting whose key reads like a credential cannot exist in a fixture, and
+ * `save` refuses the same keys with the same rule.
+ */
+export const integrationSchema = z.object({
+  id,
+  key: z.string().min(1),
+  kind: z.enum(INTEGRATION_KINDS),
+  label,
+  providerName: label,
+  enabled: z.boolean(),
+  settings: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .refine((value) => secretLikeSettingKeys(value).length === 0, {
+      error:
+        'An integration records that it exists; it never stores a key, token, secret or password. Keep the credential in the provider console.',
+    }),
+  lastCheckedAt: stamp.nullable(),
+  lastCheckOutcome: z.enum(INTEGRATION_CHECK_OUTCOMES).nullable(),
+  lastCheckNote: z.string().min(1).nullable(),
+  updatedAt: stamp,
+  updatedBy: id,
 })
 
 export const messageLogSchema = z.object({
@@ -329,6 +464,9 @@ export const customerSchema = z.object({
   subAgentId: id.nullable(),
   kycState: z.enum(KYC_CONSENT_STATES),
   consentState: z.enum(CONSENT_STATES),
+  // Never chased is `null`, not a zero-length string and not day zero.
+  lastConsentChaseAt: stamp.nullable(),
+  consentChaseCount: z.number().int().min(0),
   fullName: label,
   mobile,
   altMobile: mobile.nullable(),
@@ -411,6 +549,14 @@ export const inquirySchema = z.object({
   escalationLevel: z.int().min(0),
   createdAt: stamp,
   customerId: id.nullable(),
+  referral: z
+    .object({
+      kind: z.enum(REFERRER_KINDS),
+      referrerId: id.nullable(),
+      referrerName: label.nullable(),
+      capturedAt: stamp,
+    })
+    .nullable(),
   contactName: label,
   contactMobile: mobile,
   contactEmail: email.nullable(),
@@ -437,9 +583,12 @@ export const quotationSchema = z.object({
       sortOrder: z.int().positive(),
     }),
   ),
+  subAgentId: id.nullable(),
   premiumMode: z.enum(PREMIUM_MODES),
   finalPayablePremium: money.nullable(),
   sharedAt: stamp.nullable(),
+  acceptedColumnKeys: z.array(z.string().min(1)),
+  awardedAt: stamp.nullable(),
   revisionReason: z.string().nullable(),
   lostReason: z.string().nullable(),
   createdAt: stamp,
@@ -458,6 +607,8 @@ export const quotationLineSchema = z.object({
   // §9: typed, never computed. A `computed` provenance in a fixture would be a
   // D3 violation shipped as data.
   finalPremiumSource: z.enum(PREMIUM_SOURCES).refine((value) => value !== 'computed').nullable(),
+  netPremium: money.nullable(),
+  gstAmount: money.nullable(),
   benefitValues: z.record(z.string(), z.string()),
   locked: z.boolean(),
 })
@@ -473,8 +624,28 @@ export const dealSchema = z.object({
   subAgentId: id.nullable(),
   agencyId: id.nullable(),
   lineItems: z.array(
-    z.object({ id, companyId: id, productId: id, label }),
+    z.object({
+      id,
+      companyId: id,
+      productId: id,
+      label,
+      // Provenance: the quotation column this line was carried from.
+      quotationLineId: id,
+      columnKey: z.string().min(1),
+      carriedFromVersion: z.int().positive(),
+      // The accepted figure. Required, and never `computed` — a deal that
+      // carries a derived premium is a D3 violation shipped as data.
+      acceptedFinalPayablePremium: money,
+      acceptedPremiumSource: z.enum(PREMIUM_SOURCES).refine((value) => value !== 'computed'),
+      netPremium: money.nullable(),
+      gstAmount: money.nullable(),
+      premiumMode: z.enum(PREMIUM_MODES),
+    }),
   ),
+  quotationVersion: z.int().positive(),
+  acceptedColumnKeys: z.array(z.string().min(1)),
+  awardKey: z.string().min(1),
+  salesCreditSource: z.enum(SALES_CREDIT_SOURCES).nullable(),
   createdAt: stamp,
   consumedByPolicyId: id.nullable(),
 })
@@ -502,6 +673,15 @@ export const policySchema = z.object({
   paymentState: z.enum(PAYMENT_STATES),
   memberIds: z.array(id),
   retentionClass: z.string().min(1),
+  // The union, validated branch by branch. A row that carries `origin: 'deal'`
+  // with no `dealId` is refused here rather than surfacing as a broken spine on
+  // a screen, which is the whole reason the type is a union and not four nulls.
+  provenance: z.discriminatedUnion('origin', [
+    z.object({ origin: z.literal(POLICY_ORIGINS.deal), dealId: id }),
+    z.object({ origin: z.literal(POLICY_ORIGINS.renewal), precedingPolicyId: id }),
+    z.object({ origin: z.literal(POLICY_ORIGINS.captured), reason: z.string().min(1) }),
+    z.object({ origin: z.literal(POLICY_ORIGINS.migrated), batchRef: z.string().min(1) }),
+  ]),
   schemaVersion: z.int().positive(),
   proposerBankAccount: z.string().nullable(),
   nomineeAadhaarLast4: last4.nullable(),
@@ -518,6 +698,51 @@ export const policyVersionSchema = z.object({
   insurerEndorsementNo: z.string().nullable(),
   note: z.string().min(1),
   createdAt: stamp,
+})
+
+export const policyPremiumComponentSchema = z.object({
+  id,
+  policyId: id,
+  key: z.string().min(1),
+  label: label,
+  // Nullable, and that is the point: an unrecorded component is a fact worth
+  // keeping. Coercing it to zero would assert a figure nobody gave us.
+  amount: money.nullable(),
+  schemaVersion: z.int().positive(),
+  sortOrder: z.int().min(0),
+  recordedBy: id,
+  recordedAt: stamp,
+})
+
+export const policyNcbSchema = z.object({
+  id,
+  policyId: id,
+  // Basis points, so 50% is 5000 and no float touches a rate. Capped at 100%.
+  percentBp: z.int().min(0).max(10_000),
+  source: z.enum(NCB_SOURCES),
+  carriedFromPolicyId: id.nullable(),
+  recordedBy: id,
+  recordedAt: stamp,
+})
+
+export const policyDispatchSchema = z.object({
+  id,
+  policyId: id,
+  channel: z.enum(DISPATCH_CHANNELS),
+  documentId: id.nullable(),
+  state: z.enum(DELIVERY_STATES),
+  recipientName: label,
+  // Masked at rest. A dispatch log is read by everyone who can read the policy,
+  // and the full number is a wider surface than a delivery row needs.
+  recipientContactMasked: z.string().min(1),
+  courierName: z.string().min(1).nullable(),
+  trackingRef: z.string().min(1).nullable(),
+  dispatchedBy: id,
+  dispatchedAt: stamp,
+  deliveredAt: stamp.nullable(),
+  confirmedAt: stamp.nullable(),
+  confirmedBy: id.nullable(),
+  returnReason: z.string().min(1).nullable(),
 })
 
 export const policyDraftSchema = z.object({
@@ -690,17 +915,157 @@ export const claimSchema = z.object({
   documentsCollected: z.array(label),
 })
 
+
+/* --------------------------------------------------- endorsement and notices */
+
+/**
+ * A money figure on an endorsement. §9: typed from the insurer's advice, never
+ * derived — `endorsementDeltaIsTyped` and `refundIsTypedInsurerFigure` refuse a
+ * `derived` provenance at the transition, and this refuses one arriving as data.
+ */
+const endorsementFigureSchema = z.object({
+  amount: money.nullable(),
+  source: z
+    .enum(AMOUNT_SOURCES)
+    .refine((value) => value !== 'derived')
+    .nullable(),
+  insurerReference: z.string().min(1).nullable(),
+})
+
+export const endorsementSchema = z
+  .object({
+    id,
+    systemNo: z.string().regex(/^END-\d{4}$/),
+    insurerEndorsementNo: z.string().nullable(),
+    policyId: id,
+    customerId: id,
+    type: z.enum(ENDORSEMENT_TYPES),
+    state: z.enum(ENDORSEMENT_STATES),
+    ownerId: id.nullable(),
+    requestedAt: stamp,
+    effectiveFrom: day.nullable(),
+    reason: z.string().min(1),
+    changedFields: z.array(z.string().min(1)),
+    replacesInsuredEntity: z.boolean(),
+    delta: endorsementFigureSchema,
+    refund: endorsementFigureSchema,
+    claimsVerdict: z
+      .object({ refundEligible: z.boolean(), claimIds: z.array(id) })
+      .nullable(),
+    policyVersionId: id.nullable(),
+    documentId: id.nullable(),
+    approvedBy: id.nullable(),
+    approvedAt: stamp.nullable(),
+  })
+  // §9: "Non-financial types must render no premium fields at all." A disabled
+  // premium field is still a premium field, and a stored one is worse.
+  .refine(
+    (row) =>
+      row.type !== 'non_financial' || (row.delta.amount === null && row.refund.amount === null),
+    {
+      error: 'A non-financial endorsement carries no premium delta and no refund.',
+    },
+  )
+  // A refund belongs to a cancellation and a delta to a financial change. The
+  // other way round is a form that was reshaped after the figure was typed.
+  .refine((row) => row.type === 'financial' || row.delta.amount === null, {
+    error: 'Only a financial endorsement carries a premium delta.',
+  })
+  .refine((row) => row.type === 'cancellation' || row.refund.amount === null, {
+    error: 'Only a cancellation carries a refund.',
+  })
+
+export const noticeBatchSchema = z.object({
+  id,
+  systemNo: z.string().regex(/^NTB-\d{4}$/),
+  companyId: id,
+  ocrTemplateId: id.nullable(),
+  state: z.enum(NOTICE_BATCH_STATES),
+  sourceDocumentId: id.nullable(),
+  fileName: z.string().min(1),
+  expiryMonth: z.string().regex(/^\d{4}-\d{2}$/),
+  uploadedBy: id,
+  uploadedAt: stamp,
+  ocrStartedAt: stamp.nullable(),
+  ocrCompletedAt: stamp.nullable(),
+  rowCount: z.int().min(0),
+  sentBy: id.nullable(),
+  sentAt: stamp.nullable(),
+})
+
+export const noticeMatchSchema = z
+  .object({
+    id,
+    batchId: id,
+    rowNumber: z.int().positive(),
+    state: z.enum(NOTICE_ROW_STATES),
+    noticePolicyNo: z.string().min(1),
+    noticeCustomerName: label,
+    noticeExpiryDate: day.nullable(),
+    noticePremium: money.nullable(),
+    // Printed on the insurer's notice and typed off it. A computed provenance
+    // would be this platform working out a renewal premium, which it never does.
+    noticePremiumSource: z
+      .enum(PREMIUM_SOURCES)
+      .refine((value) => value !== 'computed')
+      .nullable(),
+    matchedPolicyId: id.nullable(),
+    matchedCustomerId: id.nullable(),
+    manuallyLinkedBy: id.nullable(),
+    linkedAt: stamp.nullable(),
+    rejectReason: z.string().min(1).nullable(),
+    ocrFields: z.array(
+      z.object({ name: z.string().min(1), value: z.string(), confirmed: z.boolean() }),
+    ),
+  })
+  // §9: a matched row carries the policy it matched, or the send has nothing to
+  // address. A row marked matched with no policy is the state the guard refuses.
+  .refine((row) => row.state !== 'matched' || row.matchedPolicyId !== null, {
+    error: 'A matched notice row records the policy the notice belongs to.',
+  })
+  .refine((row) => row.state !== 'rejected' || row.rejectReason !== null, {
+    error: 'A rejected notice row records why it was rejected.',
+  })
+
 /** Table name to the schema its rows must satisfy. The test walks this map. */
+/**
+ * FR-21.5's run ledger. Seeded empty, and validated anyway: the rows the
+ * dispatcher writes at runtime have to satisfy the same shape as any other, and
+ * this is where that stays true after somebody adds a field to `RecipeRun`.
+ */
+export const recipeRunSchema = z.object({
+  id,
+  idempotencyKey: z.string().min(1),
+  recipeKey: z.string().min(1),
+  recipeVersion: z.int().min(1),
+  trigger: z.string().min(1),
+  subjectEntity: z.string().min(1).nullable(),
+  subjectId: id.nullable(),
+  phase: z.string().min(1).nullable(),
+  decision: z.enum(RUN_DECISIONS),
+  reason: z.string().min(1),
+  emitted: z.array(z.string().min(1)),
+  evaluatedAt: stamp,
+  clockAt: stamp,
+  causedBy: z.string().min(1).nullable(),
+  chain: z.array(z.string().min(1)),
+})
+
 export const FIXTURE_SCHEMAS = {
   users: staffUserSchema,
   teams: teamSchema,
   categories: inquiryCategorySchema,
   masterTypes: masterTypeSchema,
   masterValues: masterValueSchema,
+  inquiryStages: inquiryStageSchema,
+  dispositions: dispositionSchema,
   retentionClasses: retentionClassSchema,
   formSchemas: formSchemaSchema,
   recipes: recipeSchema,
+  recipeRuns: recipeRunSchema,
   messageTemplates: messageTemplateSchema,
+  ocrTemplates: ocrTemplateSchema,
+  integrations: integrationSchema,
 
   companies: companySchema,
   companyContacts: companyContactSchema,
@@ -727,17 +1092,25 @@ export const FIXTURE_SCHEMAS = {
 
   policies: policySchema,
   policyVersions: policyVersionSchema,
+  policyPremiumComponents: policyPremiumComponentSchema,
+  policyNcbs: policyNcbSchema,
+  policyDispatches: policyDispatchSchema,
   policyDrafts: policyDraftSchema,
   premiumSchedules: premiumScheduleSchema,
   instalments: instalmentSchema,
   mandates: mandateSchema,
   mandateEvents: mandateEventSchema,
   collections: collectionSchema,
+  endorsements: endorsementSchema,
 
   tasks: taskSchema,
+  activities: activitySchema,
+  requirements: requirementSchema,
   renewalTasks: renewalTaskSchema,
   documents: documentSchema,
   claims: claimSchema,
+  noticeBatches: noticeBatchSchema,
+  noticeMatches: noticeMatchSchema,
   messageLogs: messageLogSchema,
   ledgerEntries: ledgerEntrySchema,
 } as const

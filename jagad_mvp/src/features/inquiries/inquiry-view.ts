@@ -16,7 +16,8 @@
 
 import type { DomainEvent } from '../../domain/events'
 import type { InquiryState } from '../../domain/workflows'
-import type { CustomerSource, Inquiry, StaffUser } from '../../data/repo'
+import type { Agent, Customer, CustomerSource, Inquiry, StaffUser } from '../../data/repo'
+import type { Activity, Disposition } from '../../data/repo'
 import type { TrailCarry, TrailEntry, TrailKind } from '../../components/AssignmentTrail'
 import { readClock } from '../../ui/signal'
 import type { Severity, Tone } from '../../ui/tone'
@@ -54,6 +55,37 @@ export const SOURCE_LABEL: Readonly<Record<CustomerSource, string>> = {
   sub_agent: 'Sub-agent',
   campaign: 'Campaign',
   renewal: 'Renewal',
+}
+
+/**
+ * Who referred this lead, in words — null when nobody did.
+ *
+ * A referrer that no longer resolves prints its own id rather than "Unknown":
+ * the attribution was recorded against something, and saying what beats saying
+ * nothing when somebody has to go and find out why it does not resolve.
+ */
+export function referrerLabel(
+  inquiry: Inquiry,
+  people: {
+    readonly customers: readonly Customer[]
+    readonly agents: readonly Agent[]
+    readonly users: readonly StaffUser[]
+  },
+): string | null {
+  const referral = inquiry.referral
+  if (referral === null) return null
+  if (referral.kind === 'external') {
+    return `${referral.referrerName ?? 'Unnamed'} — not on our books`
+  }
+
+  const id = referral.referrerId
+  if (referral.kind === 'customer') {
+    return people.customers.find((row) => row.id === id)?.fullName ?? (id ?? 'Not recorded')
+  }
+  if (referral.kind === 'sub_agent') {
+    return people.agents.find((row) => row.id === id)?.name ?? (id ?? 'Not recorded')
+  }
+  return people.users.find((row) => row.id === id)?.name ?? (id ?? 'Not recorded')
 }
 
 /** The states whose TAT clock is still running. Everything else has stopped it. */
@@ -124,18 +156,48 @@ export function isUnassigned(inquiry: Inquiry): boolean {
   return inquiry.ownerId === null
 }
 
-/** §5: "unassigned and TAT-at-risk pinned". Lower rank sorts first. */
+/**
+ * Whether this lead has quietly stopped being worked — FR-06.15, FR-06.17.
+ *
+ * Two shapes, and the second is the one nothing in the product could see before.
+ * An overdue next action is a promise the agency made to itself and missed. A
+ * *missing* one on an accepted inquiry is worse: nobody ever made the promise,
+ * and the TAT clock has already stopped, so until now the record sat there
+ * looking exactly like one being worked.
+ */
+export function engagementLapse(
+  inquiry: Inquiry,
+  now: Date,
+): 'overdue' | 'unplanned' | null {
+  if (inquiry.status !== 'accepted') return null
+  if (inquiry.nextActionAt === null) return 'unplanned'
+  const due = new Date(inquiry.nextActionAt)
+  if (Number.isNaN(due.getTime())) return null
+  return due.getTime() < now.getTime() ? 'overdue' : null
+}
+
+/**
+ * §5: "unassigned and TAT-at-risk pinned". Lower rank sorts first.
+ *
+ * The two engagement ranks sit below the TAT ones deliberately. A breached
+ * turnaround is somebody waiting on a first response; a missed follow-up is
+ * somebody waiting on a second. Both belong above the calm rows, and in that
+ * order.
+ */
 export function pinRank(inquiry: Inquiry, now: Date, tatMinutes: number | null): number {
   const tat = readTat(inquiry, now, tatMinutes)
+  const lapse = engagementLapse(inquiry, now)
   if (inquiry.status === 'escalated') return 0
   if (tat.breached) return 1
   if (isUnassigned(inquiry) && inquiry.status !== 'converted' && inquiry.status !== 'lost') return 2
   if (tat.atRisk) return 3
-  return 4
+  if (lapse === 'overdue') return 4
+  if (lapse === 'unplanned') return 5
+  return 6
 }
 
 export function isPinned(inquiry: Inquiry, now: Date, tatMinutes: number | null): boolean {
-  return pinRank(inquiry, now, tatMinutes) < 4
+  return pinRank(inquiry, now, tatMinutes) < 6
 }
 
 /** Queue stripe severity. How much trouble the row is in, not which state it holds. */
@@ -148,6 +210,10 @@ export function inquirySeverity(
   if (inquiry.status === 'escalated' || tat.breached) return 'hot'
   if (inquiry.status === 'unrouted' || inquiry.status === 'new') return 'attn'
   if (tat.atRisk) return 'warm'
+  // An accepted inquiry that has gone quiet is not a calm row. Reading it as
+  // "good" because its clock stopped is exactly the false comfort the engagement
+  // layer exists to remove.
+  if (engagementLapse(inquiry, now) !== null) return 'attn'
   if (inquiry.status === 'accepted' || inquiry.status === 'converted') return 'good'
   return 'cool'
 }
@@ -175,6 +241,58 @@ export type TrailInput = {
   readonly tatMinutes: number | null
   /** Everything the machine emitted for this inquiry, oldest first. */
   readonly events: readonly DomainEvent[]
+  /** Contacts logged against this inquiry — FR-06.13. */
+  readonly activities?: readonly Activity[]
+  /** The configured outcomes, so a line reads the label rather than the key. */
+  readonly dispositions?: readonly Disposition[]
+  /** Only to name a referrer on the capture line — FR-06.2. */
+  readonly customers?: readonly Customer[]
+  readonly agents?: readonly Agent[]
+}
+
+/** How each channel reads on a timeline line. */
+const CHANNEL_LABEL: Readonly<Record<string, string>> = {
+  call: 'Call',
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  meeting: 'Meeting',
+  visit: 'Visit',
+}
+
+/**
+ * One logged contact as a timeline line — FR-06.13.
+ *
+ * The note is deliberately not rendered here. It is on the record for the person
+ * who needs it, but a timeline is read at a glance and skimming somebody's
+ * account of a phone call is not what the line is for: the line answers who,
+ * when, through what, and what came of it. That is also the shape the Assistant
+ * is allowed to see, which is not a coincidence — both are reading the operational
+ * facts and leaving the words where they were typed.
+ */
+export function activityEntries(
+  activities: readonly Activity[],
+  dispositions: readonly Disposition[],
+  users: readonly StaffUser[],
+): readonly TrailEntry[] {
+  return activities.map((activity) => {
+    const outcome =
+      dispositions.find((row) => row.key === activity.dispositionKey)?.label ??
+      activity.dispositionKey
+    const channel = CHANNEL_LABEL[activity.channel] ?? activity.channel
+    const inbound = activity.direction === 'inbound'
+
+    return {
+      id: `activity-${activity.id}`,
+      kind: inbound ? 'replied' : 'contacted',
+      title: inbound ? `${channel} received — ${outcome}` : `${channel} — ${outcome}`,
+      at: activity.occurredAt,
+      until: activity.occurredAt,
+      actorName: nameOf(users, activity.actorId),
+      ...(activity.attemptNo > 0
+        ? { detail: `Attempt ${activity.attemptNo}.` }
+        : {}),
+    }
+  })
 }
 
 export function carriedHistory(inquiry: Inquiry, users: readonly StaffUser[]): readonly TrailCarry[] {
@@ -197,7 +315,16 @@ export function carriedHistory(inquiry: Inquiry, users: readonly StaffUser[]): r
  * case. A state the record is already in when the screen opens, with no event to
  * account for it, still gets a line — a silent state is the thing §9 is against.
  */
-export function buildTrail({ inquiry, users, tatMinutes, events }: TrailInput): readonly TrailEntry[] {
+export function buildTrail({
+  inquiry,
+  users,
+  tatMinutes,
+  events,
+  activities = [],
+  dispositions = [],
+  customers = [],
+  agents = [],
+}: TrailInput): readonly TrailEntry[] {
   const entries: TrailEntry[] = []
   const holds = inquiry.assignmentHistory
 
@@ -209,6 +336,12 @@ export function buildTrail({ inquiry, users, tatMinutes, events }: TrailInput): 
     until: holds[0]?.assignedAt ?? null,
     detail: [
       `Source: ${SOURCE_LABEL[inquiry.source]}`,
+      // Who sent this lead, on the line that says where it came from — the
+      // history is where somebody goes to ask, and "Referral" on its own does
+      // not answer it.
+      referrerLabel(inquiry, { customers, agents, users }) === null
+        ? null
+        : `Referred by ${referrerLabel(inquiry, { customers, agents, users })}`,
       inquiry.subAgentId === null ? null : 'Linked to the sub-agent who captured it',
     ]
       .filter((part): part is string => part !== null)
@@ -281,5 +414,10 @@ export function buildTrail({ inquiry, users, tatMinutes, events }: TrailInput): 
     })
   }
 
-  return entries
+  // Contacts join the same list rather than living in a panel of their own. A
+  // handover and a phone call are both things that happened to this inquiry, and
+  // reading them apart is how somebody concludes a lead was being worked when in
+  // fact it changed hands three times and nobody rang.
+  const merged = [...entries, ...activityEntries(activities, dispositions, users)]
+  return merged.sort((a, b) => a.at.localeCompare(b.at))
 }

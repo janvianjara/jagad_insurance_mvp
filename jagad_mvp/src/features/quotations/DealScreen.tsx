@@ -6,15 +6,18 @@ import { can } from '../../domain/permissions'
 import { dealHasLineItems } from '../../domain/workflows'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
-import { ConfirmGate } from '../../components/guardrails'
-import type { Repositories } from '../../data/repo'
+import { ConfirmGate, RollUp } from '../../components/guardrails'
+import type { RollUpComponent } from '../../components/guardrails'
+import { sumMoney } from '../../domain/money'
+import type { Agent, Deal, Repositories } from '../../data/repo'
+import type { Money } from '../../domain/money'
 import { Button } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
 import { EmptyState, Skeleton } from '../../ui/data'
 import { Field, Select } from '../../ui/form'
 import { StatusPill } from '../../ui/signal'
 import { Panel, useToaster } from '../../ui/surface'
-import { KeyValueList, RecordId } from '../../ui/type'
+import { KeyValueList, Money as AmountText, RecordId } from '../../ui/type'
 import { DEAL_LABEL, DEAL_TONE, nameOf } from './quotation-view'
 import styles from './Deal.module.css'
 
@@ -65,13 +68,14 @@ export function DealScreen() {
     )
   }
 
-  const { deal, quotation, customer, users, agencies, companies, products } = loaded.data
+  const { deal, quotation, customer, users, agents, agencies, companies, products } = loaded.data
   const actorId = user.id
   const mayAct = can(user, 'edit', 'deals')
 
   // The machine's own guard, asked early so the control carries the same
   // sentence the refusal would have.
   const verdict = dealHasLineItems({ lineItems: deal.lineItems })
+  const breakdown = acceptedBreakdown(deal.lineItems)
   const placed = deal.status !== 'created'
   const picked = agencyId || deal.agencyId || ''
 
@@ -123,22 +127,60 @@ export function DealScreen() {
               {verdict.ok ? '' : verdict.reason}
             </p>
           ) : (
-            <ul className={styles.items}>
-              {deal.lineItems.map((item) => (
-                <li key={item.id} className={styles.item} data-line-item={item.id}>
-                  <span className={styles.itemLabel}>{item.label}</span>
-                  <span className={styles.itemMeta}>
-                    {companies.find((company) => company.id === item.companyId)?.name ??
-                      item.companyId}
-                    {' · '}
-                    {products.find((product) => product.id === item.productId)?.code ??
-                      item.productId}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className={styles.items}>
+                {deal.lineItems.map((item) => (
+                  <li key={item.id} className={styles.item} data-line-item={item.id}>
+                    <span className={styles.itemLabel}>{item.label}</span>
+                    <span className={styles.itemMeta}>
+                      {companies.find((company) => company.id === item.companyId)?.name ??
+                        item.companyId}
+                      {' · '}
+                      {products.find((product) => product.id === item.productId)?.code ??
+                        item.productId}
+                    </span>
+                    <span className={styles.itemAmount} data-accepted-premium={item.id}>
+                      <AmountText
+                        paise={item.acceptedFinalPayablePremium.paise}
+                        currency={item.acceptedFinalPayablePremium.currency}
+                      />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </Panel>
+
+        {/*
+          The derived block sits in its own panel rather than under the line
+          items, so a calculated total is never read as one of the typed figures
+          beside it. The roll-up appears only when every accepted column recorded
+          its components: a Net built from some of them would be a total that
+          looks authoritative and is not, which is worse than no total at all.
+        */}
+        {deal.lineItems.length > 0 ? (
+          <Panel
+            title="Accepted total"
+            description="Derived from the figures carried off the quotation. Nothing here can be typed."
+          >
+            {breakdown === null ? (
+              <p className={styles.note} data-rollup-absent="">
+                The insurer's split of net premium and GST was not recorded on every accepted
+                column, so there is no roll-up to show. Each column's typed Final Payable Premium
+                is listed above.
+              </p>
+            ) : (
+              <RollUp
+                components={breakdown.components}
+                gst={breakdown.gst}
+                netLabel="Net across accepted columns"
+                finalLabel="Accepted total"
+                note="Carried from the quotation columns the customer accepted. Net and Accepted total are derived from those typed figures and cannot be entered."
+              />
+            )}
+          </Panel>
+        ) : null}
 
         {!placed ? (
           <Panel
@@ -234,8 +276,8 @@ export function DealScreen() {
               },
               { key: 'customer', label: 'Customer', value: customer?.fullName ?? deal.customerId },
               { key: 'owner', label: 'Owner', value: nameOf(users, deal.ownerId) },
-              { key: 'agent', label: 'Agent', value: deal.agentId ?? 'None recorded' },
-              { key: 'subAgent', label: 'Sub-agent', value: deal.subAgentId ?? 'None recorded' },
+              { key: 'agent', label: 'Agent', value: agentName(agents, deal.agentId) },
+              { key: 'subAgent', label: 'Sub-agent', value: agentName(agents, deal.subAgentId) },
               {
                 key: 'agency',
                 label: 'Agency',
@@ -250,14 +292,48 @@ export function DealScreen() {
   )
 }
 
+/**
+ * An agent by name. A raw id on a screen is a lookup somebody has to do by hand,
+ * and the commission conversation this row feeds is about people.
+ */
+function agentName(agents: readonly Agent[], agentId: string | null): string {
+  if (agentId === null) return 'None recorded'
+  return agents.find((agent) => agent.id === agentId)?.name ?? agentId
+}
+
+/**
+ * The accepted columns as `<RollUp>` reads them, or `null` when the components
+ * were never recorded.
+ *
+ * All-or-nothing on purpose. `<RollUp>` sums the components it is given, so
+ * handing it a subset would produce a Net that silently omits a column the
+ * customer actually bought. Nothing here produces an amount: the parts are the
+ * figures typed on the quotation, and the sums are `<RollUp>`'s own.
+ */
+function acceptedBreakdown(
+  lineItems: readonly Deal['lineItems'][number][],
+): { components: readonly RollUpComponent[]; gst: Money } | null {
+  if (lineItems.length === 0) return null
+
+  const components: RollUpComponent[] = []
+  const gstParts: Money[] = []
+  for (const item of lineItems) {
+    if (item.netPremium === null || item.gstAmount === null) return null
+    components.push({ key: item.id, label: item.label, amount: item.netPremium })
+    gstParts.push(item.gstAmount)
+  }
+  return { components, gst: sumMoney(gstParts) }
+}
+
 async function loadDeal(repositories: Repositories, id: string) {
   const deal = await repositories.deals.get(id)
   if (!deal) return null
 
-  const [quotation, customer, users, agencies, companies, products] = await Promise.all([
+  const [quotation, customer, users, agents, agencies, companies, products] = await Promise.all([
     repositories.quotations.get(deal.quotationId),
     repositories.customers.get(deal.customerId),
     repositories.config.users(),
+    repositories.agents.list({ page: 1, pageSize: 200 }),
     repositories.agencies.list({ page: 1, pageSize: 50 }),
     repositories.companies.list({ page: 1, pageSize: 200 }),
     repositories.products.getMany(deal.lineItems.map((item) => item.productId)),
@@ -268,6 +344,7 @@ async function loadDeal(repositories: Repositories, id: string) {
     quotation,
     customer,
     users,
+    agents: agents.rows,
     agencies: agencies.rows,
     companies: companies.rows,
     products,

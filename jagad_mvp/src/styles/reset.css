@@ -10,6 +10,9 @@ html,
 body,
 #root {
   height: 100%;
+  /* A percentage height is only as good as its parent's. The minimum is what
+     keeps the app filling the window when one link in that chain is unset. */
+  min-height: 100%;
 }
 
 /*

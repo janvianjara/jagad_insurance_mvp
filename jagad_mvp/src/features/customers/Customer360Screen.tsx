@@ -1,4 +1,5 @@
-import { Link, useParams, useSearchParams } from 'react-router'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import type { ReactNode } from 'react'
 import { useRepositories } from '../../app/repositories-context'
 import { useResource } from '../../lib/useResource'
@@ -11,8 +12,15 @@ import { EmptyState, Skeleton } from '../../ui/data'
 import { Badge, StatusPill } from '../../ui/signal'
 import { Panel, Tabs } from '../../ui/surface'
 import { DateTime, KeyValueList, Money, RecordId, RelativeTime } from '../../ui/type'
-import { KycFile } from '../kyc'
+import { INQUIRY_LABEL, INQUIRY_TONE } from '../inquiries'
+import { KycFile, derivedStateFor, loadKycChecklist } from '../kyc'
+import { kycStateReason } from '../../domain/derive'
+import { can } from '../../domain/permissions'
+import { useSessionStore } from '../../app/store'
 import { useCustomerNow } from './clock'
+import { CustomerConsent } from './CustomerConsent'
+import { CUSTOMER_TABS, customerTabFromLocation, customerTabHref } from './customer-tabs'
+import type { CustomerTab } from './customer-tabs'
 import { customerDesk } from './data/customer-desk'
 import {
   CUSTOMER_STATUS_LABEL,
@@ -25,22 +33,6 @@ import {
   timelineOptions,
 } from './customer-view'
 import styles from './Customer360.module.css'
-
-const TAB_KEYS = [
-  'household',
-  'policies',
-  'documents',
-  'transactions',
-  'requests',
-  'kyc',
-  'timeline',
-] as const
-
-type TabKey = (typeof TAB_KEYS)[number]
-
-function readTab(value: string | null): TabKey {
-  return TAB_KEYS.includes((value ?? '') as TabKey) ? ((value ?? '') as TabKey) : 'household'
-}
 
 /**
  * Customer 360 — plan §5's "Customer 360" row, prototype card `g_360`.
@@ -59,27 +51,63 @@ function readTab(value: string | null): TabKey {
  * node.
  *
  * The open tab lives in the URL, so a link to a customer's timeline is a link to
- * their timeline (§7, "URL owns list state").
+ * their timeline (§7, "URL owns list state"). Consent is the one facet the §4
+ * route map gives a path of its own — `/customers/:id/consent`, because a
+ * per-customer consent ledger is a compliance surface asked for by name and
+ * shown by link — so `customerTabFromLocation` reads the path first and the
+ * query string second. Landing cold on that address opens the ledger on the
+ * first paint; there is no effect afterwards that corrects the tab, and
+ * therefore no frame in which the household flashes.
  */
 export function Customer360Screen() {
   const { id = '' } = useParams()
   const repositories = useRepositories()
   const desk = customerDesk(repositories)
   const now = useCustomerNow()
-  const [params, setParams] = useSearchParams()
-  const tab = readTab(params.get('tab'))
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = useSessionStore((state) => state.user)
+  const tab = customerTabFromLocation(location.pathname, location.search)
+
+  /** Bumped after a withdrawal is recorded, so the ledger re-reads the file. */
+  const [reads, setReads] = useState(0)
 
   const loaded = useResource(async () => {
     const dossier = await desk.dossier(id)
     if (!dossier) return null
-    const [events, users, products, companies] = await Promise.all([
+    const [events, users, products, companies, referred, checklist, templates] = await Promise.all([
       desk.timeline(id),
       repositories.config.users(),
       repositories.products.list({ page: 1, pageSize: 500 }),
       repositories.companies.list({ page: 1, pageSize: 500 }),
+      // FR-06.2: what this customer has sent us. Recording a referrer and being
+      // able to ask what somebody referred are two capabilities, and this is the
+      // screen the second question gets asked on.
+      repositories.inquiries.referredBy(id, { page: 1, pageSize: 50 }),
+      // The badge derives from the same checklist the KYC desk measures against,
+      // so the header and that desk cannot tell different stories.
+      loadKycChecklist(repositories, dossier),
+      // What an active template would send, so the consent tab can say what a
+      // withdrawal actually suppresses rather than asserting it suppresses
+      // something unnamed.
+      repositories.config.templates(),
     ])
-    return { dossier, events, users, products: products.rows, companies: companies.rows }
-  }, `customer:${id}:${tab}`)
+    return {
+      dossier,
+      events,
+      users,
+      products: products.rows,
+      companies: companies.rows,
+      referred: referred.rows,
+      checklist,
+      templates,
+    }
+    // Keyed on the customer alone, NOT the tab. Every tab renders from this one
+    // dossier, so putting the tab in the key made each click discard a good
+    // result and refetch the dossier, the timeline, users, products and
+    // companies - two serialised rounds of simulated latency to arrive back at
+    // data already in hand. The tab is a render concern; it is not a dependency.
+  }, `customer:${id}:${reads}`)
 
   if (loaded.isLoading && !loaded.data) {
     return (
@@ -105,7 +133,8 @@ export function Customer360Screen() {
     )
   }
 
-  const { dossier, events, users, products, companies } = loaded.data
+  const { dossier, events, users, products, companies, referred, checklist, templates } =
+    loaded.data
   const { customer, household, members, policies, documents, tasks, collections, consent } = dossier
 
   const productName = (productId: string) =>
@@ -117,7 +146,16 @@ export function Customer360Screen() {
 
   const live = activePolicies(policies)
 
-  const panels: Readonly<Record<TabKey, ReactNode>> = {
+  /*
+   * The header used to render `customer.kycState`, a column somebody wrote,
+   * while the Documents tab below rendered the vault. Two sources of truth on
+   * one screen, so the badge could read "KYC complete" above a checklist showing
+   * nothing on file and neither half was wrong. It is one source now, and the
+   * badge carries the sentence that justifies it.
+   */
+  const derived = derivedStateFor(dossier, checklist.checklist?.items ?? [], now)
+
+  const panels: Readonly<Record<CustomerTab, ReactNode>> = {
     household: (
       <>
         <Panel
@@ -143,6 +181,45 @@ export function Customer360Screen() {
               This customer is not grouped into a household. Grouping is what lets a floater's
               covered lives and a coverage gap be seen together.
             </p>
+          )}
+        </Panel>
+
+        <Panel
+          title="Leads they sent us"
+          level={3}
+          description="Referrals are worth knowing about while the person is still in front of you."
+        >
+          {referred.length === 0 ? (
+            <p className={styles.none}>
+              Nobody has been referred by this customer. A lead captured with them named as the
+              referrer appears here.
+            </p>
+          ) : (
+            <ul className={styles.rows}>
+              {referred.map((lead) => (
+                <li key={lead.id} className={styles.row} data-referred={lead.id}>
+                  <div className={styles.rowHead}>
+                    <RecordId systemNo={lead.systemNo} />
+                    <StatusPill tone={INQUIRY_TONE[lead.status]}>
+                      {INQUIRY_LABEL[lead.status]}
+                    </StatusPill>
+                  </div>
+                  <KeyValueList
+                    dense
+                    columns={2}
+                    items={[
+                      { key: 'who', label: 'Who', value: lead.contactName },
+                      { key: 'owner', label: 'Owner', value: staffName(lead.ownerId) },
+                      {
+                        key: 'when',
+                        label: 'Referred',
+                        value: <DateTime value={lead.createdAt} mode="date" />,
+                      },
+                    ]}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </Panel>
 
@@ -394,6 +471,18 @@ export function Customer360Screen() {
 
     kyc: <KycFile customerId={customer.id} />,
 
+    consent: (
+      <CustomerConsent
+        dossier={dossier}
+        templates={templates}
+        now={now}
+        actorId={user?.id ?? ''}
+        canAct={user !== null && (can(user, 'edit', 'customers') || can(user, 'edit', 'backOffice'))}
+        desk={desk}
+        onChanged={() => setReads((count) => count + 1)}
+      />
+    ),
+
     timeline: (
       <Panel
         title="Everything that has happened"
@@ -419,7 +508,9 @@ export function Customer360Screen() {
             <StatusPill tone={CUSTOMER_STATUS_TONE[customer.status]}>
               {CUSTOMER_STATUS_LABEL[customer.status]}
             </StatusPill>
-            <StatusPill tone={KYC_TONE[customer.kycState]}>{KYC_LABEL[customer.kycState]}</StatusPill>
+            <StatusPill tone={KYC_TONE[derived.kycState]} title={kycStateReason(derived)}>
+              {KYC_LABEL[derived.kycState]}
+            </StatusPill>
             <ConsentBadge
               state={customer.consentState}
               now={now}
@@ -428,6 +519,28 @@ export function Customer360Screen() {
             />
             <span>{`${live.length} live ${live.length === 1 ? 'policy' : 'policies'} · on the books since ${new Date(customer.createdAt).getFullYear()}`}</span>
           </>
+        }
+        actions={
+          /*
+           * The customer's own view of their file, as they see it.
+           *
+           * A plain anchor rather than a `<Link>`, and that is the point: the
+           * portal is a separate shell registered outside this one (§11.1, D-I),
+           * and a router navigation would carry this session across a boundary
+           * the whole design exists to keep. A document navigation leaves the
+           * staff app, which is what opening the customer's app means. The `as`
+           * parameter is written literally for the same reason - importing the
+           * portal's helper would pull the portal into the staff bundle and
+           * undo the chunk split that enforces the separation.
+           */
+          <a
+            className={styles.portalLink}
+            href={`/portal?as=${encodeURIComponent(customer.id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open their portal view
+          </a>
         }
       />
 
@@ -475,22 +588,21 @@ export function Customer360Screen() {
         <Tabs
           label="Customer 360"
           value={tab}
-          onChange={(next) => {
-            const nextParams = new URLSearchParams(params)
-            nextParams.set('tab', next)
-            setParams(nextParams)
-          }}
+          onChange={(next) => void navigate(customerTabHref(customer.id, next as CustomerTab))}
           tabs={[
-            { id: 'household', label: 'Household', count: members.length },
-            { id: 'policies', label: 'Policies', count: policies.length },
-            { id: 'documents', label: 'Documents', count: documents.length },
-            { id: 'transactions', label: 'Transactions', count: collections.length },
-            { id: 'requests', label: 'Requests', count: tasks.length },
-            { id: 'kyc', label: 'KYC and consent' },
-            { id: 'timeline', label: 'Timeline', count: events.length },
+            { id: CUSTOMER_TABS.household, label: 'Household', count: members.length },
+            { id: CUSTOMER_TABS.policies, label: 'Policies', count: policies.length },
+            { id: CUSTOMER_TABS.documents, label: 'Documents', count: documents.length },
+            { id: CUSTOMER_TABS.transactions, label: 'Transactions', count: collections.length },
+            { id: CUSTOMER_TABS.requests, label: 'Requests', count: tasks.length },
+            { id: CUSTOMER_TABS.kyc, label: 'KYC file' },
+            { id: CUSTOMER_TABS.consent, label: 'Consent', count: dossier.withdrawals.length || undefined },
+            { id: CUSTOMER_TABS.timeline, label: 'Timeline', count: events.length },
           ]}
         >
-          {(activeId) => <div className={styles.tabPanel}>{panels[readTab(activeId)]}</div>}
+          {(activeId) => (
+            <div className={styles.tabPanel}>{panels[activeId as CustomerTab] ?? panels.household}</div>
+          )}
         </Tabs>
       </div>
     </>

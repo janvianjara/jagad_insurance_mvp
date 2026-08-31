@@ -1,0 +1,31 @@
+/**
+ * The KYC queue's own cells.
+ *
+ * Only the last-chased column needs anything: it carries two facts in one cell,
+ * and one of them is the absence of a fact. Everything else on this queue is a
+ * shared primitive.
+ *
+ * No colour is written here. Every value is a token from `src/styles/tokens.css`.
+ */
+
+.chased {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-tight);
+}
+
+/**
+ * A file nobody has ever written to. Said as a word rather than left blank,
+ * because a blank cell reads as data the screen failed to load — and this is the
+ * row a person working the backlog should start with.
+ */
+.never {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.chaseCount {
+  margin-top: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}

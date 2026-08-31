@@ -86,7 +86,10 @@ describe('mandate failure', () => {
     const outcome = mandateMachine.transition(MANDATE_STATES.active, MANDATE_STATES.debitFailed, context(), { bus })
 
     expect(outcome.ok).toBe(true)
-    expect(seen.map((event) => event.name)).toEqual(['mandate.failed', 'task.created', 'message.sent'])
+    // One event. The follow-up is the `mandate.failureFollowUp` recipe's real
+    // task now, not two events announcing a row nobody wrote — see the note on
+    // the same assertion in `collection.test.ts`.
+    expect(seen.map((event) => event.name)).toEqual(['mandate.failed'])
   })
 
   it('refuses a follow-up scheduled for a later day than the failure', () => {

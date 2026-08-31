@@ -23,6 +23,7 @@ import { KYC_LABEL, KYC_TONE } from '../customers/customer-view'
 import { loadKycChecklist } from './checklist-source'
 import {
   checklistFor,
+  derivedStateFor,
   extractionsFor,
   kycCommandFor,
   unconfirmedExtractions,
@@ -101,7 +102,6 @@ export function KycFile({ customerId }: KycFileProps) {
 
   const command = kycCommandFor({
     dossier,
-    checklist,
     extractions,
     actorId: user.id,
     route: 'staff',
@@ -110,11 +110,11 @@ export function KycFile({ customerId }: KycFileProps) {
 
   // The machine, asked before anything is written — so the screen never offers a
   // move it is about to refuse, and the refusal it shows is the machine's own.
+  const derived = derivedStateFor(dossier, source.checklist?.items ?? [], now)
   const context: KycContext = {
     now,
     route: command.route,
-    requiredDocuments: command.requiredDocuments,
-    presentDocuments: command.presentDocuments,
+    derived,
     extractedFields: command.extractedFields,
     ...(command.aadhaarLast4 === undefined ? {} : { aadhaarLast4: command.aadhaarLast4 }),
   }

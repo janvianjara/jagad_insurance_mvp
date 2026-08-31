@@ -1,0 +1,129 @@
+/*
+ * A compliance page reads top-down and is read by people who are looking for one
+ * fact: where consent stands, what it covers, whether it was withdrawn, and the
+ * order it all happened in. Four panels, no columns, generous measure.
+ */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.standing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hair);
+}
+
+.channels,
+.ledger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.channel,
+.entry,
+.withdrawn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hair);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.channel[data-suppressed],
+.withdrawn {
+  border-left-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.channelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.channelName {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-width: var(--measure);
+}
+
+.reason {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+  max-width: var(--measure);
+}
+
+.honest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-width: var(--measure);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hair);
+  max-width: var(--measure);
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.formActions {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.blocked {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-width: var(--measure);
+}

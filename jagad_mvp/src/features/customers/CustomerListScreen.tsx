@@ -1,6 +1,7 @@
 import { useRepositories } from '../../app/repositories-context'
 import { useResource } from '../../lib/useResource'
 import { WorkQueue } from '../../components/WorkQueue'
+import { QueueDataPort } from '../dataport/QueueDataPort'
 import { Skeleton } from '../../ui/data'
 import { customerDesk } from './data/customer-desk'
 import { useCustomerNow } from './clock'
@@ -44,15 +45,21 @@ export function CustomerListScreen() {
     return <Skeleton width="100%" height="20rem" />
   }
 
+  // Hoisted so the toolbar's export can read the very query the table is
+  // showing: "export this view" is only a well-defined thing because the config
+  // and the URL agree on what the view is.
+  const config = customerQueueConfig({
+    desk,
+    households: context.data.households,
+    users: context.data.users,
+    cities: context.data.cities,
+    now,
+  })
+
   return (
     <WorkQueue
-      config={customerQueueConfig({
-        desk,
-        households: context.data.households,
-        users: context.data.users,
-        cities: context.data.cities,
-        now,
-      })}
+      config={config}
+      actions={<QueueDataPort config={config} importSpecKey="customers" />}
     />
   )
 }

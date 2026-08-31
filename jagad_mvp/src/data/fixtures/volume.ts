@@ -210,6 +210,9 @@ export function buildVolume(
       subAgentId: agentSourced && prng.chance(0.25) ? AGENT_IDS.meera : null,
       kycState,
       consentState: kycState === 'complete' ? 'submitted' : prng.pick(CONSENT_POOL),
+      // Filled by the second pass below, which is why these are not drawn here.
+      lastConsentChaseAt: null,
+      consentChaseCount: 0,
       fullName: `${first} ${last}`,
       mobile: mobileFor(prng),
       altMobile: null,
@@ -265,6 +268,11 @@ export function buildVolume(
       paymentState: issued ? (prng.chance(0.8) ? 'verified' : 'collected') : 'unpaid',
       memberIds: [],
       retentionClass: RETENTION_BY_LINE[line],
+      // The generated book stands in for what the agency kept before this
+      // platform existed, so it says so. `migrated` is the branch that lets a
+      // record admit it has no upstream instead of leaving a null to be read as
+      // a broken link.
+      provenance: { origin: 'migrated', batchRef: 'seed-volume-1' },
       schemaVersion: 2,
       proposerBankAccount: null,
       nomineeAadhaarLast4: null,
@@ -303,5 +311,47 @@ export function buildVolume(
     }
   })
 
-  return { customers, policies, tasks }
+  return { customers: withChaseHistory(customers, prng, now), policies, tasks }
+}
+
+/**
+ * Chase history, added in a pass of its own — and the pass is the point.
+ *
+ * Drawing these inside the customer loop would have advanced the PRNG between
+ * every other draw in it, which reshuffles all three hundred generated customers
+ * and every policy and task keyed to them. The set is seeded so that two runs
+ * agree; it is worth just as much that a run today agrees with one from last
+ * week, so a new field is appended to the stream rather than spliced into it.
+ *
+ * The shapes: `not_sent` means nobody has ever sent this person a link, so the
+ * date is null and the count is zero — the KYC queue reads that as "never", and
+ * it is the row a person working the backlog should start with. Every other
+ * consent state implies a link went out, so it carries a date, and a link still
+ * unanswered has usually been chased more than once. Leaving all three null
+ * would have the aging column say "never" for three hundred files that plainly
+ * were sent something.
+ */
+function withChaseHistory(
+  customers: readonly Customer[],
+  prng: Prng,
+  now: Date,
+): readonly Customer[] {
+  return customers.map((customer) => {
+    if (customer.consentState === 'not_sent') return customer
+
+    // Never before the person was on the books: a link sent to somebody who did
+    // not exist yet is not a chase, it is a broken fixture.
+    const onBooksDaysAgo = Math.max(
+      1,
+      Math.round((now.getTime() - new Date(customer.createdAt).getTime()) / 86_400_000),
+    )
+    const chasedDaysAgo = prng.int(1, onBooksDaysAgo)
+
+    return {
+      ...customer,
+      lastConsentChaseAt: isoTime(addDays(now, -chasedDaysAgo)),
+      consentChaseCount:
+        customer.consentState === 'submitted' ? prng.int(1, 2) : prng.int(1, 3),
+    }
+  })
 }

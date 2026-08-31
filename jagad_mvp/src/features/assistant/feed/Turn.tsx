@@ -42,6 +42,18 @@ export type TurnProps = {
   busy?: boolean
   /** A briefing whose whole queue is clear. A result, drawn as one. */
   quiet?: boolean
+  /**
+   * Rendered under the blocks once they have landed — the answer's provenance
+   * (FR-22.11), and nothing else so far.
+   *
+   * It goes below rather than in the attribution line because it is about what
+   * was read, which only becomes a question once the reader has seen what came
+   * back. Suppressed while the turn is busy: an answer that has not arrived has
+   * read nothing yet, and saying so mid-query would be untrue for a moment.
+   */
+  footer?: ReactNode
+  /** Where a produced document's Open goes. Only an answer ever carries one. */
+  onOpenDocument?: (documentId: string) => void
 }
 
 function attribution(kind: TurnKind): string {
@@ -71,7 +83,17 @@ function Typing() {
   )
 }
 
-export function Turn({ kind, blocks, tag, meta, actions, busy, quiet }: TurnProps) {
+export function Turn({
+  kind,
+  blocks,
+  tag,
+  meta,
+  actions,
+  busy,
+  quiet,
+  footer,
+  onOpenDocument,
+}: TurnProps) {
   const person = kind === TURN_KINDS.question
   const prominent = kind === TURN_KINDS.briefing
 
@@ -99,7 +121,15 @@ export function Turn({ kind, blocks, tag, meta, actions, busy, quiet }: TurnProp
         {busy ? (
           <Typing />
         ) : (
-          <BlockRenderer blocks={blocks} prominent={prominent} {...variantOf(kind, quiet)} />
+          <>
+            <BlockRenderer
+              blocks={blocks}
+              prominent={prominent}
+              {...variantOf(kind, quiet)}
+              {...(onOpenDocument ? { onOpenDocument } : {})}
+            />
+            {footer}
+          </>
         )}
       </div>
     </article>

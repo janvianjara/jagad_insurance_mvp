@@ -201,8 +201,10 @@ export const MANDATE_TRANSITIONS = {
       note: 'A successful debit is recorded and the mandate carries on. §9 draws it as a branch off active.',
     },
     debit_failed: {
+      /* Same fiction as the bounce edge, same fix: the follow-up is a real task
+       * the `mandate.failureFollowUp` recipe writes, not two events announcing a
+       * row nobody created. See the note on `collection.ts`'s bounced edge. */
       event: 'mandate.failed',
-      alsoEmits: ['task.created', 'message.sent'],
       guards: [failureRaisesSameDayFollowUpInsideGrace],
     },
     cancelled: { event: 'mandate.cancelled', guards: [cancellationRequiresReason] },

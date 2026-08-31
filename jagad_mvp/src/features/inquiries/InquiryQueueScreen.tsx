@@ -4,6 +4,7 @@ import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
 import { useResource } from '../../lib/useResource'
 import { WorkQueue } from '../../components/WorkQueue'
+import { QueueDataPort } from '../dataport/QueueDataPort'
 import { Button } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
 import { Skeleton } from '../../ui/data'
@@ -35,11 +36,12 @@ export function InquiryQueueScreen() {
   const intake = inquiryIntake(repositories)
 
   const context = useResource(async () => {
-    const [categories, users] = await Promise.all([
+    const [categories, users, stages] = await Promise.all([
       repositories.config.categories(),
       repositories.config.users(),
+      repositories.config.inquiryStages(),
     ])
-    return { categories, users }
+    return { categories, users, stages }
   }, 'inquiries:context')
 
   // Re-read whenever the address changes, which is also what every write on this
@@ -65,6 +67,7 @@ export function InquiryQueueScreen() {
     now,
     actorId: user.id,
     canAssign: can(user, 'assign', 'inquiries'),
+    stages: context.data.stages,
   })
 
   const unroutedTotal = unrouted.data?.total ?? 0
@@ -73,11 +76,14 @@ export function InquiryQueueScreen() {
     <WorkQueue
       config={config}
       actions={
-        can(user, 'create', 'inquiries') ? (
-          <Button variant="primary" icon="plus" onClick={() => void navigate('/inquiries/new')}>
-            New inquiry
-          </Button>
-        ) : null
+        <>
+          <QueueDataPort config={config} importSpecKey="inquiries" />
+          {can(user, 'create', 'inquiries') ? (
+            <Button variant="primary" icon="plus" onClick={() => void navigate('/inquiries/new')}>
+              New inquiry
+            </Button>
+          ) : null}
+        </>
       }
     >
       <DevClock />

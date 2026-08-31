@@ -293,3 +293,22 @@
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
+
+/* --------------------------------------------------------- the deeper views */
+
+/*
+ * `/commission` answers "what did the book earn"; the two links go to the
+ * evidence (`/commission/ledger`) and to the cycle (`/commission/payouts`).
+ * They sit in the header rather than in the rail: neither is a module of its
+ * own, both are ways further into this one.
+ */
+.deeper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--text-ui);
+}
+
+.deeper a {
+  color: var(--action);
+}

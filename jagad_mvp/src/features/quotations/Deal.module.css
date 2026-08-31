@@ -44,6 +44,19 @@
   border-radius: var(--radius-md);
 }
 
+.itemAmount {
+  margin-top: var(--sp-1);
+  font-size: var(--text-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: var(--sp-3) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
 .itemLabel {
   font-size: var(--text-ui);
   font-weight: var(--weight-semibold);

@@ -25,7 +25,7 @@ import type {
   QuotationLine,
   StaffUser,
 } from '../../data/repo'
-import type { DealState, QuotationState } from '../../domain/workflows'
+import type { DealLineItem, DealState, QuotationState } from '../../domain/workflows'
 import type { MatrixColumn } from '../../components/BenefitMatrix'
 import type {
   DocumentBenefitRow,
@@ -40,6 +40,7 @@ export const QUOTATION_LABEL: Readonly<Record<QuotationState, string>> = {
   generated: 'Generated',
   shared: 'Shared',
   revision_requested: 'Revision requested',
+  awarded: 'Awarded',
   won: 'Won',
   lost: 'Lost',
 }
@@ -50,7 +51,9 @@ export const QUOTATION_TONE: Readonly<Record<QuotationState, Tone>> = {
   composed: 'attn',
   generated: 'info',
   shared: 'warn',
+  // Lime, per U7: an award with no application behind it needs a person.
   revision_requested: 'attn',
+  awarded: 'attn',
   won: 'ok',
   lost: 'idle',
 }
@@ -71,6 +74,7 @@ export const DEAL_TONE: Readonly<Record<DealState, Tone>> = {
 export function quotationSeverity(quotation: Quotation): Severity {
   if (quotation.status === 'won') return 'good'
   if (quotation.status === 'lost') return 'cool'
+  if (quotation.status === 'awarded') return 'hot'
   if (quotation.status === 'revision_requested') return 'attn'
   if (quotation.status === 'shared') return 'warm'
   if (quotation.status === 'composed') return 'attn'
@@ -194,12 +198,53 @@ export function documentColumns(
   })
 }
 
-/** The deal line items a won column becomes. Ids are derived from the line's own. */
-export function dealLineItemsFor(lines: readonly QuotationLine[]) {
-  return lines.map((line) => ({
-    id: `dli-${line.id}`,
-    companyId: line.companyId,
-    productId: line.productId,
-    label: line.label,
-  }))
+/**
+ * What a won column becomes on the deal, financials and all.
+ *
+ * This is the carriage, and it is the only place it happens. Every amount below
+ * is copied off the quotation line the customer accepted — the function reads
+ * figures and never produces one, so a column with no typed premium cannot
+ * become a line item and is reported rather than quietly dropped. Ids are
+ * derived from the line's own, so the deal line and the quotation column it came
+ * from can always be put side by side.
+ */
+export type DealLineCarriage =
+  | { readonly ok: true; readonly lineItems: readonly DealLineItem[] }
+  | { readonly ok: false; readonly reason: string }
+
+export function dealLineItemsFor(
+  lines: readonly QuotationLine[],
+  premiumMode: Quotation['premiumMode'],
+): DealLineCarriage {
+  const untyped = lines.filter((line) => line.finalPayablePremium === null)
+  if (untyped.length > 0) {
+    const labels = untyped.map((line) => line.label).join(', ')
+    return {
+      ok: false,
+      reason: `No Final Payable Premium was ever typed for: ${labels}. A deal carries the figure the customer accepted, so that column cannot go forward until somebody records it.`,
+    }
+  }
+
+  const lineItems = lines.map((line): DealLineItem => {
+    // Narrowed by the check above; a line without a figure never reaches here.
+    const accepted = line.finalPayablePremium as NonNullable<QuotationLine['finalPayablePremium']>
+    return {
+      id: `dli-${line.id}`,
+      companyId: line.companyId,
+      productId: line.productId,
+      label: line.label,
+      quotationLineId: line.id,
+      columnKey: line.columnKey,
+      carriedFromVersion: line.version,
+      acceptedFinalPayablePremium: accepted,
+      // Carried, not restated. A line that somehow arrived without a provenance
+      // is treated as unproven rather than assumed typed, and the deal machine's
+      // carriage guard is what refuses it.
+      acceptedPremiumSource: line.finalPremiumSource ?? 'computed',
+      netPremium: line.netPremium,
+      gstAmount: line.gstAmount,
+      premiumMode,
+    }
+  })
+  return { ok: true, lineItems }
 }

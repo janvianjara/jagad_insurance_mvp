@@ -14,7 +14,7 @@
  */
 
 import { useRepositories } from '../../app/repositories-context'
-import { useSessionStore } from '../../app/store'
+import { activeAccount, useSessionStore } from '../../app/store'
 import { createAssistantRepository } from '../../data/assistant'
 import type { AssistantRepository } from '../../data/assistant'
 import { useResource } from '../../lib/useResource'
@@ -28,6 +28,8 @@ export type AssistantSession = {
   /** Which briefing template and which chips this account gets. */
   readonly templateKey: string
   readonly userName: string
+  /** What this person's role is called, for the conversation header. */
+  readonly roleLabel: string
   /** False when the account holds no Assistant grant — a sub-agent, today. */
   readonly enabled: boolean
 }
@@ -35,8 +37,13 @@ export type AssistantSession = {
 export function useAssistantSession(): AssistantSession {
   const repositories = useRepositories()
   const user = useSessionStore((state) => state.user)
+  // The role label lives on the account rather than on the user: `can()` has no
+  // use for a sentence, and the conversation header does.
+  const account = useSessionStore(activeAccount)
 
-  if (!user) return { repo: null, templateKey: 'none', userName: '', enabled: false }
+  if (!user) {
+    return { repo: null, templateKey: 'none', userName: '', roleLabel: '', enabled: false }
+  }
 
   // Rebuilt per render rather than memoised: React Compiler owns memoisation in
   // this codebase, and the facade is a bag of closures over an existing store.
@@ -46,6 +53,7 @@ export function useAssistantSession(): AssistantSession {
     repo,
     templateKey: user.templateKey,
     userName: user.name,
+    roleLabel: account?.roleLabel ?? '',
     enabled: repo.enabled,
   }
 }

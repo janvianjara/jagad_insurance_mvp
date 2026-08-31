@@ -5,8 +5,15 @@ import { useSessionStore } from '../../app/store'
 import { PageHeader } from '../../components/AppShell'
 import { useResource } from '../../lib/useResource'
 import type { PremiumMode } from '../../domain/workflows'
-import { PREMIUM_MODES } from '../../domain/workflows'
-import type { Company, Customer, InsuranceLine, Product } from '../../data/repo'
+import { PREMIUM_MODES, resolveSalesCredit } from '../../domain/workflows'
+import { SEED_FORM_SCHEMAS, resolveFormSchema } from '../../domain/forms'
+import type {
+  Company,
+  Customer,
+  InsuranceLine,
+  Product,
+  RequirementRecord,
+} from '../../data/repo'
 import { Button } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
 import { EmptyState, Skeleton } from '../../ui/data'
@@ -55,17 +62,22 @@ export function QuotationNewScreen() {
   const inquiryId = searchParams.get('inquiry')
 
   const context = useResource(async () => {
-    const [customers, companies, products, inquiry] = await Promise.all([
-      repositories.customers.list({ page: 1, pageSize: 500 }),
-      repositories.companies.list({ page: 1, pageSize: 200 }),
-      repositories.products.list({ page: 1, pageSize: 500 }),
-      inquiryId ? repositories.inquiries.get(inquiryId) : Promise.resolve(null),
-    ])
+    const [customers, companies, products, inquiry, requirement, categories] =
+      await Promise.all([
+        repositories.customers.list({ page: 1, pageSize: 500 }),
+        repositories.companies.list({ page: 1, pageSize: 200 }),
+        repositories.products.list({ page: 1, pageSize: 500 }),
+        inquiryId ? repositories.inquiries.get(inquiryId) : Promise.resolve(null),
+        inquiryId ? repositories.requirements.forInquiry(inquiryId) : Promise.resolve(null),
+        repositories.config.categories(),
+      ])
     return {
       customers: customers.rows,
       companies: companies.rows,
       products: products.rows.filter((product) => product.active),
       inquiry,
+      requirement,
+      categories,
     }
   }, `quotations:new:${inquiryId ?? 'none'}`)
 
@@ -82,12 +94,16 @@ export function QuotationNewScreen() {
   const [seeded, setSeeded] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // The inquiry this came out of already names its customer. Adopt it once, so
-  // a later change by the person on the screen is not overwritten on re-render.
+  // The inquiry this came out of already names its customer, and its category
+  // already names the line. Adopt both once, so a later change by the person on
+  // the screen is not overwritten on re-render.
   if (context.data && !seeded) {
     setSeeded(true)
     const fromInquiry = context.data.inquiry?.customerId ?? null
     if (fromInquiry) setCustomerId(fromInquiry)
+    const categoryId = context.data.inquiry?.categoryId ?? null
+    const category = context.data.categories.find((row) => row.id === categoryId)
+    if (category) setLine(category.line as InsuranceLine)
   }
 
   if (!user || !context.data) {
@@ -99,10 +115,20 @@ export function QuotationNewScreen() {
     )
   }
 
-  const { customers, companies, products, inquiry } = context.data
+  const { customers, companies, products, inquiry, requirement } = context.data
   const actorId = user.id
   const agentId = user.agentId ?? null
   const chosen = customers.find((candidate) => candidate.id === customerId) ?? null
+  /*
+   * The sale's credit, recorded on the quotation at birth so the deal has a rung
+   * to read it off later. The composing agent states the agent; the customer
+   * record can complete the sub-agent, but only where it names the same agent —
+   * `resolveSalesCredit` is what enforces that, rather than a rule restated here.
+   */
+  const credit = resolveSalesCredit({
+    stated: { agentId, subAgentId: null },
+    customer: chosen ? { agentId: chosen.agentId, subAgentId: chosen.subAgentId } : null,
+  })
   const pickedProducts = products.filter((product) => picked.includes(product.id))
 
   async function addCustomer() {
@@ -135,7 +161,8 @@ export function QuotationNewScreen() {
       customerId,
       ownerId: actorId,
       inquiryId,
-      agentId,
+      agentId: credit.agentId,
+      subAgentId: credit.subAgentId,
       premiumMode,
     })
     setBusy(false)
@@ -162,6 +189,22 @@ export function QuotationNewScreen() {
             {refusal}
           </p>
         ) : null}
+
+        {requirement === null ? null : (
+          <Panel
+            title="What they said they need"
+            description="Captured on the inquiry. This is the conversation the composer used to assume you remembered."
+          >
+            <dl className={styles.requirement}>
+              {answeredRequirement(requirement).map((row) => (
+                <div key={row.key}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.text}</dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
+        )}
 
         <Panel
           title="Customer"
@@ -369,3 +412,40 @@ function ProductPicker({ companies, products, picked, onToggle }: ProductPickerP
 }
 
 export default QuotationNewScreen
+
+/**
+ * The captured answers, read back in the words they were asked in.
+ *
+ * The labels come off the schema the record pinned, not off today's — a
+ * requirement taken in March reads in March's words, which is the promise the
+ * form engine already makes for every other captured record. Anything the
+ * schema no longer asks falls out rather than being shown under its raw key: a
+ * row reading `vehicleType` is a leak of the storage format into somebody's
+ * afternoon.
+ */
+function answeredRequirement(
+  requirement: RequirementRecord,
+): readonly { key: string; label: string; text: string }[] {
+  const schema = resolveFormSchema(SEED_FORM_SCHEMAS, {
+    objectKey: requirement.objectKey,
+    version: requirement.schemaVersion,
+  })
+  if (!schema) return []
+
+  return schema.stages
+    .flatMap((stage) => stage.fields)
+    .map((field) => ({ key: field.key, label: field.label, value: requirement.values[field.key] }))
+    .filter((row) => row.value !== undefined && row.value !== null && row.value !== '')
+    .map((row) => ({
+      key: row.key,
+      label: row.label,
+      text:
+        typeof row.value === 'boolean'
+          ? row.value
+            ? 'Yes'
+            : 'No'
+          : Array.isArray(row.value)
+            ? row.value.map((item) => String(item)).join(', ')
+            : String(row.value),
+    }))
+}

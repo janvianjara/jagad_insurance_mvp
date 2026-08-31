@@ -46,6 +46,15 @@ export type QuotationLine = {
   /** Absent until somebody types the insurer's figure. Absent is a real state. */
   readonly finalPayablePremium: Money | null
   readonly finalPremiumSource: PremiumSource | null
+  /**
+   * The typed components behind the final figure, when the insurer's quote broke
+   * them out. Optional forever, per §9 — nothing is gated on them and Final is
+   * never derived from them. They exist so a deal can roll the accepted columns
+   * up the only way this platform allows: Net as the sum of typed parts, Final as
+   * Net plus the typed GST.
+   */
+  readonly netPremium: Money | null
+  readonly gstAmount: Money | null
   /** Benefit row key to the typed value shown in this column. */
   readonly benefitValues: Readonly<Record<string, string>>
   /** Set when a newer version supersedes this line's version. */
@@ -61,6 +70,12 @@ export type Quotation = {
   readonly inquiryId: string | null
   readonly ownerId: string
   readonly agentId: string | null
+  /**
+   * The sub-agent the business came through. The inquiry has always carried one
+   * and the quotation used to drop it, which left the deal with no rung to read
+   * a sub-agent off and the commission chain with half an arrangement.
+   */
+  readonly subAgentId: string | null
   readonly companyIds: readonly string[]
   readonly productIds: readonly string[]
   readonly benefitRows: readonly QuotationBenefitRow[]
@@ -68,6 +83,9 @@ export type Quotation = {
   /** The accepted column's typed figure, once there is one. */
   readonly finalPayablePremium: Money | null
   readonly sharedAt: string | null
+  /** The columns the customer accepted. Empty until the award is recorded. */
+  readonly acceptedColumnKeys: readonly string[]
+  readonly awardedAt: string | null
   readonly revisionReason: string | null
   readonly lostReason: string | null
   readonly createdAt: string
@@ -89,6 +107,7 @@ export type CreateQuotationCommand = {
   /** The inquiry this came out of, when it came out of one. */
   readonly inquiryId?: string | null
   readonly agentId?: string | null
+  readonly subAgentId?: string | null
   readonly premiumMode: PremiumMode
   readonly now?: Date
 }
@@ -127,10 +146,29 @@ export type RegenerateQuotationCommand = GenerateQuotationCommand & {
   readonly lines: readonly Omit<QuotationLine, 'id' | 'quotationId' | 'version' | 'locked'>[]
 }
 
+/**
+ * Recording the customer's decision — the state that used to be a guardless hop.
+ *
+ * The accepted columns are required. Which columns were bought is the entire
+ * content of the decision, and a quotation that reached `won` without them left
+ * every downstream consumer guessing.
+ */
+export type AwardQuotationCommand = {
+  readonly actorId: string
+  readonly acceptedColumnKeys: readonly string[]
+  readonly now?: Date
+}
+
+export type VoidAwardCommand = {
+  readonly actorId: string
+  readonly awardVoidReason: string
+  readonly now?: Date
+}
+
 export type CloseQuotationCommand = {
   readonly actorId: string
-  /** Which column the customer accepted. Its typed figure becomes the header figure. */
-  readonly acceptedColumnKey?: string
+  /** The application this award produced. `won` is not reachable without one. */
+  readonly dealId?: string
   readonly lostReason?: string
   readonly now?: Date
 }
@@ -138,6 +176,12 @@ export type CloseQuotationCommand = {
 export type QuotationRepository = ReadRepository<Quotation> & {
   bySystemNo(systemNo: string): Promise<Quotation | null>
   forCustomer(customerId: string, query?: ListQuery): Promise<Page<Quotation>>
+  /**
+   * The quotations raised off one inquiry. The forward link has always existed as
+   * `Quotation.inquiryId`; without this read, an inquiry could not say what came
+   * of it without scanning every quotation on the books.
+   */
+  forInquiry(inquiryId: string): Promise<readonly Quotation[]>
   /** The live version's columns. */
   lines(quotationId: string): Promise<readonly QuotationLine[]>
   /** Every column ever, including locked ones, so prior versions stay viewable. */
@@ -150,6 +194,10 @@ export type QuotationRepository = ReadRepository<Quotation> & {
   share(id: string, command: ShareQuotationCommand): Promise<MutationResult<Quotation>>
   requestRevision(id: string, command: ReviseQuotationCommand): Promise<MutationResult<Quotation>>
   regenerate(id: string, command: RegenerateQuotationCommand): Promise<MutationResult<Quotation>>
+  /** Records the decision. Nothing is placed and no application exists yet. */
+  markAwarded(id: string, command: AwardQuotationCommand): Promise<MutationResult<Quotation>>
+  /** Reverses an award before placement. The quotation goes back to `shared`. */
+  voidAward(id: string, command: VoidAwardCommand): Promise<MutationResult<Quotation>>
   markWon(id: string, command: CloseQuotationCommand): Promise<MutationResult<Quotation>>
   markLost(id: string, command: CloseQuotationCommand): Promise<MutationResult<Quotation>>
 }

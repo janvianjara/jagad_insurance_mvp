@@ -1,5 +1,6 @@
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
+import { useSessionStore } from '../../app/store'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
 import { Button } from '../../ui/Button'
@@ -34,6 +35,16 @@ import styles from './Commission.module.css'
  * the page: a commission total that changed when somebody turned the page would
  * be worse than no total at all. The list is ordered by pay-in, largest first,
  * because that is the order an owner scans a commission book in.
+ *
+ * "The whole book" means the whole book THIS ACCOUNT MAY READ. The desk is handed
+ * the signed-in user and applies §11's row scope before it computes anything, so
+ * an agent's totals here are their own book and their sub-agents' - never the
+ * agency's. That is the first screen in the build where row-level scope is
+ * applied at all, and it is applied on the read rather than on the render.
+ *
+ * This screen is the summary: what the book earned, and how. The line-by-line
+ * evidence behind it is `/commission/ledger`; the payout cycle is
+ * `/commission/payouts`. Neither is a filtered copy of this one.
  */
 /** One screenful. The whole book is totalled above it, whatever the page shows. */
 const PAGE_SIZE = 25
@@ -41,9 +52,15 @@ const PAGE_SIZE = 25
 export function CommissionScreen() {
   const repositories = useRepositories()
   const desk = commissionDesk(repositories)
+  const viewer = useSessionStore((state) => state.user)
   const [params, setParams] = useSearchParams()
 
-  const book = useResource(() => desk.book(), 'commission:book')
+  // The key carries the viewer, so switching account re-reads the book rather
+  // than showing the previous person's rows under a new name.
+  const book = useResource(
+    async () => (viewer ? desk.book(viewer) : null),
+    `commission:book:${viewer?.id ?? 'none'}`,
+  )
 
   if (book.error) {
     return (
@@ -62,7 +79,7 @@ export function CommissionScreen() {
     )
   }
 
-  if (!book.data) {
+  if (!viewer || !book.data) {
     return (
       <div className={styles.screen} aria-busy="true">
         <Skeleton width="30%" height="2rem" />
@@ -115,6 +132,12 @@ export function CommissionScreen() {
           <Badge tone={reconciled ? 'ok' : 'bad'} icon={reconciled ? 'check' : 'alert'}>
             {reconciled ? 'Every chain reconciles to the paisa' : 'A chain does not reconcile'}
           </Badge>
+        }
+        actions={
+          <span className={styles.deeper}>
+            <Link to="/commission/ledger">Ledger</Link>
+            <Link to="/commission/payouts">Payouts</Link>
+          </span>
         }
       />
 
@@ -201,7 +224,9 @@ export function CommissionScreen() {
         </div>
         <p className={styles.note}>
           Every figure on this screen is derived from the percentages held in configuration, and is
-          marked as derived. None of them was typed, and none can be.
+          marked as derived. None of them was typed, and none can be. The book is the one{' '}
+          {viewer.name} may read: the {viewer.template.label} template decides which rows are in it,
+          row by row, before anything is totalled.
         </p>
       </Panel>
 

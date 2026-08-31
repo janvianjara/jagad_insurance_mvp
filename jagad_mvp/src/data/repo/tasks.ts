@@ -81,6 +81,41 @@ export type RenewalTask = {
   readonly createdAt: string
 }
 
+/**
+ * A task somebody raises deliberately — FR-15.1, and the other half of
+ * FR-06.15's next-action mandate.
+ *
+ * Recipes raised every task in the model until now, which is why there was no
+ * create path: `raisedBy` held a recipe key and nothing else. The engagement
+ * layer changes that. When an activity is logged with "call back on Thursday",
+ * the follow-up is a task a person committed to, and `raisedBy` carries their
+ * user id instead.
+ *
+ * `dueAt` is required rather than defaulted, for the same reason the TAT is: a
+ * task with a date the platform guessed is a task nobody owns.
+ */
+export type CreateTaskCommand = {
+  readonly actorId: string
+  readonly kind: TaskKind
+  readonly title: string
+  readonly subjectEntity: string
+  readonly subjectId: string
+  readonly dueAt: string
+  readonly ownerId?: string | null
+  readonly teamId?: string | null
+  readonly agentId?: string | null
+  readonly priority?: TaskPriority
+  /** The recipe key when a recipe raised it; the user id when a person did. */
+  readonly raisedBy?: string
+  /**
+   * The event that caused this task, when a recipe caused it — FR-21.5. Set by
+   * the automation runtime from `ActionContext.cause`, never by a screen: a task
+   * a person raised is a root, and a root is what `causedBy` being absent means.
+   */
+  readonly causedBy?: string
+  readonly now?: Date
+}
+
 export type CompleteTaskCommand = {
   readonly actorId: string
   readonly note?: string
@@ -99,6 +134,8 @@ export type TaskRepository = ReadRepository<Task> & {
   forOwner(ownerId: string, query?: ListQuery): Promise<Page<Task>>
   forSubject(subjectEntity: string, subjectId: string): Promise<readonly Task[]>
   open(query?: ListQuery): Promise<Page<Task>>
+  /** Raises one. §9 gives a task no machine, so this records rather than transitions. */
+  create(command: CreateTaskCommand): Promise<MutationResult<Task>>
   complete(id: string, command: CompleteTaskCommand): Promise<MutationResult<Task>>
 }
 

@@ -1,0 +1,191 @@
+/* The schema builder. Structure only — every colour is a token, and the status
+   colours keep their U7 meanings: lime for a schema that needs a person, amber
+   for an advisory, red for the faults that stop it rendering at all. */
+
+.builder {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.stage {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.stageHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+/* A field the platform reads by name. Grey is the U7 locked colour, and locked
+   is exactly what this is. */
+.field[data-reserved] {
+  border-left-color: var(--idle);
+}
+
+.field[data-derived] {
+  border-left-color: var(--info);
+}
+
+.fieldHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.fieldName {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-weight: var(--weight-medium);
+}
+
+.controls {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  align-items: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.note {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* Why the platform depends on this field, and why the builder offers no way to
+   drop it. Grey, not red: nothing is wrong — it is simply not on offer. */
+.locked {
+  margin: 0;
+  padding: var(--sp-3);
+  max-width: var(--measure);
+  border-left: 3px solid var(--idle);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.derived {
+  margin: 0;
+  padding: var(--sp-3);
+  max-width: var(--measure);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-md);
+  background: var(--info-soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.problems {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.problem {
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+}
+
+.problem[data-severity='advisory'] {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.preview {
+  padding: var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.versions {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.version[data-live] {
+  border-color: var(--ok);
+}
+
+.options {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.children {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.child {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.fieldList {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

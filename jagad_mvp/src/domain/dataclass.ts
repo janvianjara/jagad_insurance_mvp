@@ -49,6 +49,8 @@ export const FIELD_CLASSES = {
     subAgentId: 'operational',
     kycState: 'operational',
     consentState: 'operational',
+    lastConsentChaseAt: 'operational',
+    consentChaseCount: 'operational',
     fullName: 'contact',
     mobile: 'contact',
     altMobile: 'contact',
@@ -103,6 +105,7 @@ export const FIELD_CLASSES = {
     paymentState: 'operational',
     memberIds: 'operational',
     retentionClass: 'operational',
+    provenance: 'operational',
     schemaVersion: 'operational',
     proposerBankAccount: 'sensitive',
     nomineeAadhaarLast4: 'sensitive',
@@ -148,6 +151,23 @@ export const FIELD_CLASSES = {
     escalationLevel: 'operational',
     createdAt: 'operational',
     customerId: 'operational',
+    /*
+     * Who referred this lead. `contact` rather than `operational` because the
+     * object carries a person's name when the referrer is outside the system,
+     * and a name is contact data wherever it sits.
+     */
+    referral: 'contact',
+    /*
+     * Engagement, FR-06.12 to .17. All five are operational on purpose: they say
+     * that contact happened, when, how many times and what is next — never what
+     * was said. The words themselves live on `Activity.notes`, which is
+     * `document-content` and outside the allow-list for good.
+     */
+    stageKey: 'operational',
+    stageEnteredAt: 'operational',
+    contactAttempts: 'operational',
+    lastActivityAt: 'operational',
+    nextActionAt: 'operational',
     contactName: 'contact',
     contactMobile: 'contact',
     contactEmail: 'contact',
@@ -163,12 +183,15 @@ export const FIELD_CLASSES = {
     inquiryId: 'operational',
     ownerId: 'operational',
     agentId: 'operational',
+    subAgentId: 'operational',
     companyIds: 'operational',
     productIds: 'operational',
     benefitRows: 'operational',
     premiumMode: 'operational',
     finalPayablePremium: 'operational',
     sharedAt: 'operational',
+    acceptedColumnKeys: 'operational',
+    awardedAt: 'operational',
     revisionReason: 'operational',
     lostReason: 'operational',
     createdAt: 'operational',
@@ -186,6 +209,10 @@ export const FIELD_CLASSES = {
     subAgentId: 'operational',
     agencyId: 'operational',
     lineItems: 'operational',
+    quotationVersion: 'operational',
+    acceptedColumnKeys: 'operational',
+    awardKey: 'operational',
+    salesCreditSource: 'operational',
     createdAt: 'operational',
     consumedByPolicyId: 'operational',
   },

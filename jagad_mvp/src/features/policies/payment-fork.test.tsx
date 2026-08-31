@@ -243,9 +243,17 @@ describe('canvas 3 — the payment fork', () => {
     expect(record?.state).toBe('bounced')
     expect(record?.bounceReason).toBe('Funds insufficient')
 
-    // One move, two facts: the bounce and the task that keeps it being chased.
+    /*
+     * The bounce, and nothing it did not do. This edge used to also emit
+     * `task.created` while writing no task, so this assertion passed against a
+     * queue that stayed empty. The follow-up is now raised by the
+     * `collection.bounceFollowUp` recipe through `TaskRepository.create`; this
+     * screen test builds no automation runtime, so the proof that a real row
+     * reaches the FR-15 queue lives in `src/data/automation/automation.test.ts`.
+     * What the desk still owes this screen is the panel below.
+     */
     expect(eventNames(before)).toContain('cheque.bounced')
-    expect(eventNames(before)).toContain('task.created')
+    expect(eventNames(before)).not.toContain('task.created')
 
     const dossier = await desk.dossier(CAST.issued)
     expect(dossier?.followUps).toHaveLength(1)

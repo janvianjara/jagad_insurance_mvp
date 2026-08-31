@@ -1,0 +1,235 @@
+/* The recipe drawer. Structure only; colour comes from tokens. */
+
+.drawer {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.parameter {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.parameterHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.rows {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Where a value is actually read. Blue is informational, which is what this is:
+   a fact about the platform rather than a state of the record. */
+.reader {
+  margin: 0;
+  padding: var(--sp-3);
+  max-width: var(--measure);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-md);
+  background: var(--info-soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.reader[data-unread] {
+  border-left-color: var(--idle);
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+
+.readerWhere {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-cap);
+}
+
+.categories {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* A category with no allowance shows no clock at all. Lime: needs a person. */
+.category[data-unset] {
+  border-left: 3px solid var(--attn);
+}
+
+.chips {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hint {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------ the run log and the outbox */
+
+.filters {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.count {
+  margin: 0 0 var(--sp-2);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.runRecipe,
+.runSubject {
+  display: grid;
+  gap: 2px;
+}
+
+.runRecipe > span:last-child {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* The engine's own sentence, wrapped rather than clipped: a reason truncated to
+   one line is a reason nobody can act on. */
+.runReason {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.never {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.tally {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* One message prepared and waiting on a person. */
+.staged {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+/* Held for quiet hours: lime, because it needs a person and a clock. */
+.staged[data-held] {
+  border-left-color: var(--attn);
+}
+
+/* ------------------------------------------------------- the clock's own work */
+
+.schedules {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.schedulesTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.schedule {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* ------------------------------------------------------------- the demo clock */
+
+.demo {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0 var(--sp-6);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.demoReading {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.demoCaption {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-cap);
+  color: var(--ink-3);
+}
+
+.demoStamp {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.demoOffset {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.demoNote {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}

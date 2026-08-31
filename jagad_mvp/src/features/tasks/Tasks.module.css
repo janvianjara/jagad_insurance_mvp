@@ -1,0 +1,104 @@
+/*
+ * `/tasks` — the polymorphic work queue.
+ *
+ * No hex anywhere. Every colour, space, size and weight is a token from
+ * `src/styles/tokens.css` (checked by `npm run check`). The table itself is
+ * `<WorkQueue>`'s stylesheet; what is here is only the two cells that carry more
+ * than one fact, and the drawer.
+ */
+
+.screen,
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+/* ------------------------------------------------------------------- cells */
+
+.subject {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-tight);
+}
+
+.subjectName {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-ui);
+  color: var(--ink);
+}
+
+.subjectKind {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.due {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Amber, not red: a date that has passed is at risk, not an error (U7). */
+.due[data-overdue] {
+  color: var(--warn);
+  font-weight: var(--weight-medium);
+}
+
+/* ------------------------------------------------------------------ drawer */
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: var(--text-ui);
+}
+
+.facts dt {
+  color: var(--ink-3);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.drawerSubject {
+  max-width: var(--measure);
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hair);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.drawerLink {
+  align-self: flex-start;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--action);
+}
+
+.drawerLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.drawerNote {
+  max-width: var(--measure);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}

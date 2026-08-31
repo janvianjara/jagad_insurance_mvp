@@ -17,6 +17,7 @@ import type { ConfigAgency } from '../shared'
 import { AgencyScopeEditor } from './AgencyScopeEditor'
 import layout from '../shared/config-layout.module.css'
 import styles from '../shared/market-panels.module.css'
+import { appointedProductIds } from '../../../domain/workflows'
 
 /**
  * One agency — FR-07, canvas 6.3.
@@ -48,6 +49,9 @@ export function AgencyDrawer({ agency }: { agency: ConfigAgency }) {
 
   const appointment = individualAgencyHoldsOneCompany({ type, companyIds, agencyName: name })
   const offered = placementOptionsFor(scopes, agency.id)
+  // Flattened only to list what is on offer. The pairing stays authoritative in
+  // `placementInsideAgencyScope`; this is a read-only summary of it.
+  const offeredProductIds = appointedProductIds(offered)
   const writing = agents.filter((agent) => agent.agencyId === agency.id)
 
   const companiesChanged =
@@ -199,14 +203,14 @@ export function AgencyDrawer({ agency }: { agency: ConfigAgency }) {
         title="Placement offers"
         description="What a deal placed through this agency may choose — FR-07.4. Read-only: it is the scope above, resolved."
       >
-        {offered.productIds.length === 0 ? (
+        {offeredProductIds.length === 0 ? (
           <p className={styles.hint}>
             Nothing. A deal on this agency has no company and no product to place with until a
             policy is in scope.
           </p>
         ) : (
           <ul className={styles.rows}>
-            {offered.productIds.map((productId) => {
+            {offeredProductIds.map((productId: string) => {
               const product = products.find((candidate) => candidate.id === productId)
               return (
                 <li key={productId} className={styles.row} data-placement-product={productId}>

@@ -4,8 +4,10 @@ import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
 import { useResource } from '../../lib/useResource'
 import { WorkQueue } from '../../components/WorkQueue'
+import { QueueDataPort } from '../dataport/QueueDataPort'
 import { Button } from '../../ui/Button'
 import { EmptyState, Skeleton } from '../../ui/data'
+import { useCustomerNow } from '../customers/clock'
 import { policyDesk } from './data/policy-desk'
 import { policyQueueConfig } from './queue-config'
 import styles from './PolicyQueueScreen.module.css'
@@ -38,6 +40,9 @@ export function PolicyQueueScreen() {
   const navigate = useNavigate()
   const desk = policyDesk(repositories)
   const user = useSessionStore((state) => state.user)
+  // The shared clock, not `new Date()` at the point of use: the expiry pill and
+  // the row stripe are two readings of the same instant and must agree.
+  const now = useCustomerNow()
 
   const context = useResource(async () => {
     const [customers, companies, products] = await Promise.all([
@@ -74,20 +79,29 @@ export function PolicyQueueScreen() {
 
   const mayEnter = user !== null && can(user, 'create', 'policies')
 
+  // Hoisted so the toolbar's export can read the very query the table is
+  // showing: "export this view" is only a well-defined thing because the config
+  // and the URL agree on what the view is.
+  const config = policyQueueConfig({
+    desk,
+    customers: context.data.customers,
+    companies: context.data.companies,
+    products: context.data.products,
+    now,
+  })
+
   return (
     <WorkQueue
-      config={policyQueueConfig({
-        desk,
-        customers: context.data.customers,
-        companies: context.data.companies,
-        products: context.data.products,
-      })}
+      config={config}
       actions={
-        mayEnter ? (
-          <Button variant="primary" icon="doc" onClick={() => void navigate('/policies/new')}>
-            Enter a policy
-          </Button>
-        ) : null
+        <>
+          <QueueDataPort config={config} importSpecKey="policies" />
+          {mayEnter ? (
+            <Button variant="primary" icon="doc" onClick={() => void navigate('/policies/new')}>
+              Enter a policy
+            </Button>
+          ) : null}
+        </>
       }
     />
   )

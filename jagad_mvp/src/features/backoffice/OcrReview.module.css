@@ -1,0 +1,210 @@
+/*
+ * `/back-office/ocr-review` — the review queue and its drawer.
+ *
+ * The table is `<WorkQueue>`'s and the fields are `<OcrField>`'s, so nothing here
+ * styles a list or a form control. What is left is the row cells that carry more
+ * than a word, and the two-column drawer that puts the document beside what the
+ * extractor made of it.
+ *
+ * No colour is written here. Every value is a token from `src/styles/tokens.css`,
+ * which is what `npm run check` enforces and what keeps lime meaning "needs a
+ * person" on this screen as well as everywhere else — which matters more here
+ * than anywhere, because an unconfirmed extraction is the definition of that.
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+/* ------------------------------------------------------------------- cells */
+
+.subjectCell {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-tight);
+}
+
+.subjectKind {
+  margin-top: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.countCell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Nothing was extracted" is an answer, drawn as quiet prose rather than a zero. */
+.noneExtracted {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ drawer */
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/*
+ * The document beside its readings. One column on a narrow drawer, because a
+ * two-column layout at 24rem is two unreadable columns.
+ */
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+}
+
+@media (min-width: 60rem) {
+  .split {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: start;
+  }
+}
+
+.paper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.paperHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: var(--text-ui);
+}
+
+.facts dt {
+  color: var(--ink-3);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.factNote {
+  display: block;
+  margin-top: var(--sp-1);
+  max-width: var(--measure-tight);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+/* ----------------------------------------------------------- the readings */
+
+.reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* Lime: every value under this line is waiting on a person, which is not a fault. */
+.readingHead {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--attn);
+  border-radius: var(--radius-sm);
+  background: var(--attn-soft);
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/*
+ * The masked identifier beside the field it came off. Four characters is the
+ * whole of what exists here — `<MaskedValue>` has no prop that reveals more.
+ */
+.maskedNote {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.receiptHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--ok);
+}
+
+/*
+ * A gap in the data layer, said out loud. Amber rather than red: nothing is
+ * broken, there is simply no move that would record this.
+ */
+.gap {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--ink-2);
+  max-width: var(--measure-tight);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/** The domain's own refusal, rendered as written. */
+.refusal {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--bad-soft);
+  color: var(--bad);
+  max-width: var(--measure-tight);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+}
+
+.drawerLink {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--action);
+}

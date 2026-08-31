@@ -16,7 +16,13 @@ import type { AssistantSession } from '../use-assistant'
  * `src/domain`, which this feature may not import.
  */
 const session: { current: AssistantSession } = {
-  current: { repo: null, templateKey: 'salesManager', userName: 'Test', enabled: true },
+  current: {
+    repo: null,
+    templateKey: 'salesManager',
+    userName: 'Test',
+    roleLabel: 'Test role',
+    enabled: true,
+  },
 }
 
 vi.mock('../use-assistant', async (importOriginal) => {
@@ -40,6 +46,7 @@ function signedIn(rows: StubRows) {
     repo: stubAssistantRepository(rows),
     templateKey: 'salesManager',
     userName: 'Test',
+    roleLabel: 'Test role',
     enabled: true,
   }
 }

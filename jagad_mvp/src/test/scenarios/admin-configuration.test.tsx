@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { MockRepositories } from '../../data/mock'
 import { placementOptionsFor, useMarketStore } from '../../features/config/shared'
 import { WHO, clickRailLink, freshRepositories, renderScenario, signIn } from './harness'
+import { appointedProductIds } from '../../domain/workflows'
 
 /**
  * Canvas flow 6 — "Admin Configuration" — one test per row.
@@ -183,7 +184,9 @@ describe('canvas 6 — admin configuration', () => {
 
     // Placement offers nothing at all until a scope is agreed, which is the
     // point of the row: an appointment is not yet a permission to place.
-    expect(placementOptionsFor(useMarketStore.getState().scopes, created.id).productIds).toEqual([])
+    expect(
+      appointedProductIds(placementOptionsFor(useMarketStore.getState().scopes, created.id)),
+    ).toEqual([])
 
     // --- the scope, and the rate that came with it ------------------------
     const drawer = await openRow('Jagad Insurance (Tata AIG)')
@@ -201,7 +204,7 @@ describe('canvas 6 — admin configuration', () => {
     // file as a rate rather than as a computed amount.
     await waitFor(() => {
       const offered = placementOptionsFor(useMarketStore.getState().scopes, created.id)
-      expect(offered.productIds).toEqual([productCoded('TA-MCP').id])
+      expect(appointedProductIds(offered)).toEqual([productCoded('TA-MCP').id])
     })
 
     const scope = useMarketStore.getState().scopes.find((row) => row.agencyId === created.id)

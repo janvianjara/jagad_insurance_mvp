@@ -10,11 +10,26 @@
  *
  * Everything money-shaped is `commissionChain` from `src/domain/commission`.
  * Nothing here multiplies, divides or rounds an amount.
+ *
+ * ---------------------------------------------------------------------------
+ * Scope is applied here, before a chain is computed
+ * ---------------------------------------------------------------------------
+ *
+ * `book` takes the viewer, and it is not optional. §11's attribute scope is a
+ * property of the READ, not a decoration a screen may forget to apply: an agent
+ * whose grant is `{ level: 'own', includeSubAgents: true }` must not be able to
+ * obtain the agency's whole commission book by calling the desk directly, and a
+ * viewer-less overload is exactly the door that would leave open. The filter runs
+ * over policies rather than over finished rows, so a policy outside the viewer's
+ * reach is never chained, never totalled, and never named in a refusal.
  */
 
 import { commissionChain, COMMISSION_CHANNELS, COMMISSION_TRIGGERS } from '../../../domain/commission'
 import type { CommissionChainInput } from '../../../domain/commission'
-import { reasonOf } from '../../../domain/workflows'
+import { agencyScopeFrom, reasonOf } from '../../../domain/workflows'
+import { visibleTo } from '../../../domain/visibility'
+import type { ScopeLens, ScopeSource } from '../../../domain/visibility'
+import type { Resource, User } from '../../../domain/permissions'
 import { LEDGER_ENTRY_KINDS } from '../../../data/repo'
 import type {
   Agency,
@@ -25,6 +40,7 @@ import type {
   Policy,
   Product,
   Repositories,
+  StaffUser,
 } from '../../../data/repo'
 import { bookTotal, channelTotals } from '../commission-view'
 import type { CommissionBook, CommissionChainRow, CommissionRefusal } from '../commission-view'
@@ -65,6 +81,31 @@ type Catalogue = {
   readonly customerNames: ReadonlyMap<string, string>
   readonly scopes: readonly AgencyPolicyScope[]
   readonly booked: readonly LedgerEntry[]
+  /** Agent id to the staff account that agent signs in as, for owner and team. */
+  readonly staffByAgent: ReadonlyMap<string, StaffUser>
+}
+
+/**
+ * A policy's scope attributes, in §11's vocabulary.
+ *
+ * `ownerId` and `teamId` come off the staff account behind the agent rather than
+ * off the policy, because a policy has no owner column - the person who owns a
+ * placement is the agent who sourced it, and their team is the team that
+ * sourced it. That is what lets a team-scoped account read the same commission
+ * book through the same predicate as an agent-scoped one.
+ */
+function policyScope(catalogue: Catalogue, policy: Policy): ScopeSource {
+  const staff = policy.agentId ? catalogue.staffByAgent.get(policy.agentId) : undefined
+  const product = catalogue.products.get(policy.productId)
+
+  return {
+    agentId: policy.agentId,
+    subAgentId: policy.subAgentId,
+    companyId: policy.companyId,
+    categoryId: product?.categoryId ?? null,
+    ownerId: staff?.id ?? null,
+    teamId: staff?.teamId ?? null,
+  }
 }
 
 function scopeFor(
@@ -89,23 +130,31 @@ function scopeFor(
  * is what makes `placementInsideAgencyScope` refuse a placement on another one.
  */
 function appointedScope(catalogue: Catalogue, agencyId: string) {
-  const rows = catalogue.scopes.filter((scope) => scope.agencyId === agencyId && scope.active)
-  return {
-    agencyId,
-    companyIds: [...new Set(rows.map((scope) => scope.companyId))],
-    productIds: [...new Set(rows.map((scope) => scope.productId))],
-  }
+  return agencyScopeFrom(agencyId, catalogue.scopes)
 }
 
 export type CommissionDesk = {
-  /** The whole book. One read, because a per-row read is a hundred requests. */
-  book(): Promise<CommissionBook>
+  /**
+   * The book this viewer may read. One read, because a per-row read is a
+   * hundred requests, and the viewer is required, because an unscoped read of a
+   * commission book is the money leak §11 exists to prevent.
+   *
+   * `through` names the grant the scope is evaluated under, and exists for one
+   * reason: §3's role table gives a sub-agent Leads, Customers and **Wallet**,
+   * and no commission grant at all. The wallet reads the same lines out of the
+   * same chain - a second projection would be a second set of figures to
+   * disagree with - but it must read them under the resource that account
+   * actually holds. Passing `wallet` narrows to that grant's own scope, which
+   * for a sub-agent is `own`; it never widens anything, because `can()` still
+   * has to say yes about every row.
+   */
+  book(viewer: User, through?: Resource): Promise<CommissionBook>
 }
 
 export function commissionDesk(repositories: Repositories): CommissionDesk {
   return {
-    async book(): Promise<CommissionBook> {
-      const [policyPage, agencyPage, agentPage, companyPage, productPage, customerPage, ledgerPage] =
+    async book(viewer: User, through: Resource = 'commission'): Promise<CommissionBook> {
+      const [policyPage, agencyPage, agentPage, companyPage, productPage, customerPage, ledgerPage, staff] =
         await Promise.all([
           repositories.policies.list({ page: 1, pageSize: SCAN_SIZE, filters: { status: ['issued'] } }),
           repositories.agencies.list({ page: 1, pageSize: SCAN_SIZE }),
@@ -114,6 +163,7 @@ export function commissionDesk(repositories: Repositories): CommissionDesk {
           repositories.products.list({ page: 1, pageSize: SCAN_SIZE }),
           repositories.customers.list({ page: 1, pageSize: SCAN_SIZE }),
           repositories.commission.list({ page: 1, pageSize: SCAN_SIZE }),
+          repositories.config.users(),
         ])
 
       const scopeLists = await Promise.all(
@@ -128,12 +178,25 @@ export function commissionDesk(repositories: Repositories): CommissionDesk {
         customerNames: new Map(customerPage.rows.map((row) => [row.id, row.fullName])),
         scopes: scopeLists.flat(),
         booked: ledgerPage.rows,
+        staffByAgent: new Map(
+          staff
+            .filter((person): person is StaffUser & { agentId: string } => person.agentId !== null)
+            .map((person) => [person.agentId, person]),
+        ),
       }
+
+      // §11, applied to rows. An allow-list over `can()`: a policy this viewer
+      // may not read is dropped before anything is computed about it.
+      const policyLens: ScopeLens<Policy> = {
+        resource: through,
+        attributesOf: (policy) => policyScope(catalogue, policy),
+      }
+      const readable = visibleTo(viewer, policyPage.rows, policyLens)
 
       const rows: CommissionChainRow[] = []
       const refusals: CommissionRefusal[] = []
 
-      for (const policy of policyPage.rows) {
+      for (const policy of readable) {
         const outcome = chainFor(catalogue, policy)
         if ('reason' in outcome) {
           refusals.push({ policyId: policy.id, systemNo: policy.systemNo, reason: outcome.reason })
@@ -142,11 +205,29 @@ export function commissionDesk(repositories: Repositories): CommissionDesk {
         }
       }
 
+      // The statement rows are scoped through the same predicate rather than by
+      // the policies above, so a booked figure whose policy produced no chain
+      // still reaches the ledger - and still only for someone entitled to it.
+      const bookedLens: ScopeLens<LedgerEntry> = {
+        resource: through,
+        attributesOf: (entry) => ({ agentId: entry.agentId, subAgentId: entry.subAgentId }),
+      }
+
       return {
         rows,
         refusals,
         channels: channelTotals(rows),
         totals: bookTotal(rows),
+        booked: visibleTo(
+          viewer,
+          catalogue.booked.filter((entry) => entry.kind === LEDGER_ENTRY_KINDS.commissionBooked),
+          bookedLens,
+        ),
+        payoutsRecorded: visibleTo(
+          viewer,
+          catalogue.booked.filter((entry) => entry.kind === LEDGER_ENTRY_KINDS.payout),
+          bookedLens,
+        ),
       }
     },
   }
@@ -233,5 +314,6 @@ function chainFor(catalogue: Catalogue, policy: Policy): CommissionChainRow | { 
     // layer's. If either side gains or loses a field, this line stops building.
     ledgerRows: result.chain.entries,
     bookedFromStatement: statementRow?.amount ?? null,
+    scope: policyScope(catalogue, policy),
   }
 }

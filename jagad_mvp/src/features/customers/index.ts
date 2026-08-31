@@ -5,6 +5,26 @@
 export { CustomerListScreen } from './CustomerListScreen'
 export { Customer360Screen } from './Customer360Screen'
 export { CustomerClockBase, useCustomerNow } from './clock'
+export { CustomerConsent } from './CustomerConsent'
+export type { CustomerConsentProps } from './CustomerConsent'
+export {
+  CUSTOMER_TABS,
+  customerTabFromLocation,
+  customerTabHref,
+  readCustomerTab,
+} from './customer-tabs'
+export type { CustomerTab } from './customer-tabs'
+export {
+  CHANNEL_LABEL,
+  CONSENT_ACTS,
+  SKIPS_NOT_LOGGED,
+  WITHDRAWAL_NOT_ON_THE_MACHINE,
+  WITHDRAWAL_RIGHT,
+  channelStandings,
+  consentLedger,
+  suppressedChannels,
+} from './consent-view'
+export type { ChannelStanding, ConsentAct, ConsentLedgerEntry } from './consent-view'
 export { customerQueueConfig, customerSeverity } from './queue-config'
 export type { CustomerQueueDeps } from './queue-config'
 export {
@@ -27,6 +47,7 @@ export type {
   ConsentIssue,
   ConsentSubmitResult,
   ConsentSubmission,
+  ConsentWithdrawal,
   CustomerDesk,
   CustomerDossier,
   ExtractionReview,

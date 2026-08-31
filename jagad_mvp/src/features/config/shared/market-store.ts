@@ -27,6 +27,7 @@
 
 import { create } from 'zustand'
 import { allow, isValidBasisPoints, refuse, subAgentShareWithinCap } from '../../../domain/workflows'
+import { agencyScopeFrom } from '../../../domain/workflows'
 import type { AgencyScope, TransitionResult } from '../../../domain/workflows'
 import type {
   AgencyType,
@@ -815,6 +816,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
             productId: entry.row.productId,
             commissionPercentBp: entry.row.commissionPercentBp,
             effectiveFrom: timestamp,
+            effectiveTo: null,
             active: true,
           }
     })
@@ -1116,10 +1118,5 @@ export function placementOptionsFor(
   scopes: readonly ConfigAgencyScope[],
   agencyId: string,
 ): AgencyScope {
-  const active = scopes.filter((scope) => scope.agencyId === agencyId && scope.active)
-  return {
-    agencyId,
-    companyIds: [...new Set(active.map((scope) => scope.companyId))],
-    productIds: [...new Set(active.map((scope) => scope.productId))],
-  }
+  return agencyScopeFrom(agencyId, scopes)
 }

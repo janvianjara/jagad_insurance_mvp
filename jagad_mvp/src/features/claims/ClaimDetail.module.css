@@ -1,0 +1,212 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.main,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-inline-size: 0;
+}
+
+/* Blocked. Red: the claim did not go anywhere. */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  color: var(--ink);
+}
+
+.alertTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.alertNote {
+  margin: var(--sp-1) 0 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.refusal {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* The pipeline strip. Reached steps read as brand-positive, the rest as quiet. */
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.stageMark {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--ground);
+}
+
+.stage[data-reached='true'] {
+  color: var(--ink-2);
+}
+
+.stage[data-reached='true'] .stageMark {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.stage[data-current='true'] {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.stage[data-current='true'] .stageMark {
+  border-color: var(--attn);
+  background: var(--attn);
+}
+
+.loop {
+  margin: var(--sp-3) 0 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-inline-size: var(--measure);
+}
+
+.source {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.outstanding {
+  margin: var(--sp-3) 0 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.routing {
+  margin: 0 0 var(--sp-3);
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.messageState {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.messageNote {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.quiet {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.remark {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-ui);
+  line-height: var(--leading-normal);
+  color: var(--ink);
+}
+
+/*
+ * The tokenised link, shown so the desk can send it by hand. Mono because it is
+ * read aloud and typed, and wrapped because a token is longer than the rail.
+ */
+.uploadHref {
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+}

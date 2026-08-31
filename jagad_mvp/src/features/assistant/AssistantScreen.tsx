@@ -1,6 +1,9 @@
-import { PageHeader } from '../../components/AppShell'
-import { activeAccount, useSessionStore } from '../../app/store'
+import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { AssistantConversation } from './AssistantConversation'
+import { CapabilitiesView } from './capabilities/CapabilitiesView'
+import { RecentThreads } from './thread/RecentThreads'
+import { newThreadId } from './thread/thread-store'
 
 /**
  * `/assistant` — the landing view for every role that holds the grant (D-G).
@@ -10,32 +13,52 @@ import { AssistantConversation } from './AssistantConversation'
  * work summary U1 asks for, delivered conversationally, with the queue itself
  * one nav item below and one suggestion chip away.
  *
- * The header is the prototype's `.top`, which is two lines and nothing else: the
- * conversation, and who is having it — `csub` is "Vivek Jagad · Admin · Whole
- * business". It used to spend the largest block above the fold on a sentence
- * explaining what the screen was; the briefing underneath says that better by
- * being it, and the explanation now sits at the foot of the conversation where a
- * person reads it in the moment they are about to ask. That is most of what the
- * client meant by congested: two paragraphs of chrome before the first fact.
+ * The screen has the prototype's two views and switches between them the same
+ * way it does — one region, one at a time, the conversation's chips and
+ * composer hidden while the reading page is up.
+ *
+ * Which view is showing lives in the URL rather than in state, because that is
+ * this codebase's standing rule and it earns its keep here: "read what the
+ * Assistant will not do" is a thing one person sends another a link to.
+ *
+ * The header itself belongs to the conversation. It used to live in this file,
+ * which meant the screen's title could not be the conversation's name and the
+ * conversation's own controls — its documents, its restart — had to be lifted
+ * into a component that did not own them.
+ *
+ * Two things this screen owns and the conversation does not:
+ *
+ *   The thread id. A conversation needs an identity before it can be resumed at
+ *   `/assistant/:threadId`, and this is where one is minted — once per visit,
+ *   and again whenever somebody starts over, so the conversation they were just
+ *   having keeps its address rather than being emptied out from under it. The
+ *   thread itself is not created until the first question is asked, so a person
+ *   who lands here and navigates away leaves nothing behind.
+ *
+ *   The list of earlier conversations, beside the feed. It is not a rail item:
+ *   the rail is destinations and is already long, and a conversation from ten
+ *   minutes ago is not a destination — it belongs next to the one you are
+ *   having, the way a thread list sits beside a thread.
  */
+
+const VIEW_PARAM = 'view'
+const CAPABILITIES = 'capabilities'
+
 export default function AssistantScreen() {
-  const account = useSessionStore(activeAccount)
+  const [params] = useSearchParams()
+  const [threadId, setThreadId] = useState(newThreadId)
+
+  if (params.get(VIEW_PARAM) === CAPABILITIES) {
+    return <CapabilitiesView backTo="/assistant" />
+  }
 
   return (
-    <>
-      <PageHeader
-        title="Assistant"
-        {...(account
-          ? {
-              meta: (
-                <span>
-                  {account.user.name} · {account.roleLabel}
-                </span>
-              ),
-            }
-          : {})}
-      />
-      <AssistantConversation />
-    </>
+    <AssistantConversation
+      threadId={threadId}
+      withHeader
+      aside={<RecentThreads currentThreadId={threadId} />}
+      capabilitiesTo={`/assistant?${VIEW_PARAM}=${CAPABILITIES}`}
+      onRestart={() => setThreadId(newThreadId())}
+    />
   )
 }

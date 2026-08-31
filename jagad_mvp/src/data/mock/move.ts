@@ -34,6 +34,15 @@ export type MoveOptions<S extends string, Ctx, T> = {
   readonly ctx: Ctx
   readonly actorId: string
   readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /**
+   * The event that caused this write, when a recipe caused it — FR-21.5.
+   *
+   * A recipe's real work is a repository call, not a bare emit, so without this
+   * the task an automation raised is indistinguishable in the log from one a
+   * person raised. It is also what the dispatcher's depth guard counts: an event
+   * with no parent is a root, and a root restarts the chain at zero.
+   */
+  readonly causedBy?: string
   /** Produces the row to write. Called only after the machine has allowed the move. */
   readonly apply: (record: T, events: readonly DomainEvent[]) => T
 }
@@ -41,7 +50,8 @@ export type MoveOptions<S extends string, Ctx, T> = {
 export function move<S extends string, Ctx, T>(
   options: MoveOptions<S, Ctx, T>,
 ): MutationResult<T> {
-  const { store, table, entity, id, machine, stateOf, to, ctx, actorId, detail, apply } = options
+  const { store, table, entity, id, machine, stateOf, to, ctx, actorId, detail, causedBy, apply } =
+    options
 
   const record = table.get(id)
   if (!record) return notFound(entity, id)
@@ -51,6 +61,7 @@ export function move<S extends string, Ctx, T>(
     actorId,
     subject: { entity, id },
     detail,
+    causedBy,
   })
 
   if (!outcome.ok) {
@@ -112,6 +123,8 @@ export type CreateOptions<S extends string, Ctx, T> = {
   readonly event: DomainEventName
   readonly actorId: string
   readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /** The triggering event, when a recipe caused this creation. See `MoveOptions`. */
+  readonly causedBy?: string
   /** Builds the row. Receives the events, so a record can store the bus's stamp. */
   readonly build: (born: Born<S>, events: readonly DomainEvent[]) => T
 }
@@ -119,7 +132,8 @@ export type CreateOptions<S extends string, Ctx, T> = {
 export function create<S extends string, Ctx, T>(
   options: CreateOptions<S, Ctx, T>,
 ): MutationResult<T> {
-  const { store, table, entity, kind, machine, entry, event, actorId, detail, build } = options
+  const { store, table, entity, kind, machine, entry, event, actorId, detail, causedBy, build } =
+    options
 
   // Guards first. A refusal writes nothing, emits nothing, and — the part a
   // creation adds to the posture — consumes no number.
@@ -136,8 +150,51 @@ export function create<S extends string, Ctx, T>(
     )
   }
 
-  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail })
+  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail, causedBy })
   const row = build({ id, systemNo, status: machine.initial }, [emitted])
+  table.set(id, row)
+  return committed(row, [emitted])
+}
+
+/**
+ * A new row that has no machine behind it — plan §9 inquiry engagement, FR-06.13.
+ *
+ * `create` above needs a machine because it asks the machine what state a record
+ * is born in. Two things in this model are born in no state at all: a `Task`,
+ * which §9 gives no machine of its own, and an `Activity`, which is a fact that
+ * happened rather than a thing with a lifecycle. Handing either a pretend machine
+ * so it could use `create` would put a state on a record that has none, so they
+ * get this instead: the same numbering, the same emit, the same audit trail, and
+ * no state.
+ *
+ * Note what it does not offer. There is no update path and no delete path here,
+ * because the two callers are append-only by design — a call log somebody can
+ * quietly revise afterwards is not evidence of anything.
+ */
+export function append<T>(options: {
+  readonly store: MockStore
+  readonly table: Map<string, T>
+  readonly entity: string
+  readonly kind: RecordKind
+  readonly event: Parameters<MockStore['bus']['emit']>[0]
+  readonly actorId: string
+  readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /** The triggering event, when a recipe caused this append. See `MoveOptions`. */
+  readonly causedBy?: string
+  readonly build: (born: { id: string; systemNo: SystemNo }, events: readonly DomainEvent[]) => T
+}): MutationResult<T> {
+  const { store, table, entity, kind, event, actorId, detail, causedBy, build } = options
+
+  const systemNo = nextSystemNo(kind, store.ids)
+  const id = systemNo.toLowerCase()
+  if (table.has(id)) {
+    return rejected(
+      `A ${entity} already holds the number ${systemNo}. The sequence has fallen behind what is on the books.`,
+    )
+  }
+
+  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail, causedBy })
+  const row = build({ id, systemNo }, [emitted])
   table.set(id, row)
   return committed(row, [emitted])
 }
@@ -155,14 +212,16 @@ export function record<T>(options: {
   readonly event: Parameters<MockStore['bus']['emit']>[0]
   readonly actorId: string
   readonly detail?: Readonly<Record<string, string | number | boolean | null>>
+  /** The triggering event, when a recipe caused this write. See `MoveOptions`. */
+  readonly causedBy?: string
   readonly apply: (record: T, events: readonly DomainEvent[]) => T
 }): MutationResult<T> {
-  const { store, table, entity, id, event, actorId, detail, apply } = options
+  const { store, table, entity, id, event, actorId, detail, causedBy, apply } = options
 
   const existing = table.get(id)
   if (!existing) return notFound(entity, id)
 
-  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail })
+  const emitted = store.bus.emit(event, { actorId, subject: { entity, id }, detail, causedBy })
   const updated = apply(existing, [emitted])
   table.set(id, updated)
   return committed(updated, [emitted])

@@ -13,8 +13,21 @@ import { buildTimeline, fallbackReading, readingFor } from './timeline-entry'
  * a person reads a record in.
  */
 
+/*
+ * `id` is required on a `DomainEvent` now that one event can name another as its
+ * cause. These are fixtures rather than emissions, so they are numbered here in
+ * the same ordinal shape the bus uses rather than left blank.
+ */
+let issued = 0
+
 function event(name: DomainEvent['name'], at: string, actorId?: string): DomainEvent {
-  return { name, at, ...(actorId === undefined ? {} : { actorId }) }
+  issued += 1
+  return {
+    id: `evt-${String(issued).padStart(6, '0')}`,
+    name,
+    at,
+    ...(actorId === undefined ? {} : { actorId }),
+  }
 }
 
 const LOG: readonly DomainEvent[] = [

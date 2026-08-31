@@ -48,6 +48,11 @@ const scheduleIds = ids(fixtures.premiumSchedules)
 const mandateIds = ids(fixtures.mandates)
 const collectionIds = ids(fixtures.collections)
 const formSchemaIds = ids(fixtures.formSchemas)
+const claimIds = ids(fixtures.claims)
+const endorsementIds = ids(fixtures.endorsements)
+const noticeBatchIds = ids(fixtures.noticeBatches)
+const ocrTemplateIds = ids(fixtures.ocrTemplates)
+const policyVersionIds = ids(fixtures.policyVersions)
 const masterTypeIds = ids(fixtures.masterTypes)
 const retentionKeys = new Set(fixtures.retentionClasses.map((entry) => entry.key))
 
@@ -106,6 +111,8 @@ const REFERENCES: readonly Reference[] = [
   reference('Quotation.customerId', fixtures.quotations, (row) => row.customerId, customerIds),
   reference('Quotation.inquiryId', fixtures.quotations, (row) => row.inquiryId, ids(fixtures.inquiries)),
   reference('Quotation.ownerId', fixtures.quotations, (row) => row.ownerId, userIds),
+  reference('Quotation.agentId', fixtures.quotations, (row) => row.agentId, agentIds),
+  reference('Quotation.subAgentId', fixtures.quotations, (row) => row.subAgentId, agentIds),
   reference('Quotation.documentId', fixtures.quotations, (row) => row.documentId, documentIds),
   reference('QuotationLine.quotationId', fixtures.quotationLines, (row) => row.quotationId, quotationIds),
   reference('QuotationLine.companyId', fixtures.quotationLines, (row) => row.companyId, companyIds),
@@ -113,6 +120,8 @@ const REFERENCES: readonly Reference[] = [
 
   reference('Deal.quotationId', fixtures.deals, (row) => row.quotationId, quotationIds),
   reference('Deal.customerId', fixtures.deals, (row) => row.customerId, customerIds),
+  reference('Deal.agentId', fixtures.deals, (row) => row.agentId, agentIds),
+  reference('Deal.subAgentId', fixtures.deals, (row) => row.subAgentId, agentIds),
   reference('Deal.agencyId', fixtures.deals, (row) => row.agencyId, agencyIds),
   reference('Deal.consumedByPolicyId', fixtures.deals, (row) => row.consumedByPolicyId, policyIds),
 
@@ -155,6 +164,26 @@ const REFERENCES: readonly Reference[] = [
   reference('LedgerEntry.agencyId', fixtures.ledgerEntries, (row) => row.agencyId, agencyIds),
   reference('LedgerEntry.agentId', fixtures.ledgerEntries, (row) => row.agentId, agentIds),
   reference('LedgerEntry.bookedBy', fixtures.ledgerEntries, (row) => row.bookedBy, userIds),
+
+  reference('Endorsement.policyId', fixtures.endorsements, (row) => row.policyId, policyIds),
+  reference('Endorsement.customerId', fixtures.endorsements, (row) => row.customerId, customerIds),
+  reference('Endorsement.ownerId', fixtures.endorsements, (row) => row.ownerId, userIds),
+  reference('Endorsement.approvedBy', fixtures.endorsements, (row) => row.approvedBy, userIds),
+  reference('Endorsement.policyVersionId', fixtures.endorsements, (row) => row.policyVersionId, policyVersionIds),
+  reference('Endorsement.documentId', fixtures.endorsements, (row) => row.documentId, documentIds),
+  reference('OcrTemplate.companyId', fixtures.ocrTemplates, (row) => row.companyId, companyIds),
+  reference('NoticeBatch.companyId', fixtures.noticeBatches, (row) => row.companyId, companyIds),
+  reference('NoticeBatch.ocrTemplateId', fixtures.noticeBatches, (row) => row.ocrTemplateId, ocrTemplateIds),
+  reference('NoticeBatch.sourceDocumentId', fixtures.noticeBatches, (row) => row.sourceDocumentId, documentIds),
+  reference('NoticeBatch.uploadedBy', fixtures.noticeBatches, (row) => row.uploadedBy, userIds),
+  reference('NoticeBatch.sentBy', fixtures.noticeBatches, (row) => row.sentBy, userIds),
+  reference('NoticeMatch.batchId', fixtures.noticeMatches, (row) => row.batchId, noticeBatchIds),
+  reference('NoticeMatch.matchedPolicyId', fixtures.noticeMatches, (row) => row.matchedPolicyId, policyIds),
+  reference('NoticeMatch.matchedCustomerId', fixtures.noticeMatches, (row) => row.matchedCustomerId, customerIds),
+  reference('NoticeMatch.manuallyLinkedBy', fixtures.noticeMatches, (row) => row.manuallyLinkedBy, userIds),
+  reference('MessageTemplate.updatedBy', fixtures.messageTemplates, (row) => row.updatedBy, userIds),
+  reference('MessageTemplate.recipeKey', fixtures.messageTemplates, (row) => row.recipeKey, new Set(fixtures.recipes.map((recipe) => recipe.key))),
+  reference('IntegrationConfig.updatedBy', fixtures.integrations, (row) => row.updatedBy, userIds),
 ]
 
 describe('every fixture satisfies its schema', () => {
@@ -163,10 +192,30 @@ describe('every fixture satisfies its schema', () => {
     expect(Object.keys(FIXTURE_SCHEMAS).sort()).toEqual(Object.keys(fixtures).sort())
   })
 
+  /*
+   * Tables that are empty on purpose, and why each one is.
+   *
+   * The non-empty rule below is not pedantry: a table nobody seeded is a table
+   * whose screens were never seen with data, and that is how an empty state
+   * ships as a feature. So an exemption has to name itself here rather than be
+   * won by deleting the assertion.
+   *
+   * `recipeRuns` is FR-21.5's ledger. A run is something the dispatcher DID, so
+   * seeding one would assert that an automation fired when none has — the same
+   * lie the 800 seeded tasks tell when they are read as generated work. The
+   * screens that read it are exercised against runs the engine really wrote, in
+   * `src/data/automation/automation.test.ts`.
+   */
+  const DELIBERATELY_EMPTY = new Set<keyof FixtureSet>(['recipeRuns'])
+
   for (const [table, schema] of Object.entries(FIXTURE_SCHEMAS)) {
     it(`parses every row of ${table}`, () => {
       const rows = fixtures[table as keyof FixtureSet]
-      expect(rows.length).toBeGreaterThan(0)
+      if (DELIBERATELY_EMPTY.has(table as keyof FixtureSet)) {
+        expect(rows).toHaveLength(0)
+      } else {
+        expect(rows.length).toBeGreaterThan(0)
+      }
 
       const result = z.array(schema).safeParse(rows)
       if (!result.success) {
@@ -220,6 +269,13 @@ describe('every foreign key resolves', () => {
         if (!documentIds.has(docId)) dangling.push(`Claim.documentIds -> ${docId}`)
       }
     }
+    for (const endorsement of fixtures.endorsements) {
+      for (const claimId of endorsement.claimsVerdict?.claimIds ?? []) {
+        if (!claimIds.has(claimId)) {
+          dangling.push(`Endorsement.claimsVerdict.claimIds -> ${claimId}`)
+        }
+      }
+    }
 
     expect(dangling).toEqual([])
   })
@@ -230,8 +286,12 @@ describe('every foreign key resolves', () => {
       Policy: policyIds,
       Quotation: quotationIds,
       Inquiry: ids(fixtures.inquiries),
-      Claim: ids(fixtures.claims),
+      Claim: claimIds,
       Deal: ids(fixtures.deals),
+      // The paper behind an endorsement and behind an uploaded notice batch is a
+      // document like any other, and its subject is the record it belongs to.
+      Endorsement: endorsementIds,
+      NoticeBatch: noticeBatchIds,
     }
 
     const dangling: string[] = []
@@ -269,7 +329,16 @@ describe('the invariants a fixture is capable of violating', () => {
      * it aloud. So the two insurer-issued identifier fields are named here, and
      * the assertion below proves neither of them exists on a person's record.
      */
-    const insurerIssued = new Set(['policies.insurerNo', 'claims.insurerNo'])
+    const insurerIssued = new Set([
+      'policies.insurerNo',
+      'claims.insurerNo',
+      // Same shape, same reason: an insurer's endorsement number and the policy
+      // number printed on its renewal notice are the company's own identifiers,
+      // and they run past twelve digits exactly as the client reads them aloud.
+      'endorsements.insurerEndorsementNo',
+      'policyVersions.insurerEndorsementNo',
+      'noticeMatches.noticePolicyNo',
+    ])
     const offenders: string[] = []
 
     for (const [table, rows] of Object.entries(fixtures)) {
@@ -286,6 +355,44 @@ describe('the invariants a fixture is capable of violating', () => {
 
     for (const row of [...fixtures.customers, ...fixtures.members]) {
       expect(Object.keys(row)).not.toContain('insurerNo')
+    }
+  })
+
+  it('gives every referred inquiry a referrer, and every other inquiry none', () => {
+    for (const inquiry of fixtures.inquiries) {
+      if (inquiry.source === 'referral') {
+        expect(
+          inquiry.referral,
+          `${inquiry.systemNo} came from a referral and does not say who referred it.`,
+        ).not.toBeNull()
+      } else {
+        expect(
+          inquiry.referral,
+          `${inquiry.systemNo} names a referrer but its source is "${inquiry.source}".`,
+        ).toBeNull()
+      }
+    }
+  })
+
+  it('points every referrer at a record that exists, or names one that does not', () => {
+    const tableFor = { customer: 'customers', sub_agent: 'agents', staff: 'users' } as const
+
+    for (const inquiry of fixtures.inquiries) {
+      const referral = inquiry.referral
+      if (referral === null) continue
+
+      if (referral.kind === 'external') {
+        expect(referral.referrerId).toBeNull()
+        expect(referral.referrerName?.trim()).toBeTruthy()
+        continue
+      }
+
+      expect(referral.referrerName).toBeNull()
+      const rows = fixtures[tableFor[referral.kind]] as readonly { id: string }[]
+      expect(
+        rows.some((row) => row.id === referral.referrerId),
+        `${inquiry.systemNo} is attributed to ${referral.referrerId}, which is in no ${tableFor[referral.kind]} row.`,
+      ).toBe(true)
     }
   })
 

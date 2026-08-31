@@ -155,11 +155,96 @@ describe('quotation outcome and sharing', () => {
     expect(shouldAutoShare({ autoShare: false }, 'uploaded')).toBe(false)
   })
 
-  it('marks a shared quotation won, which is where the Deal is created', () => {
+  /*
+   * `shared -> won` used to be a single guardless hop, and it is now two steps
+   * with the decision recorded between them. The tests below are the reason the
+   * split is worth its cost: `won` can no longer be reached without naming what
+   * the customer bought, or without the application it produced.
+   */
+  it('records the award on a shared quotation, naming the accepted columns', () => {
     const { bus, seen } = recordingBus()
-    const outcome = quotationMachine.transition(QUOTATION_STATES.shared, QUOTATION_STATES.won, context(), { bus })
+    const outcome = quotationMachine.transition(
+      QUOTATION_STATES.shared,
+      QUOTATION_STATES.awarded,
+      context({ acceptedColumnKeys: ['HDFC Ergo Optima Secure'] }),
+      { bus },
+    )
 
     expect(outcome.ok).toBe(true)
+    expect(seen.map((event) => event.name)).toEqual(['quotation.awarded'])
+  })
+
+  it('refuses an award that does not say which column the customer accepted', () => {
+    const verdict = quotationMachine.canTransition(
+      QUOTATION_STATES.shared,
+      QUOTATION_STATES.awarded,
+      context(),
+    )
+
+    expect(verdict.ok).toBe(false)
+    expect(verdict.ok === false && verdict.guard).toBe('acceptedColumnsExist')
+    expect(reasonOf(verdict)).toContain('Name the column the customer accepted')
+  })
+
+  it('refuses an award naming a column this quotation never showed', () => {
+    const verdict = quotationMachine.canTransition(
+      QUOTATION_STATES.shared,
+      QUOTATION_STATES.awarded,
+      context({ acceptedColumnKeys: ['Some Other Insurer'] }),
+    )
+
+    expect(verdict.ok).toBe(false)
+    expect(reasonOf(verdict)).toContain('no column called')
+  })
+
+  it('no longer lets a quotation jump straight from shared to won', () => {
+    const verdict = quotationMachine.canTransition(
+      QUOTATION_STATES.shared,
+      QUOTATION_STATES.won,
+      context({ acceptedColumnKeys: ['HDFC Ergo Optima Secure'] }),
+    )
+
+    expect(verdict.ok).toBe(false)
+  })
+
+  it('reaches won only through the application the award produced', () => {
+    const accepted = context({ acceptedColumnKeys: ['HDFC Ergo Optima Secure'] })
+
+    const withoutDeal = quotationMachine.canTransition(
+      QUOTATION_STATES.awarded,
+      QUOTATION_STATES.won,
+      accepted,
+    )
+    expect(withoutDeal.ok).toBe(false)
+    expect(withoutDeal.ok === false && withoutDeal.guard).toBe('dealExistsForAward')
+    expect(reasonOf(withoutDeal)).toContain('record a sale with nothing behind it')
+
+    const { bus, seen } = recordingBus()
+    const outcome = quotationMachine.transition(
+      QUOTATION_STATES.awarded,
+      QUOTATION_STATES.won,
+      context({ acceptedColumnKeys: ['HDFC Ergo Optima Secure'], dealId: 'app-0999' }),
+      { bus },
+    )
+    expect(outcome.ok).toBe(true)
     expect(seen.map((event) => event.name)).toEqual(['quotation.won'])
+  })
+
+  it('reverses an award back to shared, and only with a reason', () => {
+    const accepted = context({ acceptedColumnKeys: ['HDFC Ergo Optima Secure'] })
+
+    expect(
+      quotationMachine.canTransition(QUOTATION_STATES.awarded, QUOTATION_STATES.shared, accepted).ok,
+    ).toBe(false)
+
+    const reversed = quotationMachine.canTransition(
+      QUOTATION_STATES.awarded,
+      QUOTATION_STATES.shared,
+      context({
+        acceptedColumnKeys: ['HDFC Ergo Optima Secure'],
+        awardVoidReason: 'The customer changed their mind before the application was opened.',
+      }),
+    )
+    expect(reversed.ok).toBe(true)
   })
 })

@@ -1,0 +1,81 @@
+/*
+ * The index of what this conversation produced — the prototype's `.dix`.
+ *
+ * Chrome, not document: sans throughout, and no rule in this file may claim
+ * `--font-doc`. The sheet declares that face once, in DocumentPage.module.css.
+ */
+
+.index {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  inline-size: 100%;
+  text-align: start;
+  font: inherit;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--motion-ease);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* A page, drawn as one: taller than it is wide, with a hairline edge. */
+.thumb {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--sp-7);
+  block-size: var(--sp-8);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  color: var(--ink-3);
+}
+
+.cardText {
+  min-width: 0;
+}
+
+.cardName {
+  display: block;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  line-height: var(--leading-tight);
+}
+
+.cardMeta {
+  display: block;
+  margin-block-start: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  font-size: var(--text-ui);
+  line-height: var(--leading-loose);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}

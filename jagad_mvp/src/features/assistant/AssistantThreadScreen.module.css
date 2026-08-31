@@ -1,0 +1,10 @@
+/* The honest empty state gets the page's own gutter, like every other screen. */
+.missing {
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+}
+
+.back {
+  color: var(--action);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}

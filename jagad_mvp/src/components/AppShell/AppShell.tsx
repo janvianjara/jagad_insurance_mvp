@@ -5,6 +5,7 @@ import { DRAWER_KINDS, useDrawerStore, useSessionStore, useToastStore } from '..
 import { Skeleton } from '../../ui/data'
 import { Drawer, ToasterContext, Toaster } from '../../ui/surface'
 import { AssistantPanel } from '../../features/assistant'
+import { GlobalSearch } from '../../features/search'
 import { DrawerSlotContext } from './drawer-slot'
 import { SideRail } from './SideRail'
 import styles from './AppShell.module.css'
@@ -21,6 +22,11 @@ import styles from './AppShell.module.css'
  *   - Cmd/Ctrl-K summons the Assistant drawer from anywhere, carrying the route
  *     the person was on as context (FR-22.10), and the panel inside it is the
  *     Assistant feature's, reading the same projection the landing view does;
+ *   - Cmd/Ctrl-/ opens the search palette, which is the other half of that pair:
+ *     Cmd-K is for a question, Cmd-/ is for a record. It lives at the shell for
+ *     the same reason the Assistant does - "find me the Patel policy" is asked
+ *     from wherever the person already is, not from a search page they navigate
+ *     to first;
  *   - the toast stack is mounted once and published through the existing
  *     `ToasterContext`, so `useToaster()` works at any depth.
  *
@@ -31,6 +37,7 @@ import styles from './AppShell.module.css'
 export function AppShell() {
   const location = useLocation()
   const [drawerSlot, setDrawerSlot] = useState<HTMLElement | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const { ready, error } = useSessionBoot()
 
   const user = useSessionStore((state) => state.user)
@@ -58,9 +65,17 @@ export function AppShell() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return
-      event.preventDefault()
-      toggleDrawer({ kind: DRAWER_KINDS.assistant, contextPath: location.pathname })
+      if (!(event.metaKey || event.ctrlKey)) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        toggleDrawer({ kind: DRAWER_KINDS.assistant, contextPath: location.pathname })
+        return
+      }
+      if (key === '/') {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -88,7 +103,7 @@ export function AppShell() {
     <ToasterContext value={{ notify, dismiss, clear }}>
       <DrawerSlotContext value={drawerSlot}>
         <div className={styles.shell} data-shell="app">
-          <SideRail user={user} />
+          <SideRail user={user} onOpenSearch={() => setSearchOpen(true)} />
 
           <main className={styles.main}>
             <Suspense
@@ -123,6 +138,9 @@ export function AppShell() {
             <div ref={setDrawerSlot} className={styles.slot} />
           </div>
         </div>
+        {/* Mounted only while open, so each opening starts on an empty field
+            rather than on the last question asked. */}
+        {searchOpen ? <GlobalSearch onClose={() => setSearchOpen(false)} user={user} /> : null}
         <Toaster toasts={[...toasts]} onDismiss={dismiss} />
       </DrawerSlotContext>
     </ToasterContext>

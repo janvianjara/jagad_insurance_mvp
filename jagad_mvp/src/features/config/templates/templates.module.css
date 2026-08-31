@@ -1,0 +1,132 @@
+/* Templates and integrations share this file's shapes with the other config
+   screens; only what is specific to these two lives here. */
+
+.drawer {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+}
+
+.section {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.prose {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.key {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.absent {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.body {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-loose);
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.dialog {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+/* The standing posture note. Navy tint: information the reader must not miss,
+   and nothing is wrong. */
+.posture {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--action);
+  border-radius: var(--radius-md);
+  background: var(--action-soft);
+  color: var(--ink);
+  max-inline-size: var(--measure-wide);
+}
+
+.postureBody {
+  display: grid;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.postureTitle {
+  margin: 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.settingRows {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settingRow {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+  gap: var(--sp-2);
+  align-items: end;
+}
+
+@media (max-width: 48rem) {
+  .settingRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.refusal {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-inline-size: var(--measure);
+}
+
+.check {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}

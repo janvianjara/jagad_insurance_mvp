@@ -13,6 +13,7 @@
 
 import { sumMoney } from '../../domain/money'
 import type { Money } from '../../domain/money'
+import type { ScopeSource } from '../../domain/visibility'
 import { COMMISSION_CHANNELS, chainReconciles } from '../../domain/commission'
 import type { CommissionChain, CommissionChannel } from '../../domain/commission'
 import type { LedgerEntry } from '../../data/repo'
@@ -58,6 +59,15 @@ export type CommissionChainRow = {
    * makes up.
    */
   readonly bookedFromStatement: Money | null
+  /**
+   * The attributes §11's row-level scope is tested against.
+   *
+   * Carried on the row rather than re-derived per screen, so the ledger, the
+   * payout cycle and the wallet all ask `visibleTo` the same question about the
+   * same facts. A second derivation is how two money screens come to disagree
+   * about whose book a line belongs to, and the generous one is the leak.
+   */
+  readonly scope: ScopeSource
 }
 
 /** A policy whose chain could not be worked out, and the sentence saying why. */
@@ -90,6 +100,23 @@ export type CommissionBook = {
   readonly refusals: readonly CommissionRefusal[]
   readonly channels: readonly ChannelTotal[]
   readonly totals: CommissionTotal | null
+  /**
+   * Every `commission_booked` row a person recorded off an insurer statement,
+   * inside this viewer's scope - including the ones whose policy produced no
+   * chain at all. The ledger shows those beside the computed lines rather than
+   * dropping them, because a booked figure nothing accounts for is precisely
+   * what an accountant opens a ledger to find.
+   */
+  readonly booked: readonly LedgerEntry[]
+  /**
+   * Payouts somebody recorded against a payee, inside this viewer's scope.
+   *
+   * Empty in this build, and that emptiness is a fact rather than a gap in the
+   * read: `CommissionRepository` exposes no write, so nothing has ever booked a
+   * payout. The payout cycle reads this list to say "nothing has been recorded
+   * as paid" out loud, instead of printing a zero that would read as settled.
+   */
+  readonly payoutsRecorded: readonly LedgerEntry[]
 }
 
 function totalOf(rows: readonly CommissionChainRow[]): CommissionTotal {

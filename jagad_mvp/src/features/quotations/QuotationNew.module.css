@@ -104,3 +104,29 @@
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
+
+/* What the customer said they need, carried in from the inquiry — FR-06.16. */
+.requirement {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0;
+}
+
+.requirement > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.requirement dt {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.requirement dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}

@@ -8,6 +8,7 @@
  */
 
 import type {
+  Agent,
   BenefitItem,
   Company,
   Customer,
@@ -32,6 +33,14 @@ export type ComposerData = {
   readonly benefitItems: readonly BenefitItem[]
   readonly mapsByProduct: Readonly<Record<string, readonly PolicyBenefitMap[]>>
   readonly users: readonly StaffUser[]
+  /**
+   * Agents and the source inquiry, resolved here rather than printed as ids.
+   * The record block was showing `agt-kiran-solanki` and `inq-1025` beside a
+   * properly resolved owner and customer - a person reading the screen has no
+   * way to turn either back into a name.
+   */
+  readonly agents: readonly Agent[]
+  readonly inquiryNo: string | null
   readonly agencyName: string
   /** FR-06.9's config fork, read from the recipe an admin edits. */
   readonly autoShare: boolean
@@ -70,7 +79,20 @@ export async function loadComposer(
   const allLines = await repositories.quotations.allLines(id)
   const productIds = productIdsFor(quotation, allLines, colsParam)
 
-  const [customer, members, products, companies, catalogue, users, recipe, agencies, messages, union] =
+  const [
+    customer,
+    members,
+    products,
+    companies,
+    catalogue,
+    users,
+    recipe,
+    agencies,
+    messages,
+    union,
+    agentPage,
+    sourceInquiry,
+  ] =
     await Promise.all([
       repositories.customers.get(quotation.customerId),
       repositories.customers.members(quotation.customerId),
@@ -82,6 +104,8 @@ export async function loadComposer(
       repositories.agencies.list({ page: 1, pageSize: 50 }),
       repositories.config.messages('Quotation', id),
       repositories.benefits.unionForProducts(productIds),
+      repositories.agents.list({ page: 1, pageSize: 200 }),
+      quotation.inquiryId ? repositories.inquiries.get(quotation.inquiryId) : Promise.resolve(null),
     ])
 
   const maps = await Promise.all(
@@ -105,6 +129,8 @@ export async function loadComposer(
     benefitItems: catalogue.rows.filter((item) => inUnion.has(item.id)),
     mapsByProduct: Object.fromEntries(maps),
     users,
+    agents: agentPage.rows,
+    inquiryNo: sourceInquiry?.systemNo ?? null,
     agencyName: agencies.rows[0]?.name ?? 'Jagad Insurance',
     autoShare: recipe?.parameters.autoShare === true,
     channel: typeof recipe?.parameters.channel === 'string' ? recipe.parameters.channel : 'whatsapp',

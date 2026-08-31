@@ -14,6 +14,20 @@ import { lazy } from 'react'
  */
 const AssistantScreen = lazy(() => import('./AssistantScreen'))
 
+/**
+ * The resumed conversation, `/assistant/:threadId`.
+ *
+ * A second lazy binding in the same file rather than a second file: the two
+ * screens share the whole feature chunk — the conversation, the block renderer,
+ * the cards — so splitting them buys nothing and the router wants both bindings
+ * from one import.
+ */
+const AssistantThreadScreen = lazy(() => import('./AssistantThreadScreen'))
+
 export function AssistantRoute() {
   return <AssistantScreen />
+}
+
+export function AssistantThreadRoute() {
+  return <AssistantThreadScreen />
 }

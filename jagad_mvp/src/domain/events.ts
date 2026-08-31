@@ -29,6 +29,10 @@ export const DOMAIN_EVENT_NAMES = [
   'quotation.generated',
   'quotation.shared',
   'quotation.revision_requested',
+  // The decision, and its reversal. `quotation.won` now follows the deal that
+  // the award produced rather than standing in for it.
+  'quotation.awarded',
+  'quotation.award_voided',
   'quotation.won',
   'quotation.lost',
 
@@ -119,16 +123,76 @@ export const DOMAIN_EVENT_NAMES = [
   // Money — FR-07.3a, FR-14.9
   'commission.booked',
 
+  // Configuration. A config edit is a mutation like any other and belongs in the
+  // audit trail: FR-20.4 makes the event log the audit timeline, and a template
+  // or an integration changing is exactly the kind of change somebody later asks
+  // "who did that, and when".
+  'config.template_saved',
+  'config.integration_saved',
+
+  // Engagement — FR-06.12 to .19. What happened, as against what must happen:
+  // `task.created` is an intention and `activity.logged` is a fact, and the two
+  // are separate names because a timeline that conflates them cannot answer
+  // "when did somebody last actually speak to this person".
+  'activity.logged',
+  'inquiry.stage_changed',
+  'inquiry.next_action_set',
+  'inquiry.dormant',
+  'inquiry.recycled',
+  'requirement.captured',
+  'requirement.revised',
+
   // Work, records, messaging
   'task.created',
   'task.completed',
   'document.uploaded',
   'document.verified',
+  /*
+   * FR-16.7: every open of a document is logged. The vault records this today in
+   * an append-only log inside its own desk because there was no name for it here;
+   * with the name, that log collapses to one emit and one read of the event
+   * stream, like every other record timeline in the product.
+   */
+  'document.opened',
   'message.sent',
 
   // Assistant — FR-22
   'assistant.notice_raised',
   'assistant.action_confirmed',
+
+  /*
+   * Automation — FR-21, and the reason the rest of this list has been inert.
+   *
+   * `clock.tick` is the one name here that no transition emits. Every other
+   * event in this file is a thing somebody did; a tick is a date arriving, and
+   * without a name for that a time-triggered recipe has nothing to subscribe to.
+   * The emitter is elected rather than ambient — see `src/domain/automation/lease.ts`
+   * — because five open tabs emitting five ticks is five ladders, not one.
+   *
+   * The task rungs are separate names rather than one `task.escalated` with a
+   * level in `detail`, for the reason `task.created` and `activity.logged` are
+   * separate: a timeline that has to read a detail field to know whether somebody
+   * was nudged or their work was taken away cannot be filtered on. The emitter
+   * for the rungs is the SLA ladder, which lands with the write paths it needs;
+   * the names are here now because the dispatcher's depth guard and the run
+   * ledger are written against the whole vocabulary, not half of it.
+   *
+   * There is deliberately no `recipe.run_recorded`. A run is written to the
+   * ledger in `src/data/repo/recipes.ts`, not emitted, and the reason is
+   * mechanical: an event announcing that a recipe ran is an event a recipe can
+   * subscribe to, and the run that produces would announce itself in turn. The
+   * depth guard counts recipe hops through `causedBy`, and a repository emitting
+   * on its own behalf has no trigger to point at — so each announcement would
+   * root a fresh chain at depth zero and the guard would never close. The ledger
+   * is queryable by recipe and by subject, which is what FR-21.5 actually asks
+   * for; the bus is the wrong place to put it.
+   */
+  'clock.tick',
+  'task.nudged',
+  'task.reclaimed',
+  'task.escalated',
+  'task.unrouted',
+  'sla.breached',
 ] as const
 
 export type DomainEventName = (typeof DOMAIN_EVENT_NAMES)[number]
@@ -140,8 +204,27 @@ export type EventSubject = {
 }
 
 export type DomainEvent = {
+  /**
+   * This event's own identity — FR-21.5.
+   *
+   * The audit timeline could always show a sequence; it could never show a
+   * chain, because there was nothing for one event to point at. A recipe that
+   * reacts to an event and emits another sets `causedBy` to this, which is what
+   * turns the log from a list into a graph — and it is the same field the
+   * dispatcher's depth guard counts, so one addition closes the traceability
+   * hole and the runaway-recursion hole together.
+   *
+   * The bus assigns it. A caller cannot supply one, because an id a caller chose
+   * is an id a caller can repeat.
+   */
+  readonly id: string
   readonly name: DomainEventName
   readonly at: string
+  /**
+   * The id of the event that caused this one, when a recipe produced it. Absent
+   * on anything a person did: those are roots, and a root is depth zero.
+   */
+  readonly causedBy?: string
   readonly actorId?: string
   readonly subject?: EventSubject
   /**
@@ -152,7 +235,7 @@ export type DomainEvent = {
   readonly detail?: Readonly<Record<string, string | number | boolean | null>>
 }
 
-export type EventInit = Omit<DomainEvent, 'name' | 'at'> & { at?: string }
+export type EventInit = Omit<DomainEvent, 'id' | 'name' | 'at'> & { at?: string }
 
 export type EventHandler = (event: DomainEvent) => void
 export type Unsubscribe = () => void
@@ -172,10 +255,30 @@ export type EventBus = {
 export type EventBusOptions = {
   /** Injectable so fixtures and tests produce identical timestamps. */
   now?: () => Date
+  /**
+   * Injectable for the same reason `now` is, and it defaults to a per-bus
+   * counter rather than to a random id: two stores built from the same fixture
+   * set must produce two identical logs, and a uuid would break that on the
+   * first comparison. The counter is per-bus, so ids are unique inside one
+   * session's log and mean nothing outside it — which is all `causedBy` needs.
+   */
+  nextEventId?: () => string
+}
+
+const EVENT_ID_WIDTH = 6
+
+/** `evt-000001`, counting from one. Ordinal, and therefore replayable. */
+export function createEventIdCounter(): () => string {
+  let issued = 0
+  return () => {
+    issued += 1
+    return `evt-${String(issued).padStart(EVENT_ID_WIDTH, '0')}`
+  }
 }
 
 export function createEventBus(options: EventBusOptions = {}): EventBus {
   const now = options.now ?? (() => new Date())
+  const nextEventId = options.nextEventId ?? createEventIdCounter()
   const byName = new Map<DomainEventName, Set<EventHandler>>()
   const anyHandlers = new Set<EventHandler>()
   const auditSinks = new Set<EventHandler>()
@@ -189,8 +292,22 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
 
   return {
     emit(name, init = {}) {
-      const { at, ...rest } = init
-      const event: DomainEvent = { name, at: at ?? now().toISOString(), ...rest }
+      const { at, causedBy, ...rest } = init
+      const event: DomainEvent = {
+        // The caller's fields first and the platform's last, so a caller who got
+        // past the type — a plain object widened to `EventInit`, a JSON payload —
+        // still cannot choose its own id. An id a caller picks is an id a caller
+        // can repeat, and `causedBy` resolves by id.
+        ...rest,
+        // Spread rather than assigned, so a caller passing `causedBy: undefined`
+        // — which every write helper does on the ordinary path, where a person
+        // rather than a recipe made the change — leaves a root event with no key
+        // at all rather than one carrying an empty parent.
+        ...(causedBy === undefined ? {} : { causedBy }),
+        id: nextEventId(),
+        name,
+        at: at ?? now().toISOString(),
+      }
 
       // Audit first, and errors are not swallowed: a failed audit write must fail
       // the transition, not leave an unlogged mutation behind.

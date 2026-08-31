@@ -1,0 +1,308 @@
+/*
+ * The sign-in surface — plan §2's colour language, §11.1's login-free shell.
+ *
+ * One card on a quiet branded ground. Navy is the action colour, so the only
+ * filled control on the page is the submit button; green appears once, as the
+ * brand mark. The demo panel is a second column on a wide screen and a section
+ * underneath on a narrow one — the same DOM order either way, so tabbing runs
+ * identifier, password, sign in, then the accounts.
+ */
+
+.page {
+  min-block-size: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  background: linear-gradient(160deg, var(--action-soft), var(--surface) 55%, var(--ok-soft));
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.card {
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+.primary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-8) var(--sp-6);
+  min-inline-size: 0;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-6);
+  border-block-start: 1px solid var(--hair);
+  background: var(--surface);
+  min-inline-size: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin: 0;
+  max-inline-size: var(--measure-tight);
+  font-size: var(--text-reading);
+  line-height: var(--leading-loose);
+  color: var(--ink-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-block-start: var(--sp-1);
+}
+
+/* The form-level refusal. Focus lands here, so it carries a visible ring. */
+.problem {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink);
+}
+
+.problem:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.problemIcon {
+  flex: none;
+  color: var(--bad);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.quiet {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+.footer {
+  margin: 0;
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hair);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ink-3);
+}
+
+/* --------------------------------------------------------- the demo accounts */
+
+.asideHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.asideTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-block-size: 26rem;
+  overflow-y: auto;
+}
+
+.account {
+  inline-size: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.account:hover {
+  border-color: var(--border-strong);
+  background: var(--action-soft);
+}
+
+.account:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.account[data-current='true'] {
+  border-color: var(--action);
+  background: var(--action-soft);
+}
+
+.accountName {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.accountRole {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.accountLanding {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.skeletonRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+}
+
+/* ------------------------------------------------------------ the 2FA screen */
+
+.narrow {
+  max-inline-size: 34rem;
+  grid-template-columns: 1fr;
+}
+
+.verifying {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.verifyingName {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+}
+
+.verifyingLine {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-2);
+}
+
+.code {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.digit {
+  inline-size: 2.75rem;
+  block-size: 3.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.digit:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--action);
+}
+
+.digit[aria-invalid='true'] {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.digit:disabled {
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.helpRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+@media (min-width: 60rem) {
+  .card {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+
+  .aside {
+    border-block-start: none;
+    border-inline-start: 1px solid var(--hair);
+  }
+
+  .narrow {
+    grid-template-columns: 1fr;
+  }
+
+  .primary {
+    padding: var(--sp-9) var(--sp-8);
+  }
+
+  .aside {
+    padding: var(--sp-9) var(--sp-7);
+  }
+}

@@ -170,8 +170,22 @@ export const COLLECTION_TRANSITIONS = {
   recorded: {
     verified: { event: 'collection.verified', guards: [backOfficeVerification] },
     bounced: {
+      /*
+       * This edge used to carry `alsoEmits: ['task.created', 'message.sent']`,
+       * and both were fictions: the events fired with the COLLECTION as their
+       * subject, no `Task` row was ever written and no `MessageLog` either, so
+       * the FR-15 queue stayed empty while the audit trail said a task had been
+       * raised. That is the P-15 backlog entry.
+       *
+       * The follow-up is now raised by the `collection.bounceFollowUp` recipe,
+       * which is what that recipe has always said it does — it writes a real task
+       * through `TaskRepository.create`, and the `task.created` that comes back
+       * carries the task's own id as its subject and this event's id as its
+       * cause. The guard below stays: §9's rule is that a bounce raises a
+       * follow-up as part of the same move, and it is the caller's promise to
+       * make whether or not automation is the thing that keeps it.
+       */
       event: 'cheque.bounced',
-      alsoEmits: ['task.created', 'message.sent'],
       guards: [instrumentIsCheque, bounceRaisesFollowUpTask],
     },
     closed: {

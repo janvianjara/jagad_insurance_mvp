@@ -62,8 +62,14 @@ function RailItem({ item, user }: { item: NavItem; user: User }) {
  * What renders is decided entirely by `can()` — `visibleNavigation` filters the
  * same typed configuration the router guards read, so there is no way for the
  * rail to offer a screen the guard would refuse.
+ *
+ * Search sits directly under the brand and above the first section, because it
+ * is not one of the destinations: it is how a person gets to any of them when
+ * they have a name or a number rather than a queue in mind. It carries its
+ * shortcut on its face so the keyboard path is discoverable from the mouse one -
+ * a shortcut nobody is told about is a shortcut nobody uses.
  */
-export function SideRail({ user }: { user: User }) {
+export function SideRail({ user, onOpenSearch }: { user: User; onOpenSearch: () => void }) {
   const sections = visibleNavigation(user)
 
   return (
@@ -71,6 +77,12 @@ export function SideRail({ user }: { user: User }) {
       <div className={styles.brand}>
         <BrandMark size="sm" />
       </div>
+
+      <button type="button" className={styles.search} onClick={onOpenSearch}>
+        <Icon name="search" size="md" className={styles.itemIcon} />
+        <span className={styles.itemLabel}>Search</span>
+        <kbd className={styles.shortcut}>Cmd /</kbd>
+      </button>
 
       <nav className={styles.nav} aria-label="Main">
         {sections.map((section) => (

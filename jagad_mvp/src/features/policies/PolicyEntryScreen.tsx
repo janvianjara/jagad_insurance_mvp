@@ -42,6 +42,7 @@ import {
 } from './entry-data'
 import { ENTRY_PATH_LABEL, ENTRY_PATH_SERIES } from './policy-view'
 import styles from './PolicyEntryScreen.module.css'
+import { appointedCompanyIds, appointedProductIds } from '../../domain/workflows'
 
 /**
  * `/policies/new` — policy entry, plan §5's "Policy entry (schema-driven)" row,
@@ -210,15 +211,24 @@ export function PolicyEntryScreen() {
   const offered = agencyId === '' ? null : placementOptionsFor(scopes, agencyId)
 
   const companyOptions = companies
-    .filter((company) => company.active && (offered?.companyIds.includes(company.id) ?? false))
+    .filter(
+      (company) =>
+        company.active && (offered ? appointedCompanyIds(offered).includes(company.id) : false),
+    )
     .map((company) => ({ value: company.id, label: company.name }))
 
   const productOptions = products
     .filter(
       (product) =>
         product.active &&
-        (offered?.productIds.includes(product.id) ?? false) &&
-        (companyId === '' || product.companyId === companyId),
+        // Scoped to the chosen company, so the picker can only offer a pair the
+        // agency is actually appointed for rather than a product that happens to
+        // appear under some other appointment.
+        (offered
+          ? appointedProductIds(offered, {
+              companyId: companyId === '' ? undefined : companyId,
+            }).includes(product.id)
+          : false),
     )
     .map((product) => ({ value: product.id, label: `${product.name} (${product.code})` }))
 
@@ -291,7 +301,16 @@ export function PolicyEntryScreen() {
       productId: product.id,
       agencyId,
       entryPath,
-      dealId: deal?.id ?? null,
+      // The deal is named once, on the provenance, and the entry draft's own
+      // `dealId` is written from it. An entry with no deal behind it says so in
+      // words rather than leaving a null for a reader to interpret.
+      provenance:
+        deal === null
+          ? {
+              origin: 'captured',
+              reason: 'Entered against the customer; no quotation was raised.',
+            }
+          : { origin: 'deal', dealId: deal.id },
       formSchemaId: schema.id,
       schemaVersion: schema.version,
       missingFields,
@@ -304,6 +323,19 @@ export function PolicyEntryScreen() {
       ...(typedNet === null ? {} : { netPremium: typedNet }),
       ...(typedGst === null ? {} : { gstAmount: typedGst }),
       ...(typedFinal === null ? {} : { finalPremium: typedFinal }),
+      // The typed parts travel with the record instead of being dropped at the
+      // repository boundary. They are passed exactly as the block holds them —
+      // an unrecorded component keeps its `null` rather than being filtered out,
+      // because "nobody typed this" is worth keeping.
+      ...(shape === null
+        ? {}
+        : {
+            components: premium.components.map((component) => ({
+              key: component.key,
+              label: component.label,
+              amount: component.amount,
+            })),
+          }),
       ...(startDate === null ? {} : { startDate }),
       ...(expiryDate === null ? {} : { expiryDate }),
     })

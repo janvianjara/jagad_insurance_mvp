@@ -1,5 +1,5 @@
 /**
- * The seed catalogue — six published schemas across five objects.
+ * The seed catalogue — eight published schemas across six objects.
  *
  * These are configuration, not code, and they live in the domain layer for one
  * reason worth stating plainly: the stored `FormSchema` row in
@@ -18,6 +18,8 @@ import { INQUIRY_CAPTURE_V1 } from './inquiry'
 import { KYC_CAPTURE_V1 } from './kyc'
 import { LIFE_POLICY_ENTRY_V1 } from './policy-life'
 import { MOTOR_POLICY_ENTRY_V1 } from './policy-motor'
+import { REQUIREMENT_HEALTH_V1 } from './requirement-health'
+import { REQUIREMENT_MOTOR_V1 } from './requirement-motor'
 
 export {
   HEALTH_POLICY_ENTRY_V1,
@@ -26,6 +28,8 @@ export {
   KYC_CAPTURE_V1,
   LIFE_POLICY_ENTRY_V1,
   MOTOR_POLICY_ENTRY_V1,
+  REQUIREMENT_HEALTH_V1,
+  REQUIREMENT_MOTOR_V1,
 }
 
 /**
@@ -39,4 +43,6 @@ export const SEED_FORM_SCHEMAS: readonly FormSchema[] = [
   LIFE_POLICY_ENTRY_V1,
   INQUIRY_CAPTURE_V1,
   KYC_CAPTURE_V1,
+  REQUIREMENT_HEALTH_V1,
+  REQUIREMENT_MOTOR_V1,
 ]

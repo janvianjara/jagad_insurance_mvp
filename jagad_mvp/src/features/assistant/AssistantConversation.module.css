@@ -45,6 +45,55 @@
   gap: var(--sp-3);
 }
 
+/* ------------------------------------------------------------------ aside */
+
+/*
+ * The session's other conversations, in a column beside the feed.
+ *
+ * Two rows and two columns, with the aside spanning both rows: the list has to
+ * sit beside the composer as well as the feed, or the pinned ask region slides
+ * under it and the column ends halfway down the screen. The feed keeps its own
+ * measure inside whatever width is left, so the prose column narrows on a small
+ * screen rather than the list being squeezed to nothing.
+ */
+.conversation[data-aside] {
+  grid-template-columns: minmax(0, 1fr) 15rem;
+  grid-template-areas: 'feed aside' 'ask aside';
+  column-gap: var(--sp-6);
+}
+
+.conversation[data-aside] .feed {
+  grid-area: feed;
+}
+
+.conversation[data-aside] .ask {
+  grid-area: ask;
+}
+
+.asideColumn {
+  grid-area: aside;
+  align-self: start;
+  position: sticky;
+  inset-block-start: var(--sp-4);
+  padding-block-start: var(--sp-1);
+}
+
+/* Below the point where the two columns stop fitting, the list follows the
+   conversation instead of crowding it. */
+@media (max-width: 64rem) {
+  .conversation[data-aside] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'feed' 'aside' 'ask';
+  }
+
+  .asideColumn {
+    position: static;
+    inline-size: 100%;
+    max-inline-size: 45rem;
+    margin-inline: auto;
+  }
+}
+
 .context {
   display: flex;
   align-items: center;
@@ -165,19 +214,50 @@
 }
 
 /*
- * `.chip .mt` — the request kind, on the chips that do more than read. M0
- * answers only Ask, so nothing carries one yet; the prototype hides it on a
- * plain read for the same reason.
+ * `.chip .mt` — the request kind, on the chips that do more than read.
+ *
+ * The prototype hides it on a plain read and shows it on the other three, which
+ * is the right instinct: the tag's job is to say "this one is not just a
+ * look-up", so putting it on everything would say nothing. Ask carries none.
+ *
+ * The colours are NOT the prototype's. It uses a blue for Act and a purple for
+ * Produce; plan §10 makes that file the behavioural specification and expressly
+ * not the styling one, and this product has no purple. So the tag takes the
+ * meaning it already has here: navy for Act, because navy is the action colour
+ * and an Act is the only chip that leads to a change; a quiet outline for
+ * Analyse and Produce, because neither is an action and neither is a status.
  */
 .chipKind {
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-cap);
   text-transform: uppercase;
-  color: var(--action-ink);
-  background: var(--action);
+  color: var(--ink-3);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0 var(--sp-1);
+}
+
+.chip[data-kind='Act'] .chipKind {
+  color: var(--action-ink);
+  background: var(--action);
+  border-color: var(--action);
+}
+
+/* An Act chip is the one on the row that changes something, so it reads as the
+   action it is rather than sitting level with three look-ups. */
+.chip[data-kind='Act'] {
+  border-color: var(--action);
+}
+
+/* The count on the Documents button in the header — the prototype's `.dcount
+   .n`. Mono and tabular, because it is a number that changes in place. */
+.count {
+  margin-inline-start: var(--sp-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -286,4 +366,41 @@
   .conversation {
     padding-inline: var(--sp-4);
   }
+}
+
+/* The way to the reading page, at the foot of the conversation — the moment a
+   person is actually wondering what this thing is allowed to do. */
+.askLink {
+  color: var(--action);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.askLink:hover {
+  text-decoration: underline;
+}
+
+.askLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * The conversation's name, in the header's meta line — the prototype's
+ * `ctitle`, which is a thread label rather than a screen title.
+ *
+ * It reads as the name of a thing rather than as a sentence someone typed, so
+ * it takes the ink and the weight the heading beside it does not, and it
+ * truncates rather than wrapping the header onto a third line.
+ */
+.threadName {
+  display: block;
+  max-inline-size: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
 }

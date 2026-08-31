@@ -9,6 +9,7 @@ import { placementInsideAgencyScope, reasonOf } from '../../../domain/workflows'
 import { ToastProvider } from '../../../ui/surface'
 import { placementOptionsFor, useMarketStore } from '../shared'
 import AgenciesScreen from './AgenciesScreen'
+import { appointedProductIds } from '../../../domain/workflows'
 
 /**
  * P-10b's second acceptance criterion, FR-07.4: "Placement offers only companies
@@ -63,7 +64,7 @@ describe('agency scope', () => {
     const drawer = await screen.findByRole('dialog', { name: BROKER })
 
     // It starts inside the scope, so placement starts offering it.
-    expect(offered().productIds).toContain(DROPPED)
+    expect(appointedProductIds(offered())).toContain(DROPPED)
     expect(drawer.querySelector(`[data-placement-product="${DROPPED}"]`)).not.toBeNull()
 
     await user.click(within(drawer).getByRole('checkbox', { name: /ReAssure 2\.0 \(NB-RA2\)/ }))
@@ -73,7 +74,7 @@ describe('agency scope', () => {
     expect(within(gate).getByText('No longer placeable')).toBeInTheDocument()
     await user.click(within(gate).getByRole('button', { name: 'Save scope' }))
 
-    await waitFor(() => expect(offered().productIds).not.toContain(DROPPED))
+    await waitFor(() => expect(appointedProductIds(offered())).not.toContain(DROPPED))
 
     // What the deal machine will do with the new scope, checked by the deal
     // machine's own guard rather than by a second copy of the rule.
@@ -82,7 +83,6 @@ describe('agency scope', () => {
       agencyScope: scope,
       lineItems: [
         {
-          id: 'li-1',
           companyId: 'cmp-niva-bupa',
           productId: DROPPED,
           label: 'Niva Bupa ReAssure 2.0',
@@ -93,7 +93,6 @@ describe('agency scope', () => {
       agencyScope: scope,
       lineItems: [
         {
-          id: 'li-2',
           companyId: 'cmp-niva-bupa',
           productId: KEPT,
           label: 'Niva Bupa Health Companion',
@@ -126,7 +125,7 @@ describe('agency scope', () => {
     const gate = await screen.findByRole('dialog', { name: /Save the policy scope for/ })
     await user.click(within(gate).getByRole('button', { name: 'Cancel' }))
 
-    expect(offered().productIds).toContain(DROPPED)
+    expect(appointedProductIds(offered())).toContain(DROPPED)
   })
 
   it('offers nothing from a company the agency is not appointed to', async () => {
@@ -143,6 +142,6 @@ describe('agency scope', () => {
 
     expect(verdict.ok).toBe(false)
     expect(reasonOf(verdict)).toContain('not appointed to the company')
-    expect(offered().productIds).not.toContain('prd-lc-jva')
+    expect(appointedProductIds(offered())).not.toContain('prd-lc-jva')
   })
 })

@@ -133,7 +133,12 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
         title={config.drawerTitle(openRecord)}
         subtitle={config.drawerSubtitle?.(openRecord)}
       >
-        {config.renderDrawer(openRecord)}
+        {config.renderDrawer(openRecord, {
+          // A drawer that writes must be able to say so; `?record=` is not part
+          // of the query key, so closing it alone would leave the stale row up.
+          reload: () => page.reload(),
+          close: () => apply({ record: null }),
+        })}
       </Drawer>
     ) : null
 

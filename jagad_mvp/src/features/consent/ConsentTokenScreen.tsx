@@ -160,7 +160,6 @@ export default function ConsentTokenScreen() {
         kycCommand: (file: CustomerDossier) =>
           kycCommandFor({
             dossier: file,
-            checklist: checklistFor(file, source.checklist, source.label),
             extractions: extractionsFor(file),
             actorId: actorFor(invite.customerId),
             route: 'consent_link',

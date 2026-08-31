@@ -284,6 +284,9 @@ import the app shell, the permission store, or anything assuming a user.
 |---|---|---|---|
 | Inquiry queue | Filterable list; unassigned and TAT-at-risk pinned; bulk assign. Row shows source, category, owner, TAT remaining. | Canvas n1–n8 · `p_unassigned`, `p_tatrisk` | M0 |
 | Inquiry detail | Assignment trail, confirm/accept, TAT clock, escalation history, notes, convert-to-quotation. | Canvas n4–n8 · `p_escalate` | M0 |
+| **Inquiry engagement** | On the inquiry detail: log an activity (channel, disposition, note), the next action the disposition demands, the attempt counter, and the activity timeline merged with the assignment trail. | FR-06.13–.15 | P1 |
+| **Requirement capture** | The dynamic form per category — members, DOBs, budget band, existing cover, urgency — attached to the inquiry and feeding the Composer's header. | FR-06.16 | P1 |
+| **Pipeline** | Inquiries by stage with count, median age in stage and conversion to the next; the "% of open inquiries with a dated next action" tile beside it. | FR-06.19 | P1 |
 | Quotation list | By stage: draft, shared, revising, won, lost. Stalled (no reply > N days) surfaced. | `p_stalled` | M0 |
 | **Quotation Composer** | The core screen. Customer + 1–N company/policy columns → benefit matrix from the policy→benefit map, defaults pre-filled → ad-hoc rows inline → **Final Payable Premium typed per column** → single or side-by-side PDF. | Canvas n9–n12 · `p_compose`, `p_quote`, `p_quotepdf` | M0 |
 | Quotation detail | Version stack (immutable), revision with mandatory reason, share log, Won/Lost with mandatory Lost reason. | Canvas n13–n16 · `p_revise`, `p_won`, `p_lost` | M0 |
@@ -451,13 +454,13 @@ Types first, fixtures second, screens third.
 | Cluster | Entities |
 |---|---|
 | Identity | User, PermissionTemplate, AbacRule, Session, TwoFactorConfig, Team |
-| Configuration | MasterType, MasterValue, ObjectDef, AttributeDef, FormSchema(+version), Recipe(+version), Template, IntegrationConfig, RetentionClass |
+| Configuration | MasterType, MasterValue, ObjectDef, AttributeDef, FormSchema(+version), Recipe(+version), Template, IntegrationConfig, RetentionClass, **Disposition, InquiryStage** |
 | Market | Company, CompanyContact, Product, CommissionRate, DocChecklist, BenefitItem, PolicyBenefitMap |
 | Channel | **Agency**, AgencyPolicyScope, Agent, SubAgent, CommissionSplit |
-| Demand | Inquiry, Quotation(+version), QuotationLine, Deal, DealLineItem |
+| Demand | Inquiry, Quotation(+version), QuotationLine, Deal, DealLineItem, **RequirementRecord** |
 | Customer | Customer, Household, Member, ChangeRequest, CustomerCredential, ConsentRecord |
 | Contract | Policy(+PolicyVersion), PremiumRecord, PaymentRecord, CollectionRecord, DispatchRecord |
-| Work | Task, WorkQueue, Draft, AuditEvent |
+| Work | Task, WorkQueue, Draft, AuditEvent, **Activity** |
 | Records | Document(+version), OcrTemplate, OcrExtraction, MessageLog |
 | Money | CommissionRule, LedgerEntry |
 | Assistant | AssistantThread, AssistantTurn, AssistantAction, ProactiveNotice · **`AssistantView<T>` projection (§14.1)** |
@@ -540,6 +543,51 @@ new → assigned ─┬─ confirmed within TAT ──→ accepted (owner set, c
 - Reassignment stays inside the same category group; escalation carries the full assignment history, not just the item.
 - Unrouted is a visible state with an alert, never a silent drop.
 - TAT duration is a recipe parameter, not a constant.
+
+### Inquiry engagement — FR-06.12 to .19 · the gap between n8 and n9 · P1
+
+The machine above ends at `accepted` and the quotation machine below begins with a customer and a
+list of candidate policies already chosen. Between those two sentences somebody rings the customer,
+finds out the family size, the ages, the budget and the existing cover, and agrees when to speak
+next. None of that was modelled: `accepted` was a state an inquiry could sit in forever with no
+record of a call, no callback, no reason and nothing that noticed.
+
+**Task is future tense; Activity is past tense.** A Task says what must be done and is mutable until
+it is complete. An Activity says what happened and is append-only. They are different objects and
+neither substitutes for the other.
+
+```
+accepted ── log activity ──→ stage (master-driven, inside accepted)
+
+  contacted ─┬─ interested ─────→ requirement_captured ──→ quoted → negotiating ─┐
+             ├─ call back ──────→ follow_up_scheduled ──↺ (task + reminder)      │
+             ├─ needs info ─────→ needs_info ───────────↺ (task + template)      │
+             ├─ not reachable ──→ not_reachable (attempt n) ──→ dormant ──→ recycle
+             ├─ wrong number ───→ data_issue (source quality flagged)            │
+             └─ not interested ─→ lost (reason mandatory)                        │
+                                              converted / lost ←─────────────────┘
+```
+
+- **Stages are configuration, not code.** `InquiryStage` rows carry `allowedFromKeys`,
+  `requiresNextAction`, `countsAsOpen` and `terminal`; an admin edits them. The lifecycle machine
+  above is untouched — a stage is a position *inside* `accepted`, and a stage move on an inquiry
+  that is not accepted is refused.
+- **The rules are data; the evaluation is one place.** `canEnterStage` in
+  `src/domain/workflows/inquiryStage.ts` returns the same allow/refuse-with-a-sentence shape every
+  machine returns, so a blocked stage move prints why instead of doing nothing.
+- **Disposition drives the stage.** Logging an activity forces a disposition, and the disposition
+  row names the stage it moves to, whether a next action is required, whether it increments the
+  attempt counter and which template it suggests. The matrix is seeded config, not a switch
+  statement.
+- **No open inquiry may exist without a dated next action.** Logging an activity requires either a
+  next action with a date or a terminal outcome. That single constraint is the difference between a
+  CRM and a list, and it is what stops leads rotting.
+- **Attempts and dormancy are recipe parameters, not constants** — `noContactDays` and `maxAttempts`
+  on the `inquiry.dormancy` recipe, read the way the TAT is read today. A dormant lead recycles to
+  the pool or a win-back list; Lost must not be its only exit or the win-back list is destroyed.
+- **A call note is `document-content`.** A note on a health inquiry routinely carries a diagnosis, so
+  the Assistant receives that and when contact happened, the disposition, the attempt count and the
+  stage — never what was said (§14.1).
 
 ### Quotation — FR-06.5–.10 · canvas n9–n16 · M0
 

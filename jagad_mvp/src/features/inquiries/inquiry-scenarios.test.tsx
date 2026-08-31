@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { MockRepositories } from '../../data/mock'
@@ -45,12 +45,15 @@ describe('canvas 1 — inquiry, TAT and assignment', () => {
     expect(await screen.findByRole('heading', { name: 'Urvashi Naik' })).toBeInTheDocument()
     expect(screen.getByText('New')).toBeInTheDocument()
 
-    await confirmAction('Run routing', 'Route and notify')
+    await confirmAction('Assign', 'Assign and notify')
 
     // Assigned to the matching person in the Health group.
     expect(await screen.findByText('Assigned')).toBeInTheDocument()
     const record = panel('The record')
-    expect(within(record).getByText('Kiran Solanki')).toBeInTheDocument()
+    // The owner row by name: the same person can appear on the panel twice —
+    // Kiran Solanki is also the agent on this inquiry — so the assertion says
+    // which row it means rather than trusting there to be only one match.
+    expect(within(record).getByText('Owner').nextElementSibling).toHaveTextContent('Kiran Solanki')
 
     // Notified, and logged in the trail.
     expect(screen.getByText('Assigned by routing')).toBeInTheDocument()
@@ -74,7 +77,10 @@ describe('canvas 1 — inquiry, TAT and assignment', () => {
 
     expect(await screen.findByText('Accepted')).toBeInTheDocument()
     const record = panel('The record')
-    expect(within(record).getByText('Kiran Solanki')).toBeInTheDocument()
+    // The owner row by name: the same person can appear on the panel twice —
+    // Kiran Solanki is also the agent on this inquiry — so the assertion says
+    // which row it means rather than trusting there to be only one match.
+    expect(within(record).getByText('Owner').nextElementSibling).toHaveTextContent('Kiran Solanki')
 
     // The clock stopped, and the acceptance is on the timeline.
     expect(screen.getByText('clock stopped')).toBeInTheDocument()
@@ -97,7 +103,10 @@ describe('canvas 1 — inquiry, TAT and assignment', () => {
 
     // Next in the Motor group, and the group did not widen.
     const record = panel('The record')
-    expect(within(record).getByText('Kiran Solanki')).toBeInTheDocument()
+    // The owner row by name: the same person can appear on the panel twice —
+    // Kiran Solanki is also the agent on this inquiry — so the assertion says
+    // which row it means rather than trusting there to be only one match.
+    expect(within(record).getByText('Owner').nextElementSibling).toHaveTextContent('Kiran Solanki')
     expect(within(record).getByText('Motor')).toBeInTheDocument()
 
     // Both notified, and both holds are on the timeline.
@@ -170,9 +179,213 @@ describe('canvas 1 — inquiry, TAT and assignment', () => {
     expect(within(record).getByText('Health')).toBeInTheDocument()
 
     // And it has entered routing: a destination and an allowance are resolved.
-    expect(screen.getByRole('button', { name: 'Run routing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Assign' })).toBeInTheDocument()
     expect(
       within(record).getByText('60 minutes, from the Health category in configuration'),
     ).toBeInTheDocument()
+  })
+
+  it('1.7 capture names who takes it, so one save creates the inquiry, assigns it and starts the clock', async () => {
+    const user = userEvent.setup()
+    renderInquiries(repositories, '/inquiries/new')
+
+    await user.type(await screen.findByLabelText(/^Name/), 'Bhavna Desai')
+    await user.type(screen.getByLabelText(/^Mobile/), '9825220011')
+    await user.selectOptions(screen.getByLabelText(/^Category/), 'cat-health')
+    await user.selectOptions(screen.getByLabelText(/^Assign to/), WHO.kiran)
+
+    // Assigning notifies somebody, so the save stops at the gate and says who.
+    await user.click(screen.getByRole('button', { name: 'Save and assign to Kiran Solanki' }))
+    const gate = await screen.findByText(/Kiran Solanki is notified and their clock starts/)
+    expect(gate).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save and assign' }))
+
+    // One save: the record exists, Kiran owns it, and the clock is running.
+    expect(await screen.findByRole('heading', { name: 'Bhavna Desai' })).toBeInTheDocument()
+    expect(await screen.findByText('Assigned')).toBeInTheDocument()
+    const record = panel('The record')
+    expect(within(record).getByText('Owner').nextElementSibling).toHaveTextContent('Kiran Solanki')
+    expect(screen.getAllByText(/due in/).length).toBeGreaterThan(0)
+  })
+
+  it('1.8 the person routing suggests can be overruled, and the inquiry goes where it was sent', async () => {
+    const user = userEvent.setup()
+    // INQ-1044: routing suggests Kiran Solanki, as 1.1 shows. Nita takes it.
+    renderInquiries(repositories, '/inquiries/inq-1044')
+
+    await user.click(await screen.findByRole('button', { name: 'Assign' }))
+    await user.selectOptions(screen.getByLabelText(/^Assign to/), WHO.nita)
+    await user.click(screen.getByRole('button', { name: 'Assign and notify' }))
+
+    expect(await screen.findByText('Assigned')).toBeInTheDocument()
+    const record = panel('The record')
+    expect(within(record).getByText('Owner').nextElementSibling).toHaveTextContent('Nita Shah')
+
+    // The allowance is still the category's, not something the screen chose.
+    expect(
+      within(record).getByText('60 minutes, from the Health category in configuration'),
+    ).toBeInTheDocument()
+  })
+})
+
+/**
+ * The conversation the PRD had no object for — FR-06.13 to .17.
+ *
+ * §9.1 ended at the TAT fork and §9.2 opened with the customer and the candidate
+ * policies already chosen. These four are the seam between them, walked on the
+ * real screens: what was said, what happens next, and what the platform does
+ * when the answer to the second question is missing.
+ */
+describe('canvas 1 continued — the contact, the outcome and the next action', () => {
+  it('1.9 logging a callback records the contact, raises the follow-up and dates the inquiry', async () => {
+    const user = userEvent.setup()
+    // INQ-1039 is accepted and being worked; Nita owns it.
+    await signIn(repositories, WHO.nita)
+    renderInquiries(repositories, '/inquiries/inq-1039')
+
+    await user.click(await screen.findByRole('button', { name: 'Log a contact' }))
+    await user.selectOptions(screen.getByLabelText(/^Outcome/), 'call_back')
+
+    // The outcome proposes when to ring back, from its own configured interval.
+    const when = screen.getByLabelText(/^When/) as HTMLInputElement
+    expect(when.value).not.toBe('')
+
+    await user.type(screen.getByLabelText(/^Note/), 'Back on Monday, ring him then.')
+    await user.click(screen.getByRole('button', { name: 'Log the contact' }))
+
+    // It is on the timeline, in the words a person would read.
+    expect((await screen.findAllByText(/Call — Connected — call back/)).length).toBeGreaterThan(0)
+
+    // And the record now says when the next thing happens. The screen re-reads
+    // after a write, so this waits for the panel rather than the render pass.
+    const contact = await screen.findByRole('heading', { name: 'Contact' })
+    const panelEl = contact.closest('section') as HTMLElement
+    expect(within(panelEl).getByText('Stage').nextElementSibling).toHaveTextContent(
+      'Follow-up scheduled',
+    )
+    expect(within(panelEl).getByText('Next action').nextElementSibling).not.toHaveTextContent(
+      'Nothing is scheduled',
+    )
+  })
+
+  it('1.10 an outcome that leaves the inquiry open cannot be saved without a date', async () => {
+    const user = userEvent.setup()
+    await signIn(repositories, WHO.nita)
+    renderInquiries(repositories, '/inquiries/inq-1039')
+
+    await user.click(await screen.findByRole('button', { name: 'Log a contact' }))
+    await user.selectOptions(screen.getByLabelText(/^Outcome/), 'call_back')
+    await user.clear(screen.getByLabelText(/^When/))
+
+    // No date, so there is nothing to confirm and the reason says why.
+    expect(screen.queryByRole('button', { name: 'Log the contact' })).not.toBeInTheDocument()
+    expect(screen.getByText(/needs a next action with a date/)).toBeInTheDocument()
+    expect(screen.getByText(/how a lead goes quiet and nobody notices/)).toBeInTheDocument()
+  })
+
+  it('1.11 a wrong number is a data fault, not a lost sale, and closes without a follow-up', async () => {
+    const user = userEvent.setup()
+    await signIn(repositories, WHO.nita)
+    renderInquiries(repositories, '/inquiries/inq-1039')
+
+    await user.click(await screen.findByRole('button', { name: 'Log a contact' }))
+    await user.selectOptions(screen.getByLabelText(/^Outcome/), 'wrong_number')
+
+    // It asks for the reason and asks for no date, because nothing follows.
+    expect(screen.queryByLabelText(/^When/)).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText(/^Reason/), 'Number belongs to somebody else.')
+    await user.click(screen.getByRole('button', { name: 'Log the contact' }))
+
+    const heading = await screen.findByRole('heading', { name: 'Contact' })
+    const contact = heading.closest('section') as HTMLElement
+    await waitFor(() =>
+      expect(within(contact).getByText('Stage').nextElementSibling).toHaveTextContent(
+        'Data issue',
+      ),
+    )
+    expect(within(contact).getByText('Next action').nextElementSibling).toHaveTextContent(
+      'Nothing is scheduled',
+    )
+  })
+
+  it('1.13 the requirement form asks the questions its own line needs, and no others', async () => {
+    const user = userEvent.setup()
+    // INQ-1031 is a motor inquiry that is being worked.
+    await signIn(repositories, WHO.nita)
+    renderInquiries(repositories, '/inquiries/inq-1031')
+
+    // It already carries a captured requirement, read back in its own words.
+    const heading = await screen.findByRole('heading', { name: 'What they need' })
+    const panel = heading.closest('section') as HTMLElement
+    expect(within(panel).getByText('Make and model')).toBeInTheDocument()
+    expect(within(panel).getByText('Maruti Baleno Zeta')).toBeInTheDocument()
+
+    // Motor questions, not health ones. The line decides which form is asked.
+    await user.click(within(panel).getByRole('button', { name: 'Recapture' }))
+    expect(await screen.findByLabelText(/^Vehicle type/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Maternity/)).not.toBeInTheDocument()
+  })
+
+  it('1.14 a requirement captured on the inquiry is what the composer opens with', async () => {
+    await signIn(repositories, WHO.nita)
+    const requirement = await repositories.requirements.forInquiry('inq-1031')
+    expect(requirement).not.toBeNull()
+
+    // §9.2 step 4 assumed the agent remembered this. Now it is on the record,
+    // and the composer reads it rather than the agent's memory.
+    expect(requirement?.values.makeModel).toBe('Maruti Baleno Zeta')
+    expect(requirement?.values.coverKind).toBe('comprehensive')
+    // Pinned, so it keeps rendering under the questions that were actually asked.
+    expect(requirement?.schemaVersion).toBe(1)
+    expect(requirement?.objectKey).toBe('inquiry_requirement_motor')
+  })
+
+  it('1.15 a lead nobody can reach is parked, and can be brought back rather than lost', async () => {
+    const user = userEvent.setup()
+    await signIn(repositories, WHO.nita)
+
+    const recipes = await repositories.config.recipes()
+    const attempts = Number(
+      recipes.find((row) => row.key === 'inquiry.dormancy')?.parameters.maxAttempts,
+    )
+
+    renderInquiries(repositories, '/inquiries/inq-1036')
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      await user.click(await screen.findByRole('button', { name: 'Log a contact' }))
+      await user.selectOptions(screen.getByLabelText(/^Outcome/), 'not_reachable')
+      await user.click(screen.getByRole('button', { name: 'Log the contact' }))
+      await screen.findByRole('button', { name: /Log a contact|Bring this lead back/ })
+    }
+
+    // Parked, and the panel offers the way back rather than only a way to close.
+    const back = await screen.findByRole('button', { name: 'Bring this lead back' })
+    expect(back).toBeInTheDocument()
+
+    await user.click(back)
+    await user.type(screen.getByLabelText(/^Why is it coming back/), 'He rang the office himself.')
+    await user.click(screen.getByRole('button', { name: 'Bring it back' }))
+
+    // Back in the pipeline with the counter reset — not closed as Lost.
+    await waitFor(async () => {
+      const inquiry = await repositories.inquiries.get('inq-1036')
+      expect(inquiry?.stageKey).toBeNull()
+      expect(inquiry?.contactAttempts).toBe(0)
+      expect(inquiry?.status).toBe('accepted')
+    })
+  })
+
+  it('1.12 the inquiry carries its contact history, and a lead gone quiet says so', async () => {
+    await signIn(repositories, WHO.nita)
+    renderInquiries(repositories, '/inquiries/inq-1039')
+
+    // A week of contact: two no-answers, a call that connected, an inbound reply.
+    expect(await screen.findByText(/WhatsApp received — Connected — needs information/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Not reachable/).length).toBeGreaterThan(0)
+
+    const contact = panel('Contact')
+    expect(within(contact).getByText('Attempts').nextElementSibling).toHaveTextContent('2')
+    // The next action came and went yesterday, and the panel says so rather than
+    // rendering a date the reader has to compare against today themselves.
+    expect(within(contact).getByText('Next action').nextElementSibling).toHaveTextContent('overdue')
   })
 })

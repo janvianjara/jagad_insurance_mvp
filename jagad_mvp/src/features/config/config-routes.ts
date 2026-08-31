@@ -23,3 +23,10 @@ export const ConfigProductsScreen = lazy(() => import('./products/ProductsScreen
 export const ConfigBenefitsScreen = lazy(() => import('./benefits/BenefitsScreen'))
 export const ConfigAgenciesScreen = lazy(() => import('./agencies/AgenciesScreen'))
 export const ConfigAgentsScreen = lazy(() => import('./agents/AgentsScreen'))
+
+// Forms, compliance and automation — the P1 rows of the §4 configuration block.
+// Each is a folder beside the others and one line here; no existing screen was
+// edited to add them.
+export const ConfigFormsScreen = lazy(() => import('./forms/FormsScreen'))
+export const ConfigComplianceScreen = lazy(() => import('./compliance/ComplianceScreen'))
+export const ConfigAutomationScreen = lazy(() => import('./automation/AutomationScreen'))

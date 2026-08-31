@@ -26,6 +26,7 @@ import { runQuery } from './list'
 import type { Latency } from './latency'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
+import { agencyScopeFrom } from '../../domain/workflows'
 
 export type CatalogueDeps = {
   readonly store: MockStore
@@ -72,6 +73,20 @@ export function createCatalogueRepositories(deps: CatalogueDeps): {
       const type = rowsOf(t.masterTypes).find((candidate) => candidate.key === masterTypeKey)
       if (!type) return []
       return rowsOf(t.masterValues).filter((value) => value.masterTypeId === type.id)
+    },
+    /*
+     * Both lists come back in the order an admin arranged them and with the
+     * retired rows still present. A screen offering an outcome filters on
+     * `active`; a screen rendering an inquiry captured last March needs the row
+     * that was chosen then, whether or not anybody still offers it.
+     */
+    async dispositions() {
+      await wait()
+      return rowsOf(t.dispositions).slice().sort((a, b) => a.sortOrder - b.sortOrder)
+    },
+    async inquiryStages() {
+      await wait()
+      return rowsOf(t.inquiryStages).slice().sort((a, b) => a.sortOrder - b.sortOrder)
     },
     async retentionClasses() {
       await wait()
@@ -285,14 +300,7 @@ export function createCatalogueRepositories(deps: CatalogueDeps): {
     async placementScope(agencyId) {
       await wait()
       if (!t.agencies.has(agencyId)) return null
-      const scopes = rowsOf(t.agencyScopes).filter(
-        (scope) => scope.agencyId === agencyId && scope.active,
-      )
-      return {
-        agencyId,
-        companyIds: [...new Set(scopes.map((scope) => scope.companyId))],
-        productIds: [...new Set(scopes.map((scope) => scope.productId))],
-      }
+      return agencyScopeFrom(agencyId, rowsOf(t.agencyScopes))
     },
   }
 

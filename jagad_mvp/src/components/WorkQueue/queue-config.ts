@@ -55,22 +55,66 @@ export type QueueActionOutcome = {
 }
 
 /**
+ * One decision the person makes before confirming — which assignee, which
+ * template, which reason.
+ *
+ * It sits inside the gate rather than beside the action button so the preview
+ * below it answers for the choice that was actually made. The empty value is a
+ * real option with a label of its own, not an absence: "leave it to routing" is
+ * an answer, and the preview says what that will do.
+ */
+export type QueueBulkChoice = {
+  readonly key: string
+  readonly label: string
+  readonly options: readonly QueueFilterOption[]
+  /** What the empty value means, spelled out. Omit and the choice is required. */
+  readonly emptyLabel?: string
+  readonly hint?: ReactNode
+}
+
+/**
  * A bulk action. Every one of these is an outward mutation, so the shape forces
  * a `<ConfirmGate>` preview: `preview` is not optional, and `run` is only ever
  * reached from Confirm.
+ *
+ * `choice` is what the person picked in the gate, empty string when they picked
+ * nothing or the action offers no choice. `preview` reads it as well as `run`, so
+ * changing the choice redraws the preview rather than leaving it describing a
+ * decision that is no longer the one on screen.
  */
 export type QueueBulkAction<Row extends RowData> = {
   readonly key: string
   readonly label: string
   readonly icon?: IconName
   readonly variant?: ButtonVariant
-  readonly confirmTitle: (selection: QueueSelection<Row>) => string
+  /** Offered inside the gate, above the preview. */
+  readonly choice?: QueueBulkChoice
+  readonly confirmTitle: (selection: QueueSelection<Row>, choice: string) => string
   /** The key/value preview of what will change. An empty list disables Confirm. */
-  readonly preview: (selection: QueueSelection<Row>) => readonly ConfirmChange[]
+  readonly preview: (selection: QueueSelection<Row>, choice: string) => readonly ConfirmChange[]
   /** Who gets told, what cannot be undone. */
-  readonly note?: (selection: QueueSelection<Row>) => ReactNode
+  readonly note?: (selection: QueueSelection<Row>, choice: string) => ReactNode
   readonly confirmLabel?: string
-  readonly run: (selection: QueueSelection<Row>) => Promise<QueueActionOutcome>
+  readonly run: (selection: QueueSelection<Row>, choice: string) => Promise<QueueActionOutcome>
+}
+
+/**
+ * What a drawer may ask of the queue behind it.
+ *
+ * A drawer that writes has a problem no other part of this component has: the
+ * URL owns list state, but `?record=` is not part of the `ListQuery`, so closing
+ * the drawer does not re-read the page. A verified collection would sit there in
+ * a queue of unverified ones until something else happened to change the URL.
+ *
+ * So a mutating drawer is handed the two moves it needs and nothing else. It
+ * cannot filter, sort, page or select — those belong to the person, through the
+ * URL — and it is given no access to the rows.
+ */
+export type QueueDrawerControls = {
+  /** Re-read the current page. Call after a write that changes what a row is. */
+  readonly reload: () => void
+  /** Close the drawer, as the dismiss control does. */
+  readonly close: () => void
 }
 
 type QueueRowsToDrawer<Row extends RowData> = {
@@ -78,7 +122,11 @@ type QueueRowsToDrawer<Row extends RowData> = {
   readonly rowTarget: 'drawer'
   readonly drawerTitle: (row: Row) => string
   readonly drawerSubtitle?: (row: Row) => string | undefined
-  readonly renderDrawer: (row: Row) => ReactNode
+  /**
+   * `queue` is ignored by every read-only drawer, which is why it is a second
+   * parameter rather than a required one: a `(row) => ReactNode` stays assignable.
+   */
+  readonly renderDrawer: (row: Row, queue: QueueDrawerControls) => ReactNode
 }
 
 type QueueRowsToRoute<Row extends RowData> = {

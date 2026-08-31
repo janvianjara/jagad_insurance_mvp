@@ -63,9 +63,16 @@ import type {
   MutationResult,
   Page,
   Policy,
+  DeliveryState,
+  DispatchChannel,
+  PolicyDispatch,
   PolicyEntryDraft,
+  PolicyNcb,
+  PolicyPremiumComponent,
+  PolicyProvenance,
   PolicyRepository,
   PolicyVersion,
+  PremiumComponentInput,
   Repositories,
 } from '../../../data/repo'
 import type { TypedPremiumSource } from '../entry-types'
@@ -124,6 +131,11 @@ export type BounceFollowUp = {
 export type PolicyDossier = {
   readonly policy: Policy
   readonly draft: PolicyEntryDraft | null
+  /** The typed parts of the premium, in the order they were recorded. */
+  readonly components: readonly PolicyPremiumComponent[]
+  readonly ncb: PolicyNcb | null
+  /** Every dispatch of the document, oldest first. Empty until one is recorded. */
+  readonly dispatches: readonly PolicyDispatch[]
   readonly versions: readonly PolicyVersion[]
   readonly collections: readonly CollectionRecord[]
   readonly documents: readonly DocumentRecord[]
@@ -149,7 +161,8 @@ export type EnterPolicyInput = {
   readonly agentId?: string | null
   readonly subAgentId?: string | null
   readonly entryPath: PolicyEntryPath
-  readonly dealId?: string | null
+  /** What the contract came out of. The deal, when there is one, is named here. */
+  readonly provenance: PolicyProvenance
   readonly formSchemaId: string
   readonly schemaVersion: number
   readonly missingFields?: readonly string[]
@@ -165,6 +178,8 @@ export type EnterPolicyInput = {
   readonly gstAmount?: Money
   /** Typed. Absent is an ordinary half-finished entry, not a zero. */
   readonly finalPremium?: Money
+  /** The typed parts, in block order. Optional forever — §9 keeps them so. */
+  readonly components?: readonly PremiumComponentInput[]
   readonly now?: Date
 }
 
@@ -183,6 +198,27 @@ export type IssuePolicyInput = {
   readonly startDate?: string
   readonly expiryDate?: string
   readonly channel?: MessageChannel
+  readonly now?: Date
+}
+
+/** What the screen collects before the document goes out. */
+export type DispatchPolicyInput = {
+  readonly actorId: string
+  readonly channel: DispatchChannel
+  readonly recipientName: string
+  /** Already masked by the caller — the full contact never reaches this seam. */
+  readonly recipientContactMasked: string
+  readonly documentId?: string | null
+  readonly courierName?: string | null
+  readonly trackingRef?: string | null
+  readonly note?: string
+  readonly now?: Date
+}
+
+export type RecordDeliveryInput = {
+  readonly actorId: string
+  readonly state: DeliveryState
+  readonly returnReason?: string
   readonly now?: Date
 }
 
@@ -238,6 +274,16 @@ export type PolicyDesk = {
 
   /** Enters a policy through `policies.create`. Nothing is computed on the way. */
   enter(input: EnterPolicyInput): Promise<MutationResult<Policy>>
+  /**
+   * Sends the document out and records where it went, in one move. Outward, so
+   * every screen that calls it puts it behind `<ConfirmGate>`.
+   */
+  dispatch(policyId: string, input: DispatchPolicyInput): Promise<MutationResult<Policy>>
+  /** Records what became of one dispatch. Delivery and confirmation stay distinct. */
+  recordDelivery(
+    dispatchId: string,
+    input: RecordDeliveryInput,
+  ): Promise<MutationResult<PolicyDispatch>>
   /** Raises the proposal, for the path that has one. */
   raiseProposal(policyId: string, actorId: string, now?: Date): Promise<MutationResult<Policy>>
   sendProposal(policyId: string, actorId: string, now?: Date): Promise<MutationResult<Policy>>
@@ -335,17 +381,24 @@ function buildDesk(repositories: Repositories): PolicyDesk {
       const policy = await repositories.policies.get(policyId)
       if (!policy) return null
 
-      const [draft, versions, collections, documents, stored] = await Promise.all([
-        repositories.policies.draft(policyId),
-        repositories.policies.versions(policyId),
-        repositories.collections.forPolicy(policyId),
-        repositories.documents.forSubject('Policy', policyId),
-        repositories.config.messages('Policy', policyId),
-      ])
+      const [draft, components, ncb, dispatches, versions, collections, documents, stored] =
+        await Promise.all([
+          repositories.policies.draft(policyId),
+          repositories.policies.premiumComponents(policyId),
+          repositories.policies.ncb(policyId),
+          repositories.policies.dispatches(policyId),
+          repositories.policies.versions(policyId),
+          repositories.collections.forPolicy(policyId),
+          repositories.documents.forSubject('Policy', policyId),
+          repositories.config.messages('Policy', policyId),
+        ])
 
       return {
         policy,
         draft,
+        components,
+        ncb,
+        dispatches,
         versions,
         collections,
         documents,
@@ -360,6 +413,14 @@ function buildDesk(repositories: Repositories): PolicyDesk {
       // Straight through. Every field on the command was typed into a control,
       // and the desk deliberately reads none of them on the way past.
       return repositories.policies.create(input)
+    },
+
+    async dispatch(policyId, input) {
+      return repositories.policies.dispatch(policyId, input)
+    },
+
+    async recordDelivery(dispatchId, input) {
+      return repositories.policies.recordDelivery(dispatchId, input)
     },
 
     async raiseProposal(policyId, actorId, now) {

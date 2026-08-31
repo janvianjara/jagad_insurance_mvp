@@ -52,6 +52,7 @@ describe('dispatch', () => {
     expect(issued).toHaveBeenCalledTimes(1)
     expect(lapsed).not.toHaveBeenCalled()
     expect(issued.mock.calls[0][0]).toEqual({
+      id: 'evt-000001',
       name: 'policy.issued',
       at: '2026-08-26T09:30:00.000Z',
       subject: { entity: 'Policy', id: 'POL-0031' },
@@ -68,6 +69,37 @@ describe('dispatch', () => {
     expect(bus.emit('policy.issued', { at: '2025-03-12T00:00:00.000Z' }).at).toBe(
       '2025-03-12T00:00:00.000Z',
     )
+  })
+
+  it('gives every event an id, so one event can point at another', () => {
+    const bus = createEventBus({ now: FIXED_NOW })
+
+    expect(bus.emit('inquiry.created').id).toBe('evt-000001')
+    expect(bus.emit('inquiry.assigned').id).toBe('evt-000002')
+  })
+
+  it('numbers two identically built buses identically, which is what keeps a log replayable', () => {
+    const left = createEventBus({ now: FIXED_NOW })
+    const right = createEventBus({ now: FIXED_NOW })
+
+    expect(left.emit('policy.issued')).toEqual(right.emit('policy.issued'))
+  })
+
+  it('carries causedBy through, so a recipe-emitted event names its trigger', () => {
+    const bus = createEventBus({ now: FIXED_NOW })
+    const trigger = bus.emit('cheque.bounced')
+    const effect = bus.emit('task.created', { causedBy: trigger.id })
+
+    expect(effect.causedBy).toBe(trigger.id)
+    expect(trigger.causedBy).toBeUndefined()
+  })
+
+  it('will not let a caller choose an id, because an id a caller picks is one they can repeat', () => {
+    const bus = createEventBus({ now: FIXED_NOW })
+
+    // @ts-expect-error `id` is not part of EventInit — the bus assigns it.
+    const event = bus.emit('policy.issued', { id: 'evt-000999' })
+    expect(event.id).toBe('evt-000001')
   })
 
   it('stops delivering after unsubscribe', () => {

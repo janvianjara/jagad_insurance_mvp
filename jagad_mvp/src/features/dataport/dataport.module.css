@@ -1,0 +1,414 @@
+/**
+ * Import and export — the hub, and the four steps of the wizard.
+ *
+ * No colour literal appears here. Lime is `--attn` and means only "this needs a
+ * person": the required columns nobody has mapped, and the rows that will not go
+ * in. Red is `--bad` and is used for a cell that failed, never for a duplicate —
+ * a duplicate is expected, not wrong. Ids, counts and amounts are set in the mono
+ * face, the way the rest of the product sets them.
+ */
+
+/* --------------------------------------------------------------------- hub */
+
+.body {
+  display: grid;
+  gap: var(--sp-6);
+  padding: var(--page-gutter-top) var(--page-gutter-x) var(--page-gutter-bottom);
+  align-content: start;
+}
+
+.lede {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+.sectionHead {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cards {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  align-items: start;
+}
+
+.card {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  align-content: start;
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.cardSummary {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.templateLabel {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin-right: var(--sp-1);
+}
+
+/* ----------------------------------------------------------------- history */
+
+.history {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.run {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-1) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+}
+
+.runHead {
+  font-weight: var(--weight-medium);
+}
+
+.runMeta {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.runCounts {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- stepper */
+
+.wizard {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+  min-height: 24rem;
+}
+
+.stepper {
+  display: flex;
+  gap: var(--sp-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  background: var(--sunken);
+}
+
+.step[data-state='current'] {
+  color: var(--action-ink);
+  background: var(--action);
+  font-weight: var(--weight-medium);
+}
+
+.step[data-state='done'] {
+  color: var(--ink-2);
+  background: var(--action-soft);
+}
+
+.stepIndex {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- step bodies */
+
+.panel {
+  display: grid;
+  gap: var(--sp-4);
+  align-content: start;
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-width: var(--measure);
+}
+
+.templateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.templateText {
+  flex: 1 1 18rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+/** Attention: something here needs a person before anything can go further. */
+.attention {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--attn);
+  border-radius: var(--radius-sm);
+  background: var(--attn-soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.problem {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--bad);
+  border-radius: var(--radius-sm);
+  background: var(--bad-soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.stated {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--leading-normal);
+}
+
+/* ------------------------------------------------------------------ mapping */
+
+.mapList {
+  display: grid;
+  gap: var(--sp-3);
+  max-height: 26rem;
+  overflow-y: auto;
+  padding-right: var(--sp-2);
+}
+
+.mapRow {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1.2fr) minmax(10rem, 1.4fr);
+  gap: var(--sp-3);
+  align-items: start;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--hair);
+}
+
+@media (max-width: 52rem) {
+  .mapRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mapField {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.mapLabel {
+  font-weight: var(--weight-medium);
+}
+
+.mapHelp {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: var(--leading-normal);
+}
+
+.required {
+  color: var(--bad);
+  margin-left: var(--sp-1);
+}
+
+/** Three real values from the mapped column, so nobody maps the wrong one. */
+.sample {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  min-width: 0;
+}
+
+.sampleValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sampleEmpty {
+  font-style: italic;
+}
+
+/* -------------------------------------------------------------------- check */
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: baseline;
+}
+
+.summaryFigure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.summaryItem {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+}
+
+.summaryLabel {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.previewFrame {
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.cellError {
+  color: var(--bad);
+  font-weight: var(--weight-medium);
+}
+
+.reasons {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ commit */
+
+.receipt {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.receiptCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+}
+
+.failures {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hair);
+}
+
+.footerEnd {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* ------------------------------------------------------------------ export */
+
+.exportMenu {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 16rem;
+}
+
+.exportNote {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: var(--leading-normal);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}

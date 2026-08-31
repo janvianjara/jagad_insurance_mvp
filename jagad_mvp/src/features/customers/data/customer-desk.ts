@@ -14,13 +14,18 @@
  *   - the rows this module owns are only the ones no repository can hold.
  *     Everything else is delegated untouched.
  *
- * The five local maps were reviewed against `create` when it landed on the
+ * The local maps were reviewed against `create` when it landed on the
  * repositories, and every one of them stayed: `credentials` and `messages` are
  * read-only on `CustomerRepository` and `ConfigRepository`, `receipts` and
  * `reviews` are a checklist and an OCR verdict that no entity in §8 carries, and
  * `submissions` holds what a customer typed under a pinned schema — sensitive by
  * definition, and deliberately without a table. Moving any of them would mean
  * inventing a repository field to hold it, which is the opposite of the fix.
+ * `withdrawals` joined them for the sharpest version of the same reason: §9's
+ * `ConsentState` has no `withdrawn` member, so there is no machine edge and no
+ * repository write, and the alternative to holding it here is either not
+ * recording a withdrawal at all or setting a status string behind the machine's
+ * back. See `ConsentWithdrawal` below.
  *
  * Two things are deliberately NOT delegated, and they are the interesting half:
  *
@@ -119,6 +124,34 @@ export type ConsentSubmission = {
   readonly supplied: readonly string[]
 }
 
+/**
+ * A customer withdrawing the consent they gave — FR-17.3, DPDP §6(6).
+ *
+ * It is recorded here rather than on the consent record, and that is a gap
+ * stated rather than papered over. §9's `ConsentState` has four members —
+ * `not_sent`, `link_issued`, `submitted`, `expired` — and no `withdrawn`, so
+ * `consentMachine` has no edge to move along and `CustomerRepository` has no
+ * write to call. Recording the withdrawal by setting a status string would be
+ * going round the machine, which the constitution forbids for good reason.
+ *
+ * So the withdrawal lives on this desk, exactly as `receipts`, `reviews` and
+ * `submissions` do: a fact no §8 entity can hold, kept where the screens that
+ * need it can read it, and honest on screen about what it is. The moment
+ * `ConsentState` gains a `withdrawn` member and `advanceConsent` gains the edge,
+ * this collapses into that call and nothing else about the screen changes.
+ *
+ * `channels` is what the customer asked us to stop using, and `reason` is in the
+ * words of whoever took the call. Neither is inferred.
+ */
+export type ConsentWithdrawal = {
+  readonly customerId: string
+  readonly withdrawnAt: string
+  /** Who recorded it. A member of staff — the customer has no session here. */
+  readonly actorId: string
+  readonly channels: readonly MessageChannel[]
+  readonly reason: string
+}
+
 export type CustomerDossier = {
   readonly customer: Customer
   readonly household: Household | null
@@ -134,6 +167,8 @@ export type CustomerDossier = {
   readonly receipts: readonly ChecklistReceipt[]
   readonly reviews: readonly ExtractionReview[]
   readonly submission: ConsentSubmission | null
+  /** Withdrawals recorded against this customer, oldest first. Usually none. */
+  readonly withdrawals: readonly ConsentWithdrawal[]
 }
 
 export type KycCompletion =
@@ -185,6 +220,15 @@ export type CustomerDesk = {
   recordReceipt(customerId: string, receipt: ChecklistReceipt): void
   /** Records a person's verdict on one extraction. Never flips `confirmed` itself. */
   recordReview(customerId: string, review: ExtractionReview): void
+  /**
+   * Records that a customer withdrew their consent, and on which channels.
+   *
+   * It does NOT move `Customer.consentState`: there is no `withdrawn` member on
+   * `ConsentState` and no machine edge to it, and setting the string here would
+   * be the one thing the constitution forbids. The screen says so out loud
+   * rather than letting a pill imply a transition that never happened.
+   */
+  recordConsentWithdrawal(customerId: string, withdrawal: ConsentWithdrawal): void
 
   /** Moves KYC through `kycMachine` and records what the credentials recipe sent. */
   completeKyc(customerId: string, command: KycCommand): Promise<KycCompletion>
@@ -226,6 +270,7 @@ type LocalState = {
   readonly credentials: Map<string, CustomerCredential[]>
   readonly messages: Map<string, MessageLog[]>
   readonly submissions: Map<string, ConsentSubmission>
+  readonly withdrawals: Map<string, ConsentWithdrawal[]>
 }
 
 function buildDesk(repositories: Repositories): CustomerDesk {
@@ -236,6 +281,7 @@ function buildDesk(repositories: Repositories): CustomerDesk {
     credentials: new Map(),
     messages: new Map(),
     submissions: new Map(),
+    withdrawals: new Map(),
   }
 
   function remember(customerId: string, events: readonly DomainEvent[]): void {
@@ -282,6 +328,7 @@ function buildDesk(repositories: Repositories): CustomerDesk {
       receipts: local.receipts.get(customerId) ?? [],
       reviews: [...(local.reviews.get(customerId)?.values() ?? [])],
       submission: local.submissions.get(customerId) ?? null,
+      withdrawals: local.withdrawals.get(customerId) ?? [],
     }
   }
 
@@ -372,6 +419,13 @@ function buildDesk(repositories: Repositories): CustomerDesk {
         ...held.filter((entry) => entry.item !== receipt.item),
         receipt,
       ])
+    },
+
+    recordConsentWithdrawal(customerId, withdrawal) {
+      // Appended, never replaced. A customer who withdrew, was asked again and
+      // withdrew again has withdrawn twice, and both acts are the record.
+      const held = local.withdrawals.get(customerId) ?? []
+      local.withdrawals.set(customerId, [...held, withdrawal])
     },
 
     recordReview(customerId, review) {
@@ -575,13 +629,26 @@ async function findByToken(
 function reconstructEvents(file: CustomerDossier): readonly DomainEvent[] {
   const events: DomainEvent[] = []
 
+  /*
+   * These events are reconstructed from record timestamps rather than read off
+   * the bus, because the event log is not reachable through the `Repositories`
+   * interface yet. Their ids say so: a reconstructed event has no emission to
+   * point at, so nothing may name one as its `causedBy`, and an id that could be
+   * mistaken for a real one is how a fabricated chain gets drawn.
+   */
   const push = (
     name: DomainEvent['name'],
     at: string | null | undefined,
     actorId?: string | null,
   ): void => {
     if (!at) return
-    events.push({ name, at, ...(actorId ? { actorId } : {}), subject: { entity: 'Customer', id: file.customer.id } })
+    events.push({
+      id: `reconstructed:${file.customer.id}:${events.length + 1}`,
+      name,
+      at,
+      ...(actorId ? { actorId } : {}),
+      subject: { entity: 'Customer', id: file.customer.id },
+    })
   }
 
   for (const document of file.documents) {

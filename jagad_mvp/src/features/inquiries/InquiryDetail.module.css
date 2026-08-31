@@ -112,3 +112,40 @@
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
+
+/**
+ * The four engagement facts, read as one block — FR-06.13 to .17.
+ *
+ * A stage with no date under it is what a lead going quiet looks like, so the
+ * two sit next to each other rather than in separate corners of the screen.
+ */
+.contactFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+}
+
+.contactFacts > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.contactFacts dt {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.contactFacts dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* An overdue next action is the one fact on this panel that needs a person. */
+.contactFacts dd[data-overdue] {
+  color: var(--bad);
+  font-weight: 600;
+}

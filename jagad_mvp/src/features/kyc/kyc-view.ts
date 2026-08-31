@@ -24,6 +24,12 @@
  */
 
 import { containsFullAadhaar, maskAadhaarToLast4 } from '../../domain/workflows'
+import {
+  deriveCustomerState,
+  docTypeForItem as domainDocTypeForItem,
+  requirementsFor,
+} from '../../domain/derive'
+import type { CustomerFacts, DerivedCustomerState } from '../../domain/derive'
 import type { ExtractedField, KycCompletionRoute } from '../../domain/workflows'
 import type { DocChecklist, DocumentRecord, DocumentType, KycCommand } from '../../data/repo'
 import { CHECKLIST_STATES } from '../../components/ChecklistPanel'
@@ -34,23 +40,13 @@ import type { ChecklistReceipt, CustomerDossier, ExtractionReview } from '../cus
 /**
  * Which document type a checklist line is asking for.
  *
- * Matched on the line's own words rather than on a key, because the checklist an
- * admin edits is prose and always will be. A line that matches nothing is not
- * dropped — it stays on the list as outstanding until somebody records it
- * arriving, which is the honest answer for "Address proof" in a vault whose
- * document types do not yet include one.
+ * The matching itself lives in `src/domain/derive` because the repository that
+ * decides a KYC transition has to reach the same answer this screen does; two
+ * implementations of it is the drift the derived-state work exists to remove.
+ * This narrows the domain's `string` back to the vault's own union.
  */
-const TYPE_KEYWORDS: readonly (readonly [DocumentType, RegExp])[] = [
-  ['aadhaar', /aadhaar/i],
-  ['pan', /\bpan\b/i],
-  ['photo', /photograph|\bphoto\b/i],
-  ['proposal_form', /proposal/i],
-  ['policy_pdf', /policy (document|copy|pdf)/i],
-  ['cheque_image', /cheque/i],
-]
-
 export function docTypeForItem(item: string): DocumentType | null {
-  return TYPE_KEYWORDS.find(([, pattern]) => pattern.test(item))?.[0] ?? null
+  return domainDocTypeForItem(item) as DocumentType | null
 }
 
 /* ----------------------------------------------------------------- checklist */
@@ -228,11 +224,49 @@ export function unconfirmedExtractions(
   return extractions.filter((extraction) => !extraction.confirmed)
 }
 
+
+/* ------------------------------------------------------------------ derived */
+
+/**
+ * The KYC file as the screen sees it, in the shape the domain derives from.
+ *
+ * The repository assembles the same facts from its own tables and runs the same
+ * `deriveCustomerState` over them, so the badge this screen draws and the
+ * verdict the machine returns are one rule with two readers. Only the gathering
+ * differs; the deciding does not.
+ */
+export function kycFactsFor(
+  dossier: CustomerDossier,
+  checklistItems: readonly string[],
+  now: Date,
+): CustomerFacts {
+  return {
+    now,
+    requirements: requirementsFor(checklistItems),
+    documents: dossier.documents.map((document) => ({
+      docType: document.docType,
+      isPresent: document.isPresent,
+      reviewState: document.reviewState,
+      expiresAt: null,
+    })),
+    receipts: dossier.receipts.map((receipt) => ({ key: receipt.item })),
+    policies: dossier.policies.map((policy) => ({ status: policy.status })),
+    aadhaarLast4Present: dossier.customer.aadhaarLast4 !== null,
+  }
+}
+
+export function derivedStateFor(
+  dossier: CustomerDossier,
+  checklistItems: readonly string[],
+  now: Date,
+): DerivedCustomerState {
+  return deriveCustomerState(kycFactsFor(dossier, checklistItems, now))
+}
+
 /* ------------------------------------------------------------- the gate */
 
 export type KycCommandInput = {
   readonly dossier: CustomerDossier
-  readonly checklist: KycChecklist
   readonly extractions: readonly KycExtraction[]
   readonly actorId: string
   readonly route: KycCompletionRoute
@@ -249,7 +283,7 @@ export type KycCommandInput = {
  * only so the guard has something to refuse.
  */
 export function kycCommandFor(input: KycCommandInput): KycCommand {
-  const { dossier, checklist, extractions, actorId, route, now } = input
+  const { dossier, extractions, actorId, route, now } = input
 
   const extractedFields: readonly ExtractedField[] = extractions.map((extraction) => ({
     name: extraction.name,
@@ -263,10 +297,11 @@ export function kycCommandFor(input: KycCommandInput): KycCommand {
   return {
     actorId,
     route,
-    requiredDocuments: checklist.items.map((item) => item.label),
-    presentDocuments: checklist.items
-      .filter((item) => item.state !== CHECKLIST_STATES.outstanding && item.state !== CHECKLIST_STATES.rejected)
-      .map((item) => item.label),
+    // The desk's own receipts, and nothing else about the file. What is required
+    // and what is present are read off the ledger by the repository — a screen
+    // that could describe a complete file into existence is the defect this
+    // command shape used to carry.
+    receipts: dossier.receipts.map((receipt) => receipt.item),
     extractedFields,
     ...(last4.length === LAST4 ? { aadhaarLast4: last4 } : {}),
     now,

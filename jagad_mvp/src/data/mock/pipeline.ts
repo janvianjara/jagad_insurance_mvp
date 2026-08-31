@@ -15,12 +15,28 @@
  * editable.
  */
 
+import {
+  canEnterStage,
+  dormancyVerdict,
+  parkingStage,
+  stageParksTheLead,
+  nextActionSatisfied,
+  readDormancyRule,
+  stageByKey,
+  stageCountsAsOpen,
+} from '../../domain/workflows'
 import { addMinutes } from '../fixtures/clock'
 import {
   archiveQuotationVersion,
+  CONSENT_STATES,
   consentMachine,
+  carriedPremiumIsTypedNotComputed,
+  agencyScopeFrom,
+  awardKeyFor,
   dealHasLineItems,
+  dealIsUniquePerAward,
   dealMachine,
+  dealSalesCreditIsWhole,
   inquiryMachine,
   kycMachine,
   quotationMachine,
@@ -35,31 +51,55 @@ import type {
   QuotationContext,
   QuotationVersion,
 } from '../../domain/workflows'
+import { deriveCustomerState, requirementsFor } from '../../domain/derive'
+import type { CustomerFacts, DocumentFact } from '../../domain/derive'
 import { CUSTOMER_STATUSES } from '../repo/customers'
-import type { ConsentRecord, Customer, CustomerRepository } from '../repo/customers'
+import type {
+  ConsentRecord,
+  Customer,
+  CustomerRepository,
+  KycFactsOptions,
+} from '../repo/customers'
+import { sumMoney } from '../../domain/money'
 import type { Deal, DealRepository } from '../repo/deals'
+import type { ActivityRepository } from '../repo/activities'
 import type { Inquiry, InquiryRepository } from '../repo/inquiries'
+import type { RequirementRecord, RequirementRepository } from '../repo/requirements'
+import type { Task, TaskRepository } from '../repo/tasks'
 import type { Quotation, QuotationLine, QuotationRepository } from '../repo/quotations'
-import { notFound, rejected } from '../repo/result'
+import { committed, notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
-import { create, move } from './move'
+import { create, move, record } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
 
 export type PipelineDeps = {
   readonly store: MockStore
   readonly latency: Latency
+  /**
+   * The two the inquiry repository genuinely depends on — FR-06.15.
+   *
+   * Recording one contact raises a follow-up and appends to the engagement log,
+   * and both of those are somebody else's repository. Taking them as
+   * dependencies rather than reaching into their tables keeps one write path per
+   * entity: the attempt counter is still counted in exactly one place, and a
+   * task raised by an engagement is numbered by the same sequence as every other
+   * task.
+   */
+  readonly tasks: TaskRepository
+  readonly activities: ActivityRepository
 }
 
 export function createPipelineRepositories(deps: PipelineDeps): {
   customers: CustomerRepository
   inquiries: InquiryRepository
+  requirements: RequirementRepository
   quotations: QuotationRepository
   deals: DealRepository
 } {
-  const { store, latency } = deps
+  const { store, latency, tasks, activities } = deps
   const t = store.tables
   const wait = () => latency.wait()
   const at = (given?: Date) => given ?? store.now()
@@ -68,6 +108,71 @@ export function createPipelineRepositories(deps: PipelineDeps): {
 
   function consentFor(customerId: string): ConsentRecord | null {
     return rowsOf(t.consentRecords).find((entry) => entry.customerId === customerId) ?? null
+  }
+
+  /**
+   * Which checklist this customer's KYC is measured against.
+   *
+   * §8: a `DocChecklist` hangs off a company and optionally off one product of
+   * that company, so the applicable list is the one for the cover being written
+   * now — the most recent policy. A customer with no policy has no company yet
+   * and therefore no checklist; that returns an empty list, which
+   * `deriveCustomerState` reads as "nobody has decided what this file needs"
+   * rather than as "it needs nothing".
+   */
+  function checklistItemsFor(customerId: string): readonly string[] {
+    const latest = [...rowsOf(t.policies)]
+      .filter((policy) => policy.customerId === customerId)
+      .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))[0]
+    if (!latest) return []
+
+    const product = t.products.get(latest.productId)
+    if (!product) return []
+
+    const all = rowsOf(t.docChecklists).filter((entry) => entry.purpose === 'kyc')
+    const checklist =
+      all.find((entry) => entry.productId === latest.productId) ??
+      all.find((entry) => entry.companyId === product.companyId && entry.productId === null)
+
+    return checklist?.items ?? []
+  }
+
+  /**
+   * The KYC file as evidence.
+   *
+   * Everything here is read from this store's own tables. That is the whole
+   * point: the guard used to be handed a list of what was required and a list of
+   * what was present, both by the caller, and compared them — so a screen could
+   * describe a complete file into existence. Nothing a caller passes can widen
+   * what this returns.
+   */
+  function factsFor(customerId: string, options?: KycFactsOptions): CustomerFacts | null {
+    const customer = t.customers.get(customerId)
+    if (!customer) return null
+
+    const documents: readonly DocumentFact[] = rowsOf(t.documents)
+      .filter(
+        (document) =>
+          document.subjectEntity === 'Customer' && document.subjectId === customerId,
+      )
+      .map((document) => ({
+        docType: document.docType,
+        isPresent: document.isPresent,
+        reviewState: document.reviewState,
+        expiresAt: null,
+      }))
+
+    return {
+      now: options?.now ?? store.now(),
+      requirements: requirementsFor(checklistItemsFor(customerId)),
+      documents,
+      receipts: (options?.receipts ?? []).map((key) => ({ key })),
+      policies: rowsOf(t.policies)
+        .filter((policy) => policy.customerId === customerId)
+        .map((policy) => ({ status: policy.status })),
+      aadhaarLast4Present:
+        customer.aadhaarLast4 !== null || options?.pendingAadhaarLast4 !== undefined,
+    }
   }
 
   const customers: CustomerRepository = {
@@ -157,6 +262,9 @@ export function createPipelineRepositories(deps: PipelineDeps): {
           subAgentId: command.subAgentId ?? null,
           kycState: born.status,
           consentState: consentMachine.initial,
+          // Nobody has sent this person anything yet, and null says exactly that.
+          lastConsentChaseAt: null,
+          consentChaseCount: 0,
           fullName,
           mobile,
           altMobile: command.altMobile ?? null,
@@ -177,8 +285,29 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       })
     },
 
+    async kycFacts(customerId, options) {
+      await wait()
+      return factsFor(customerId, options)
+    },
+
+    async derivedState(customerId, options) {
+      await wait()
+      const facts = factsFor(customerId, options)
+      return facts === null ? null : deriveCustomerState(facts)
+    },
+
     async advanceKyc(customerId, to, command) {
       await wait()
+      // Derived here, from this store's tables, and never taken from the command.
+      // A caller can record that a document arrived; it cannot claim the file is
+      // complete, because the sentence that decides is written below, not above.
+      const facts = factsFor(customerId, {
+        now: command.now,
+        receipts: command.receipts,
+        pendingAadhaarLast4: command.aadhaarLast4,
+      })
+      const derived = facts === null ? undefined : deriveCustomerState(facts)
+
       return move<KycConsentState, Parameters<typeof kycMachine.canTransition>[2], Customer>({
         store,
         table: t.customers,
@@ -190,8 +319,7 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         ctx: {
           now: at(command.now),
           route: command.route,
-          requiredDocuments: command.requiredDocuments,
-          presentDocuments: command.presentDocuments,
+          derived,
           extractedFields: command.extractedFields,
           aadhaarLast4: command.aadhaarLast4,
         },
@@ -240,7 +368,22 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         to,
         ctx: { now, link },
         actorId: command.actorId,
-        apply: (row) => ({ ...row, consentState: to }),
+        // Sending a link is the chase, so it is recorded on the move that sends
+        // it rather than by whoever remembered to. Every route into
+        // `link_issued` — a person on the customer file, the queue's bulk
+        // action, FR-21's cadence when it lands — comes through here, so there
+        // is no path that sends a link and leaves no trace of having sent one.
+        // The other transitions leave both fields alone: a customer submitting
+        // their form is not the agency chasing them.
+        apply: (row) =>
+          to === CONSENT_STATES.linkIssued
+            ? {
+                ...row,
+                consentState: to,
+                lastConsentChaseAt: now.toISOString(),
+                consentChaseCount: row.consentChaseCount + 1,
+              }
+            : { ...row, consentState: to },
       })
 
       if (!outcome.ok) return outcome
@@ -319,6 +462,14 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         query,
       )
     },
+    async referredBy(referrerId, query) {
+      await wait()
+      return runQuery(
+        rowsOf(t.inquiries).filter((inquiry) => inquiry.referral?.referrerId === referrerId),
+        INQUIRY_LIST_SPEC,
+        query,
+      )
+    },
     async unrouted(query) {
       await wait()
       return runQuery(
@@ -357,6 +508,36 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         )
       }
 
+      /*
+       * A referral and its referrer are one fact, so neither half is accepted
+       * without the other. `referral` was a source value with nothing on the
+       * end of it for long enough that the enum read as working attribution;
+       * refusing both directions here is what stops it drifting back.
+       */
+      const referral = command.referral ?? null
+      if (command.source === 'referral' && referral === null) {
+        return rejected(
+          'This inquiry says it came from a referral but does not say who referred it. A referral with no referrer cannot be attributed, thanked or paid.',
+        )
+      }
+      if (command.source !== 'referral' && referral !== null) {
+        return rejected(
+          `A referrer was named on an inquiry whose source is "${command.source}". Set the source to Referral, or leave the referrer off.`,
+        )
+      }
+      const referrerId = referral?.referrerId?.trim() ?? ''
+      const referrerName = referral?.referrerName?.trim() ?? ''
+      if (referral !== null && referral.kind !== 'external' && referrerId === '') {
+        return rejected(
+          'Pick the referrer. A referral attributed to nobody in particular is the same as one attributed to nobody.',
+        )
+      }
+      if (referral !== null && referral.kind === 'external' && referrerName === '') {
+        return rejected(
+          'Name whoever referred this lead. Somebody outside the system is still somebody, and a name is the least the record can hold.',
+        )
+      }
+
       const now = at(command.now)
 
       return create({
@@ -370,7 +551,11 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         // a creation nobody can observe is the silent drop §9 warns about.
         event: 'inquiry.created',
         actorId: command.actorId,
-        detail: { source: command.source, subAgentId: command.subAgentId ?? null },
+        detail: {
+          source: command.source,
+          subAgentId: command.subAgentId ?? null,
+          referrerKind: referral?.kind ?? null,
+        },
         build: (born): Inquiry => ({
           id: born.id,
           systemNo: born.systemNo,
@@ -390,10 +575,26 @@ export function createPipelineRepositories(deps: PipelineDeps): {
           escalationLevel: 0,
           createdAt: now.toISOString(),
           customerId: command.customerId ?? null,
+          referral:
+            referral === null
+              ? null
+              : {
+                  kind: referral.kind,
+                  referrerId: referral.kind === 'external' ? null : referrerId,
+                  referrerName: referral.kind === 'external' ? referrerName : null,
+                  capturedAt: now.toISOString(),
+                },
           contactName,
           contactMobile,
           contactEmail: command.contactEmail ?? null,
           notes: command.notes ?? null,
+          // Nobody has spoken to them yet, and that absence is the fact the
+          // engagement layer reports on rather than a gap to fill in.
+          stageKey: null,
+          stageEnteredAt: null,
+          contactAttempts: 0,
+          lastActivityAt: null,
+          nextActionAt: null,
         }),
       })
     },
@@ -598,6 +799,325 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         apply: (row) => ({ ...row, status: 'lost' }),
       })
     },
+
+    async dormant(query) {
+      await wait()
+      const stages = rowsOf(t.inquiryStages)
+      return runQuery(
+        rowsOf(t.inquiries).filter((inquiry) => stageParksTheLead(stages, inquiry.stageKey)),
+        INQUIRY_LIST_SPEC,
+        query,
+      )
+    },
+
+    async recycle(id, command) {
+      await wait()
+      const now = at(command.now)
+      const inquiry = t.inquiries.get(id)
+      if (!inquiry) return notFound('Inquiry', id)
+
+      if (!stageParksTheLead(rowsOf(t.inquiryStages), inquiry.stageKey)) {
+        return rejected(
+          'Only a parked inquiry can be recycled, and this one is not parked. There is nothing to bring back.',
+        )
+      }
+      if (command.reason.trim() === '') {
+        return rejected(
+          'Say why this lead is coming back off the parked list. A record that reappears with no reason is one nobody can account for later.',
+        )
+      }
+
+      return record<Inquiry>({
+        store,
+        table: t.inquiries,
+        entity: 'Inquiry',
+        id,
+        event: 'inquiry.recycled',
+        actorId: command.actorId,
+        detail: { reason: command.reason.trim(), toPool: command.toPool ?? false },
+        apply: (row) => ({
+          ...row,
+          // Unstaged rather than back to where it was parked from: nobody has
+          // spoken to them lately, and that is exactly what no stage means.
+          stageKey: null,
+          stageEnteredAt: now.toISOString(),
+          contactAttempts: 0,
+          nextActionAt: null,
+          ...(command.toPool === true ? { ownerId: null } : {}),
+        }),
+      })
+    },
+
+    async nextActionOverdue(when, query) {
+      await wait()
+      const cutoff = when.getTime()
+      const stages = rowsOf(t.inquiryStages)
+      return runQuery(
+        rowsOf(t.inquiries).filter(
+          (inquiry) =>
+            inquiry.status === 'accepted' &&
+            stageCountsAsOpen(stages, inquiry.stageKey) &&
+            inquiry.nextActionAt !== null &&
+            new Date(inquiry.nextActionAt).getTime() < cutoff,
+        ),
+        INQUIRY_LIST_SPEC,
+        query,
+      )
+    },
+
+    /**
+     * One contact and everything that follows from it — FR-06.13 to .17.
+     *
+     * The order below is the whole design. Every refusal comes before the first
+     * write, so a blocked engagement leaves no half-record behind: no orphan
+     * activity, no task pointing at a stage the inquiry never entered, no
+     * attempt counted for a call that was not accepted. And the two rules are
+     * asked in the words they will be shown in — the mandate's and the stage
+     * module's own sentences, unedited.
+     */
+    async logEngagement(id, command) {
+      await wait()
+      const now = at(command.now)
+      const inquiry = t.inquiries.get(id)
+      if (!inquiry) return notFound('Inquiry', id)
+
+      const disposition = rowsOf(t.dispositions).find(
+        (row) => row.key === command.dispositionKey,
+      )
+      if (!disposition) {
+        return rejected(
+          `"${command.dispositionKey}" is not a configured outcome. The list is edited in configuration, and every activity carries one of them.`,
+        )
+      }
+      if (!disposition.active) {
+        return rejected(
+          `"${disposition.label}" has been retired as an outcome. Records that already carry it keep it; pick one still in use.`,
+        )
+      }
+      if (
+        disposition.channelKeys.length > 0 &&
+        !disposition.channelKeys.includes(command.channel)
+      ) {
+        return rejected(
+          `"${disposition.label}" is not an outcome you can record against a ${command.channel}. It is configured for: ${disposition.channelKeys.join(', ')}.`,
+        )
+      }
+
+      const stages = rowsOf(t.inquiryStages)
+      const toStage = disposition.stageKey
+
+      // Rule one: the mandate. An open inquiry may not be left without a date.
+      const mandate = nextActionSatisfied({
+        now,
+        disposition: {
+          key: disposition.key,
+          label: disposition.label,
+          terminal: stageByKey(stages, toStage)?.terminal ?? false,
+          requiresNextAction: disposition.requiresNextAction,
+          requiresReason: disposition.requiresReason,
+        },
+        nextAction: command.nextAction ?? null,
+        reason: command.reason ?? null,
+      })
+      if (!mandate.ok) return rejected(mandate.reason, mandate.code, mandate.guard)
+
+      // Rule two: the pipeline. Only asked when the outcome moves the stage.
+      if (toStage !== null && toStage !== inquiry.stageKey) {
+        const staged = canEnterStage(toStage, stages, {
+          status: inquiry.status,
+          fromKey: inquiry.stageKey,
+          hasNextAction: Boolean(command.nextAction),
+        })
+        if (!staged.ok) return rejected(staged.reason, staged.code, staged.guard)
+      }
+
+      // Past every refusal. From here the three writes go together.
+      let raised: Task | null = null
+      if (command.nextAction) {
+        const taskOutcome = await tasks.create({
+          actorId: command.actorId,
+          kind: command.nextAction.kind,
+          title: `${inquiry.contactName} - ${disposition.label.toLowerCase()}`,
+          subjectEntity: 'Inquiry',
+          subjectId: inquiry.id,
+          dueAt: command.nextAction.dueAt,
+          ownerId: command.nextAction.assigneeId ?? inquiry.ownerId,
+          teamId: inquiry.teamId,
+          agentId: inquiry.agentId,
+          raisedBy: command.actorId,
+          now,
+        })
+        if (!taskOutcome.ok) return taskOutcome
+        raised = taskOutcome.record
+      }
+
+      const logged = await activities.log({
+        actorId: command.actorId,
+        subjectEntity: 'Inquiry',
+        subjectId: inquiry.id,
+        channel: command.channel,
+        direction: command.direction,
+        dispositionKey: disposition.key,
+        occurredAt: command.occurredAt ?? now.toISOString(),
+        notes: command.notes ?? null,
+        nextTaskId: raised?.id ?? null,
+        messageLogId: command.messageLogId ?? null,
+        now,
+      })
+      if (!logged.ok) return logged
+
+      /*
+       * Going cold, decided after the contact is on the books — FR-06.17.
+       *
+       * It runs last on purpose. The attempt this call just added is what tips
+       * the count over, so asking before logging would always be one behind, and
+       * a lead would sit at "not reachable" for one more round than the agency
+       * configured. Dormancy overrides the disposition's own stage, which is the
+       * matrix row "after X attempts, dormant" doing exactly what it says.
+       */
+      const rule = readDormancyRule(
+        rowsOf(t.recipes).find((row) => row.key === 'inquiry.dormancy' && row.active)
+          ?.parameters ?? null,
+      )
+      const cold = dormancyVerdict(rule, {
+        now,
+        contactAttempts: logged.record.attemptNo,
+        lastActivityAt: logged.record.occurredAt,
+      })
+      // No configured parking stage means nowhere to park, so dormancy does not
+      // fire — the same answer an absent recipe gets, rather than a key from here.
+      const parked = parkingStage(stages)
+      const landsOn =
+        cold.dormant && parked !== null && toStage !== null && !stageByKey(stages, toStage)?.terminal
+          ? parked.key
+          : toStage
+
+      const stamped = record<Inquiry>({
+        store,
+        table: t.inquiries,
+        entity: 'Inquiry',
+        id,
+        event:
+          parked !== null && landsOn === parked.key && landsOn !== toStage
+            ? 'inquiry.dormant'
+            : landsOn === null
+              ? 'inquiry.next_action_set'
+              : 'inquiry.stage_changed',
+        actorId: command.actorId,
+        detail: {
+          disposition: disposition.key,
+          stage: landsOn,
+          attempts: logged.record.attemptNo,
+          nextActionAt: command.nextAction?.dueAt ?? null,
+          ...(cold.dormant ? { because: cold.because } : {}),
+        },
+        apply: (row) => ({
+          ...row,
+          stageKey: landsOn ?? row.stageKey,
+          stageEnteredAt:
+            landsOn !== null && landsOn !== row.stageKey
+              ? now.toISOString()
+              : row.stageEnteredAt,
+          contactAttempts: logged.record.attemptNo,
+          // When the contact happened, not when it was typed up. A note written
+          // on Friday about a Tuesday call did not touch this lead on Friday.
+          lastActivityAt: logged.record.occurredAt,
+          // A parked lead owes nobody a date. Leaving the follow-up on it would
+          // put a dormant inquiry back in the overdue sweep every morning.
+          nextActionAt:
+            parked !== null && landsOn === parked.key
+              ? null
+              : (command.nextAction?.dueAt ?? null),
+        }),
+      })
+      if (!stamped.ok) return stamped
+
+      return committed(
+        { inquiry: stamped.record, activity: logged.record, task: raised },
+        [...logged.events, ...stamped.events],
+      )
+    },
+  }
+
+  /* ---------------------------------------------------------- requirements */
+
+  /**
+   * What the customer said they need — FR-06.16.
+   *
+   * One per inquiry, replaced rather than appended. A requirement is a current
+   * statement of what somebody wants and wants change on the second call, which
+   * is the opposite of an `Activity` — that records a thing that happened and can
+   * never be revised. The event log carries the history either way.
+   */
+  const requirements: RequirementRepository = {
+    async list(query) {
+      await wait()
+      return runQuery(rowsOf(t.requirements), REQUIREMENT_LIST_SPEC, query)
+    },
+    async get(id) {
+      await wait()
+      return t.requirements.get(id) ?? null
+    },
+    async getMany(ids) {
+      await wait()
+      return ids.map((id) => t.requirements.get(id)).filter((row) => row !== undefined)
+    },
+    async forInquiry(inquiryId) {
+      await wait()
+      return rowsOf(t.requirements).find((row) => row.inquiryId === inquiryId) ?? null
+    },
+    async capture(command) {
+      await wait()
+      const now = at(command.now)
+      const inquiry = t.inquiries.get(command.inquiryId)
+      if (!inquiry) return notFound('Inquiry', command.inquiryId)
+
+      const existing = rowsOf(t.requirements).find(
+        (row) => row.inquiryId === command.inquiryId,
+      )
+
+      if (existing) {
+        return record<RequirementRecord>({
+          store,
+          table: t.requirements,
+          entity: 'RequirementRecord',
+          id: existing.id,
+          event: 'requirement.revised',
+          actorId: command.actorId,
+          // The answers themselves stay off the event stream, for the same
+          // reason `values` is `document-content` in the registry.
+          detail: { inquiryId: command.inquiryId, schemaVersion: command.schemaVersion },
+          apply: (row) => ({
+            ...row,
+            formSchemaId: command.formSchemaId,
+            objectKey: command.objectKey,
+            schemaVersion: command.schemaVersion,
+            values: command.values,
+            revisedAt: now.toISOString(),
+          }),
+        })
+      }
+
+      const id = `req-${command.inquiryId}`
+      const emitted = store.bus.emit('requirement.captured', {
+        actorId: command.actorId,
+        subject: { entity: 'RequirementRecord', id },
+        detail: { inquiryId: command.inquiryId, schemaVersion: command.schemaVersion },
+      })
+      const row: RequirementRecord = {
+        id,
+        inquiryId: command.inquiryId,
+        formSchemaId: command.formSchemaId,
+        objectKey: command.objectKey,
+        schemaVersion: command.schemaVersion,
+        values: command.values,
+        capturedBy: command.actorId,
+        capturedAt: now.toISOString(),
+        revisedAt: null,
+      }
+      t.requirements.set(id, row)
+      return committed(row, [emitted])
+    },
   }
 
   /* ------------------------------------------------------------ quotations */
@@ -610,6 +1130,7 @@ export function createPipelineRepositories(deps: PipelineDeps): {
 
   function columnsOf(quotation: Quotation): QuotationColumn[] {
     return linesOf(quotation.id, quotation.version).map((line) => ({
+      columnKey: line.columnKey,
       label: line.label,
       companyId: line.companyId,
       productId: line.productId,
@@ -644,7 +1165,15 @@ export function createPipelineRepositories(deps: PipelineDeps): {
 
   function quotationCtx(
     quotation: Quotation,
-    extra: { version?: number; revisionReason?: string; lostReason?: string; columns?: QuotationColumn[] },
+    extra: {
+      version?: number
+      revisionReason?: string
+      lostReason?: string
+      columns?: QuotationColumn[]
+      acceptedColumnKeys?: readonly string[]
+      dealId?: string
+      awardVoidReason?: string
+    },
   ): QuotationContext {
     return {
       columns: extra.columns ?? columnsOf(quotation),
@@ -652,6 +1181,11 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       priorVersions: priorVersionsOf(quotation),
       revisionReason: extra.revisionReason ?? quotation.revisionReason ?? undefined,
       lostReason: extra.lostReason ?? quotation.lostReason ?? undefined,
+      // The stored keys are the fallback so `won` can be checked against the
+      // award that was actually recorded rather than against the caller's word.
+      acceptedColumnKeys: extra.acceptedColumnKeys ?? quotation.acceptedColumnKeys,
+      dealId: extra.dealId,
+      awardVoidReason: extra.awardVoidReason,
     }
   }
 
@@ -688,6 +1222,10 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     async bySystemNo(no) {
       await wait()
       return rowsOf(t.quotations).find((quotation) => quotation.systemNo === no) ?? null
+    },
+    async forInquiry(inquiryId) {
+      await wait()
+      return rowsOf(t.quotations).filter((quotation) => quotation.inquiryId === inquiryId)
     },
     async forCustomer(customerId, query) {
       await wait()
@@ -730,6 +1268,7 @@ export function createPipelineRepositories(deps: PipelineDeps): {
           inquiryId: command.inquiryId ?? null,
           ownerId: command.ownerId,
           agentId: command.agentId ?? null,
+          subAgentId: command.subAgentId ?? null,
           // The matrix arrives at `compose`, along with the typed premiums the
           // machine checks. A draft holds no columns and no figure.
           companyIds: [],
@@ -738,6 +1277,8 @@ export function createPipelineRepositories(deps: PipelineDeps): {
           premiumMode: command.premiumMode,
           finalPayablePremium: null,
           sharedAt: null,
+          acceptedColumnKeys: [],
+          awardedAt: null,
           revisionReason: null,
           lostReason: null,
           createdAt: now.toISOString(),
@@ -901,14 +1442,74 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       return outcome
     },
 
-    async markWon(id, command) {
+    async markAwarded(id, command) {
+      await wait()
+      const quotation = t.quotations.get(id)
+      if (!quotation) return notFound('Quotation', id)
+      const now = at(command.now)
+
+      // The accepted columns' typed figures, added up. Addition over figures a
+      // person typed is the one arithmetic D3 allows, and the header has always
+      // been "the figure of the column the customer accepted" — with two
+      // accepted columns it is the figure of both, not of whichever came first.
+      const accepted = linesOf(id, quotation.version).filter((line) =>
+        command.acceptedColumnKeys.includes(line.columnKey),
+      )
+      const typed = accepted
+        .map((line) => line.finalPayablePremium)
+        .filter((amount): amount is NonNullable<typeof amount> => amount !== null)
+      const headline = typed.length === accepted.length && typed.length > 0 ? sumMoney(typed) : null
+
+      return move({
+        store,
+        table: t.quotations,
+        entity: 'Quotation',
+        id,
+        machine: quotationMachine,
+        stateOf: (row) => row.status,
+        to: 'awarded',
+        ctx: quotationCtx(quotation, { acceptedColumnKeys: command.acceptedColumnKeys }),
+        actorId: command.actorId,
+        detail: { columns: command.acceptedColumnKeys.join(',') },
+        apply: (row) => ({
+          ...row,
+          status: 'awarded',
+          acceptedColumnKeys: [...command.acceptedColumnKeys],
+          awardedAt: now.toISOString(),
+          finalPayablePremium: headline ?? row.finalPayablePremium,
+        }),
+      })
+    },
+
+    async voidAward(id, command) {
       await wait()
       const quotation = t.quotations.get(id)
       if (!quotation) return notFound('Quotation', id)
 
-      const accepted = command.acceptedColumnKey
-        ? linesOf(id, quotation.version).find((line) => line.columnKey === command.acceptedColumnKey)
-        : undefined
+      return move({
+        store,
+        table: t.quotations,
+        entity: 'Quotation',
+        id,
+        machine: quotationMachine,
+        stateOf: (row) => row.status,
+        to: 'shared',
+        ctx: quotationCtx(quotation, { awardVoidReason: command.awardVoidReason }),
+        actorId: command.actorId,
+        detail: { reason: command.awardVoidReason },
+        apply: (row) => ({
+          ...row,
+          status: 'shared',
+          acceptedColumnKeys: [],
+          awardedAt: null,
+        }),
+      })
+    },
+
+    async markWon(id, command) {
+      await wait()
+      const quotation = t.quotations.get(id)
+      if (!quotation) return notFound('Quotation', id)
 
       return move({
         store,
@@ -918,16 +1519,10 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         machine: quotationMachine,
         stateOf: (row) => row.status,
         to: 'won',
-        ctx: quotationCtx(quotation, {}),
+        ctx: quotationCtx(quotation, { dealId: command.dealId }),
         actorId: command.actorId,
-        detail: { column: command.acceptedColumnKey ?? null },
-        apply: (row) => ({
-          ...row,
-          status: 'won',
-          // The accepted column's typed figure becomes the header figure. It is
-          // carried across, never recalculated.
-          finalPayablePremium: accepted?.finalPayablePremium ?? row.finalPayablePremium,
-        }),
+        detail: { dealId: command.dealId ?? null },
+        apply: (row) => ({ ...row, status: 'won' }),
       })
     },
 
@@ -956,14 +1551,7 @@ export function createPipelineRepositories(deps: PipelineDeps): {
 
   function agencyScopeOf(agencyId: string): AgencyScope | undefined {
     if (!t.agencies.has(agencyId)) return undefined
-    const scopes = rowsOf(t.agencyScopes).filter(
-      (scope) => scope.agencyId === agencyId && scope.active,
-    )
-    return {
-      agencyId,
-      companyIds: [...new Set(scopes.map((scope) => scope.companyId))],
-      productIds: [...new Set(scopes.map((scope) => scope.productId))],
-    }
+    return agencyScopeFrom(agencyId, rowsOf(t.agencyScopes))
   }
 
   const deals: DealRepository = {
@@ -983,6 +1571,10 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       await wait()
       return rowsOf(t.deals).find((deal) => deal.systemNo === no) ?? null
     },
+    async forQuotation(quotationId) {
+      await wait()
+      return rowsOf(t.deals).filter((deal) => deal.quotationId === quotationId)
+    },
     async forCustomer(customerId, query) {
       await wait()
       return runQuery(
@@ -990,6 +1582,10 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         DEAL_LIST_SPEC,
         query,
       )
+    },
+    async byAwardKey(awardKey) {
+      await wait()
+      return rowsOf(t.deals).find((deal) => deal.awardKey === awardKey) ?? null
     },
     async awaitingPolicyEntry(query) {
       await wait()
@@ -1005,6 +1601,12 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     async create(command) {
       await wait()
       const now = at(command.now)
+      const awardKey = awardKeyFor(
+        command.quotationId,
+        command.quotationVersion,
+        command.acceptedColumnKeys,
+      )
+      const existing = rowsOf(t.deals).find((deal) => deal.awardKey === awardKey)
 
       return create<Deal['status'], DealContext, Deal>({
         store,
@@ -1016,10 +1618,37 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         // so the refusal carries the machine's own sentence. The agency scope is
         // not checked here — placement is `setLineItems`, and that is where
         // `placementInsideAgencyScope` runs.
-        entry: { guards: [dealHasLineItems], ctx: { lineItems: command.lineItems } },
+        //
+        // The other two are birth checks for the same reason: a deal that opens
+        // with a derived premium, or with a sub-agent and no agent, is a record
+        // the commission chain will refuse to book months later. Refusing it here
+        // puts the sentence where somebody can still act on it.
+        entry: {
+          guards: [
+            dealHasLineItems,
+            carriedPremiumIsTypedNotComputed,
+            dealSalesCreditIsWhole,
+            dealIsUniquePerAward,
+          ],
+          ctx: {
+            lineItems: command.lineItems,
+            agentId: command.agentId ?? null,
+            subAgentId: command.subAgentId ?? null,
+            awardKey,
+            // Read here, in the only layer that can see two rows at once, and
+            // handed to the guard. `null` says "looked, found nothing".
+            existingDealForAwardKey: existing
+              ? { id: existing.id, systemNo: existing.systemNo }
+              : null,
+          },
+        },
         event: 'deal.created',
         actorId: command.actorId,
-        detail: { quotationId: command.quotationId, lineItems: command.lineItems.length },
+        detail: {
+          quotationId: command.quotationId,
+          awardKey,
+          lineItems: command.lineItems.length,
+        },
         build: (born): Deal => ({
           id: born.id,
           systemNo: born.systemNo,
@@ -1031,6 +1660,10 @@ export function createPipelineRepositories(deps: PipelineDeps): {
           subAgentId: command.subAgentId ?? null,
           agencyId: null,
           lineItems: command.lineItems,
+          quotationVersion: command.quotationVersion,
+          acceptedColumnKeys: [...command.acceptedColumnKeys],
+          awardKey,
+          salesCreditSource: command.salesCreditSource ?? null,
           createdAt: now.toISOString(),
           consumedByPolicyId: null,
         }),
@@ -1087,7 +1720,7 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     },
   }
 
-  return { customers, inquiries, quotations, deals }
+  return { customers, inquiries, requirements, quotations, deals }
 }
 
 /* ------------------------------------------------------------- list specs */
@@ -1111,6 +1744,10 @@ const CUSTOMER_LIST_SPEC = {
     fullName: (row: Customer) => row.fullName,
     createdAt: (row: Customer) => row.createdAt,
     systemNo: (row: Customer) => row.systemNo,
+    // Never chased sorts as the empty string, which puts it first ascending —
+    // the right end for a chase list, because a file nobody has ever written to
+    // is more overdue than one chased last week, not less.
+    lastConsentChaseAt: (row: Customer) => row.lastConsentChaseAt ?? '',
   },
   defaultSort: { field: 'createdAt', direction: 'desc' as const },
 }
@@ -1128,13 +1765,27 @@ const INQUIRY_LIST_SPEC = {
     ownerId: (row: Inquiry) => row.ownerId,
     teamId: (row: Inquiry) => row.teamId,
     subAgentId: (row: Inquiry) => row.subAgentId,
+    agentId: (row: Inquiry) => row.agentId,
+    stageKey: (row: Inquiry) => row.stageKey,
   },
   sorts: {
     createdAt: (row: Inquiry) => row.createdAt,
     tatDueAt: (row: Inquiry) => row.tatDueAt,
     systemNo: (row: Inquiry) => row.systemNo,
+    nextActionAt: (row: Inquiry) => row.nextActionAt,
+    lastActivityAt: (row: Inquiry) => row.lastActivityAt,
   },
   defaultSort: { field: 'createdAt', direction: 'desc' as const },
+}
+
+const REQUIREMENT_LIST_SPEC = {
+  search: [(row: RequirementRecord) => row.inquiryId],
+  filters: {
+    inquiryId: (row: RequirementRecord) => row.inquiryId,
+    objectKey: (row: RequirementRecord) => row.objectKey,
+  },
+  sorts: { capturedAt: (row: RequirementRecord) => row.capturedAt },
+  defaultSort: { field: 'capturedAt', direction: 'desc' as const },
 }
 
 const QUOTATION_LIST_SPEC = {

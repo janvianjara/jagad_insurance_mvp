@@ -59,7 +59,7 @@ describe('the schemas P-04 already stores', () => {
 })
 
 describe('the seed schemas', () => {
-  it('cover the five entry forms P-12 owes the build', () => {
+  it('cover the entry forms P-12 owes the build, and the requirement forms P-18d adds', () => {
     expect(SEED_FORM_SCHEMAS.map((schema) => schema.objectKey)).toEqual([
       'policy_entry_health',
       'policy_entry_health',
@@ -67,6 +67,9 @@ describe('the seed schemas', () => {
       'policy_entry_life',
       'inquiry',
       'kyc',
+      // FR-06.16: one key per line, so each keeps a single live version.
+      'inquiry_requirement_health',
+      'inquiry_requirement_motor',
     ])
   })
 

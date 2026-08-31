@@ -14,20 +14,37 @@
  *   for are ordered by how much trouble they are in, and the page is cut after
  *   that — so the view is still exactly what the address bar says it is.
  *
- *   Bulk assign is routing, not a field write. Each selected row is put through
- *   `planRouting`, and the ones routing cannot resolve go to `unrouted` with the
- *   admin alert instead of quietly staying put. The preview inside `<ConfirmGate>`
- *   shows each destination before anything is written, and Cancel writes nothing.
+ *   Bulk assign names a person or lets routing name one. The gate offers the
+ *   choice, and the preview under it answers for whichever was made: each
+ *   selected row shows the owner it is about to get. Rows routing cannot resolve
+ *   — or that have no category, so no turnaround allowance — go to `unrouted`
+ *   with the admin alert instead of quietly staying put, whether or not somebody
+ *   was named. Cancel writes nothing.
  */
 
 import { DEFAULT_PAGE_SIZE } from '../../data/repo'
-import type { Inquiry, InquiryCategory, ListQuery, StaffUser } from '../../data/repo'
+import type {
+  Inquiry,
+  InquiryCategory,
+  InquiryStage,
+  ListQuery,
+  StaffUser,
+} from '../../data/repo'
 import type { QueueBulkAction, QueueConfig } from '../../components/WorkQueue'
 import { dataTableColumns } from '../../ui/data'
 import { Badge, Clock, StatusPill } from '../../ui/signal'
 import { RecordId, RelativeTime } from '../../ui/type'
 import type { IntakeRepository } from './data/intake'
-import { INQUIRY_LABEL, INQUIRY_TONE, SOURCE_LABEL, inquirySeverity, isPinned, pinRank, readTat } from './inquiry-view'
+import {
+  INQUIRY_LABEL,
+  INQUIRY_TONE,
+  SOURCE_LABEL,
+  engagementLapse,
+  inquirySeverity,
+  isPinned,
+  pinRank,
+  readTat,
+} from './inquiry-view'
 
 import { nameOf, planRouting, tatMinutesFor } from './routing'
 import styles from './InquiryQueue.module.css'
@@ -47,12 +64,19 @@ export type InquiryQueueDeps = {
   readonly actorId: string
   /** False hides bulk assign entirely rather than offering a control that refuses. */
   readonly canAssign: boolean
+  /** The configured pipeline, so a row reads the label rather than the key. */
+  readonly stages: readonly InquiryStage[]
+}
+
+function stageLabelOf(stages: readonly InquiryStage[], key: string | null): string {
+  if (key === null) return 'Not contacted'
+  return stages.find((stage) => stage.key === key)?.label ?? key
 }
 
 const column = dataTableColumns<Inquiry>()
 
 export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry> {
-  const { intake, categories, users, now, actorId, canAssign } = deps
+  const { intake, categories, users, now, actorId, canAssign, stages } = deps
   const tatOf = (row: Inquiry) => tatMinutesFor(row, categories)
 
   const columns = column.columns([
@@ -139,23 +163,100 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
         )
       },
     }),
+    /**
+     * Where the conversation has got to, and whether anything is booked —
+     * FR-06.12, FR-06.15.
+     *
+     * One column rather than two because they are read as one fact: a stage with
+     * no date under it is what a lead going quiet looks like, and separating them
+     * puts the two halves of that sentence in different places on the row.
+     */
+    column.accessor((row) => row.stageKey ?? '', {
+      id: 'stage',
+      header: 'Stage · next',
+      cell: ({ row }) => {
+        const inquiry = row.original
+        if (inquiry.status !== 'accepted') {
+          return <span className={styles.noClock}>—</span>
+        }
+        const lapse = engagementLapse(inquiry, now)
+        const label = stageLabelOf(stages, inquiry.stageKey)
+        return (
+          <span className={styles.stage}>
+            <span>{label}</span>
+            {lapse === 'unplanned' ? (
+              <Badge tone="attn" caps>
+                Nothing booked
+              </Badge>
+            ) : lapse === 'overdue' ? (
+              <Badge tone="bad" caps>
+                Overdue
+              </Badge>
+            ) : inquiry.nextActionAt === null ? null : (
+              <RelativeTime value={inquiry.nextActionAt} now={now} />
+            )}
+          </span>
+        )
+      },
+    }),
     column.accessor('createdAt', {
       header: 'Age',
       cell: ({ row }) => <RelativeTime value={row.original.createdAt} now={now} />,
     }),
   ])
 
+  /**
+   * What one selected row will do, given who the person picked.
+   *
+   * Naming the person is the whole choice; the allowance is not part of it. It
+   * comes from the row's own category, so a row with no category has no
+   * allowance to measure anybody against and goes to unrouted with the alert
+   * whether or not a person was named. That is §9's rule and picking an assignee
+   * does not buy a way round it.
+   */
+  function planFor(row: Inquiry, chosenId: string) {
+    const auto = planRouting(row, categories, users)
+    if (chosenId === '') return auto
+
+    const category = categories.find((entry) => entry.id === row.categoryId)
+    const person = users.find((entry) => entry.id === chosenId && entry.active)
+    if (!category) {
+      return {
+        ok: false as const,
+        reason:
+          'This inquiry has no category, so there is no turnaround allowance to hand anybody. It goes to the unrouted queue with the admin alert; set a category and it can be assigned.',
+      }
+    }
+    if (!person) {
+      return { ok: false as const, reason: 'That person is no longer active.' }
+    }
+    return { ok: true as const, category, assignee: person, tatMinutes: category.tatMinutes }
+  }
+
   const bulkAssign: QueueBulkAction<Inquiry> = {
     key: 'assign',
     label: 'Assign',
     icon: 'users',
     variant: 'primary',
-    confirmLabel: 'Route and notify',
-    confirmTitle: (selection) =>
-      `Route ${selection.ids.length} ${selection.ids.length === 1 ? 'inquiry' : 'inquiries'}`,
-    preview: (selection) =>
+    confirmLabel: 'Assign and notify',
+    choice: {
+      key: 'assignee',
+      label: 'Assign to',
+      emptyLabel: 'Let routing pick, per inquiry',
+      hint: 'Name somebody and every selected inquiry goes to them. Left alone, each one goes to the next person in its own category.',
+      options: users
+        .filter((person) => person.active)
+        .map((person) => ({ value: person.id, label: person.name })),
+    },
+    confirmTitle: (selection, choice) => {
+      const count = `${selection.ids.length} ${selection.ids.length === 1 ? 'inquiry' : 'inquiries'}`
+      return choice === ''
+        ? `Route ${count}`
+        : `Assign ${count} to ${nameOf(users, choice)}`
+    },
+    preview: (selection, choice) =>
       selection.rows.map((row) => {
-        const plan = planRouting(row, categories, users)
+        const plan = planFor(row, choice)
         return {
           key: row.id,
           label: row.systemNo,
@@ -165,15 +266,17 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
             : 'Unrouted, admin alerted',
         }
       }),
-    note: () =>
-      'Each assignee is notified and their turnaround clock starts. The allowance comes from the category in configuration, not from this screen. Anything routing cannot resolve goes to the unrouted queue with an admin alert rather than staying where it is.',
-    run: async (selection) => {
+    note: (_selection, choice) =>
+      choice === ''
+        ? 'Each assignee is notified and their turnaround clock starts. The allowance comes from the category in configuration, not from this screen. Anything routing cannot resolve goes to the unrouted queue with an admin alert rather than staying where it is.'
+        : `${nameOf(users, choice)} is notified once per inquiry and a turnaround clock starts on each. The allowance still comes from each inquiry's own category, so anything without one goes to the unrouted queue with an admin alert instead.`,
+    run: async (selection, choice) => {
       const refusals: string[] = []
       let routed = 0
       let parked = 0
 
       for (const row of selection.rows) {
-        const plan = planRouting(row, categories, users)
+        const plan = planFor(row, choice)
         const outcome = plan.ok
           ? await intake.assign(row.id, {
               actorId,
@@ -195,8 +298,9 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
       // somebody to a developer to find out which rule fired.
       if (refusals.length > 0) return { ok: false, message: refusals[0] }
 
+      const who = choice === '' ? 'routed and notified' : `assigned to ${nameOf(users, choice)}`
       const parts = [
-        routed > 0 ? `${routed} routed and notified` : null,
+        routed > 0 ? `${routed} ${who}` : null,
         parked > 0 ? `${parked} moved to unrouted with an admin alert` : null,
       ].filter((part): part is string => part !== null)
 
@@ -232,8 +336,16 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
         label: 'Owner',
         options: users.filter((user) => user.active).map((user) => ({ value: user.id, label: user.name })),
       },
+      {
+        key: 'stageKey',
+        label: 'Stage',
+        anyLabel: 'Any stage',
+        options: stages
+          .filter((stage) => stage.active)
+          .map((stage) => ({ value: stage.key, label: stage.label })),
+      },
     ],
-    sortable: ['pinned', 'createdAt', 'tatDueAt', 'systemNo'],
+    sortable: ['pinned', 'createdAt', 'tatDueAt', 'systemNo', 'nextActionAt'],
     defaultSort: { field: 'pinned', direction: 'asc' },
     searchPlaceholder: 'Name, mobile or reference',
     stripeMapping: (row) => inquirySeverity(row, now, tatOf(row)),

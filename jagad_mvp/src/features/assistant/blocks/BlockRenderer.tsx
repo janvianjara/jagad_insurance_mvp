@@ -1,8 +1,10 @@
 import { Link } from 'react-router'
-import { Clock, StatusPill, StatusStripe } from '../../../ui/signal'
-import { DateTime, KeyValueList, Money, RecordId } from '../../../ui/type'
+import { StatusStripe } from '../../../ui/signal'
+import { KeyValueList } from '../../../ui/type'
+import { Act, Choice, File, Stop } from './ActionBlocks'
+import { CellValue } from './CellValue'
 import { splitEmphasis } from './blocks'
-import type { Block, Cell, KvBlock, ParaBlock, RowsBlock, TableBlock } from './blocks'
+import type { Block, KvBlock, ParaBlock, RowsBlock, TableBlock } from './blocks'
 import styles from './BlockRenderer.module.css'
 
 /**
@@ -14,43 +16,6 @@ import styles from './BlockRenderer.module.css'
  * structural: a block cannot carry a formatted amount, so no amount can be
  * produced on the way to a screen.
  */
-
-function CellValue({ cell }: { cell: Cell }) {
-  if (cell.cell === 'text') return <span className={styles.text}>{cell.value}</span>
-
-  if (cell.cell === 'id') {
-    return <RecordId systemNo={cell.systemNo} insurerNo={cell.insurerNo} showInsurer={false} />
-  }
-
-  if (cell.cell === 'money') return <Money paise={cell.paise} showPaise={false} />
-
-  if (cell.cell === 'date') return <DateTime value={cell.value} mode={cell.mode ?? 'date'} />
-
-  if (cell.cell === 'status') {
-    return (
-      <StatusPill tone={cell.tone} size="sm">
-        {cell.value}
-      </StatusPill>
-    )
-  }
-
-  // A turnaround clock cannot be drawn without the allowance it is measured
-  // against, so the block has to have carried one.
-  if (cell.mode === 'tat') {
-    return (
-      <Clock mode="tat" start={cell.start} durationMs={cell.durationMs ?? 0} label={cell.label} />
-    )
-  }
-
-  return (
-    <Clock
-      mode="aging"
-      start={cell.start}
-      {...(cell.durationMs === undefined ? {} : { durationMs: cell.durationMs })}
-      label={cell.label}
-    />
-  )
-}
 
 function Para({ block }: { block: ParaBlock }) {
   const segments = splitEmphasis(block.text, block.emphasis, block.mono)
@@ -177,6 +142,7 @@ export function BlockRenderer({
   blocks,
   prominent,
   variant,
+  onOpenDocument,
 }: {
   blocks: readonly Block[]
   prominent?: boolean
@@ -186,6 +152,12 @@ export function BlockRenderer({
    * stated at headline size rather than shrinking into a half-empty card.
    */
   variant?: 'notice' | 'quiet'
+  /**
+   * Where a `file` block's Open goes. A renderer mounted without one — a test, a
+   * gallery — draws the card and its Open does nothing, which is correct: the
+   * drawer belongs to the conversation, not to the block.
+   */
+  onOpenDocument?: (documentId: string) => void
 }) {
   return (
     <div className={styles.blocks} data-prominent={prominent ? '' : undefined} data-variant={variant}>
@@ -200,7 +172,13 @@ export function BlockRenderer({
         }
         if (block.kind === 'rows') return <Rows key={index} block={block} />
         if (block.kind === 'table') return <Table key={index} block={block} />
-        return <Kv key={index} block={block} />
+        if (block.kind === 'kv') return <Kv key={index} block={block} />
+        if (block.kind === 'act') return <Act key={index} block={block} />
+        if (block.kind === 'choice') return <Choice key={index} block={block} />
+        if (block.kind === 'file') {
+          return <File key={index} block={block} onOpen={onOpenDocument ?? (() => {})} />
+        }
+        return <Stop key={index} block={block} />
       })}
     </div>
   )
