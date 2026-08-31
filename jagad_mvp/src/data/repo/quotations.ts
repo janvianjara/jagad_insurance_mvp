@@ -16,6 +16,7 @@
  * after v2 opens.
  */
 
+import type { AmendCommand, Discardable, DiscardCommand, RestoreCommand } from '../../domain/amend'
 import type { Money } from '../../domain/money'
 import type { PremiumMode, PremiumSource, QuotationState } from '../../domain/workflows'
 import type { ListQuery, Page, ReadRepository } from './query'
@@ -61,7 +62,7 @@ export type QuotationLine = {
   readonly locked: boolean
 }
 
-export type Quotation = {
+export type Quotation = Discardable & {
   readonly id: string
   readonly systemNo: string
   readonly version: number
@@ -200,4 +201,19 @@ export type QuotationRepository = ReadRepository<Quotation> & {
   voidAward(id: string, command: VoidAwardCommand): Promise<MutationResult<Quotation>>
   markWon(id: string, command: CloseQuotationCommand): Promise<MutationResult<Quotation>>
   markLost(id: string, command: CloseQuotationCommand): Promise<MutationResult<Quotation>>
+
+  /**
+   * Corrects the header's prose and its attribution — `AMEND_POLICIES.Quotation`.
+   * The matrix is not correctable here: a column's typed premium is what the
+   * insurer quoted, and changing what was quoted is a revision, which opens v+1
+   * and leaves v readable exactly as it was sent.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Quotation>>
+  /**
+   * Removes a quotation raised against the wrong customer. Refused once the
+   * award has been recorded, because an award is what an application is opened
+   * against.
+   */
+  discard(id: string, command: DiscardCommand): Promise<MutationResult<Quotation>>
+  restore(id: string, command: RestoreCommand): Promise<MutationResult<Quotation>>
 }

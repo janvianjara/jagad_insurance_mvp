@@ -1,4 +1,6 @@
 .root {
+  /* The containing block for the hidden input - see `.native`. */
+  position: relative;
   display: inline-flex;
   align-items: flex-start;
   gap: var(--sp-2);
@@ -15,9 +17,14 @@
 }
 
 /* Kept in the accessibility tree and in the tab order — only its own painting
-   is hidden, because the box beside it is what gets drawn. */
+   is hidden, because the box beside it is what gets drawn. Pinned to the label's
+   own corner: with no offsets it would be positioned against the document
+   rather than against this control, so it would stay behind when the column
+   scrolled and the browser would scroll the window to reach it on focus. */
 .native {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   width: 1px;
   height: 1px;
   margin: 0;

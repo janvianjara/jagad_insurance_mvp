@@ -123,3 +123,28 @@
   color: var(--ink-3);
   font-size: var(--text-sm);
 }
+
+/* --------------------------------------------------- the erasure register */
+
+.recordLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.obligation {
+  margin: 0;
+  max-inline-size: var(--measure);
+  line-height: var(--leading-loose);
+}
+
+.requestNote {
+  margin: 0;
+  max-inline-size: var(--measure);
+  color: var(--ink-2);
+  font-style: italic;
+}

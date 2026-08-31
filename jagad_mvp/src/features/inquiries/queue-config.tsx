@@ -31,6 +31,7 @@ import type {
   StaffUser,
 } from '../../data/repo'
 import type { QueueBulkAction, QueueConfig } from '../../components/WorkQueue'
+import { DISCARDED_FILTER, RowDiscardAction, discardBulkAction } from '../../components/RecordCorrection'
 import { dataTableColumns } from '../../ui/data'
 import { Badge, Clock, StatusPill } from '../../ui/signal'
 import { RecordId, RelativeTime } from '../../ui/type'
@@ -344,12 +345,32 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
           .filter((stage) => stage.active)
           .map((stage) => ({ value: stage.key, label: stage.label })),
       },
+      // A discarded inquiry has left this queue by default. This is the way back
+      // to it, and it lives in the URL like every other narrowing.
+      DISCARDED_FILTER,
     ],
     sortable: ['pinned', 'createdAt', 'tatDueAt', 'systemNo', 'nextActionAt'],
     defaultSort: { field: 'pinned', direction: 'asc' },
     searchPlaceholder: 'Name, mobile or reference',
     stripeMapping: (row) => inquirySeverity(row, now, tatOf(row)),
-    ...(canAssign ? { bulkActions: [bulkAssign] } : {}),
+    rowActions: (row, queue) => (
+      <RowDiscardAction
+        entity="Inquiry"
+        subject={row.systemNo}
+        actorId={actorId}
+        onDiscard={(command) => intake.discard(row.id, command)}
+        onDiscarded={queue.reload}
+      />
+    ),
+    bulkActions: [
+      ...(canAssign ? [bulkAssign] : []),
+      discardBulkAction<Inquiry>({
+        noun: 'inquiry',
+        plural: 'inquiries',
+        actorId,
+        discard: (id, command) => intake.discard(id, command),
+      }),
+    ],
     load: (query: ListQuery) => loadInquiries(intake, query, (row) => pinRank(row, now, tatOf(row))),
     empty: {
       title: 'No inquiries are waiting',

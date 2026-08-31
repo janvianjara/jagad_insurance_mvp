@@ -7,6 +7,7 @@ export type {
   QueueBulkChoice,
   QueueConfig,
   QueueDrawerControls,
+  QueueRowControls,
   QueueFilter,
   QueueFilterOption,
   QueueRowTarget,

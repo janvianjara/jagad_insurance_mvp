@@ -20,15 +20,17 @@ import type { ConfirmChange } from '../../components/guardrails'
 import { PageHeader } from '../../components/AppShell'
 import { decodeDraft, draftKey, readMoney } from '../../domain/forms'
 import type { FormSchema, FormValues } from '../../domain/forms'
+import type { Customer } from '../../data/repo'
 import { useResource } from '../../lib/useResource'
 import { Button } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
 import { EmptyState, Skeleton } from '../../ui/data'
-import { Field, RadioGroup, Select } from '../../ui/form'
+import { Field, QuickAdd, RadioGroup, Select } from '../../ui/form'
 import { Panel, useToaster } from '../../ui/surface'
 import { KeyValueList, Money as AmountText } from '../../ui/type'
 import type { KeyValueItem } from '../../ui/type'
-import { placementOptionsFor, useEnsureMarket, useMarketStore } from '../config/shared'
+import { AgencyQuickAdd, placementOptionsFor, useEnsureMarket, useMarketStore } from '../config/shared'
+import { CustomerQuickAdd } from '../customers'
 import { PremiumBlock } from './PremiumBlock'
 import { policyDesk } from './data/policy-desk'
 import { TYPED_PREMIUM_SOURCES, premiumShapeOf } from './entry-types'
@@ -106,6 +108,11 @@ export function PolicyEntryScreen() {
   const [companyId, setCompanyId] = useState('')
   const [productId, setProductId] = useState('')
   const [customerId, setCustomerId] = useState('')
+  /**
+   * Customers made from the picker's plus. Kept here rather than reloaded: the
+   * reload would blank an entry that is already half typed.
+   */
+  const [madeHere, setMadeHere] = useState<readonly Customer[]>([])
   const [seed, setSeed] = useState('')
   const [submitted, setSubmitted] = useState<SchemaFormSubmission | null>(null)
   const [premium, setPremium] = useState<PremiumEntry>(NOTHING_RECORDED)
@@ -434,17 +441,36 @@ export function PolicyEntryScreen() {
         >
           <div className={styles.grid}>
             <Field label="Agency" required>
-              <Select
-                options={agencies
-                  .filter((agency) => agency.active)
-                  .map((agency) => ({ value: agency.id, label: agency.name }))}
-                value={agencyId}
-                placeholder="Choose the placing agency"
-                onChange={(event) => {
-                  setAgencyId(event.target.value)
-                  setSubmitted(null)
-                }}
-              />
+              <QuickAdd
+                label="New agency"
+                form={(close) => (
+                  <AgencyQuickAdd
+                    onCancel={close}
+                    onCreated={(agency) => {
+                      setAgencyId(agency.id)
+                      // A fresh agency is appointed for nothing yet, so the two
+                      // pickers below it start empty rather than keeping a
+                      // company the new agency has no scope for.
+                      setCompanyId('')
+                      setProductId('')
+                      setSubmitted(null)
+                      close()
+                    }}
+                  />
+                )}
+              >
+                <Select
+                  options={agencies
+                    .filter((agency) => agency.active)
+                    .map((agency) => ({ value: agency.id, label: agency.name }))}
+                  value={agencyId}
+                  placeholder="Choose the placing agency"
+                  onChange={(event) => {
+                    setAgencyId(event.target.value)
+                    setSubmitted(null)
+                  }}
+                />
+              </QuickAdd>
             </Field>
 
             <Field
@@ -480,12 +506,29 @@ export function PolicyEntryScreen() {
 
             {deal ? null : (
               <Field label="Customer" required>
-                <Select
-                  options={customers.map((row) => ({ value: row.id, label: row.fullName }))}
-                  value={customerId}
-                  placeholder="Choose the customer"
-                  onChange={(event) => setCustomerId(event.target.value)}
-                />
+                <QuickAdd
+                  label="New customer"
+                  form={(close) => (
+                    <CustomerQuickAdd
+                      onCancel={close}
+                      onCreated={(made) => {
+                        setMadeHere((current) => [...current, made])
+                        setCustomerId(made.id)
+                        close()
+                      }}
+                    />
+                  )}
+                >
+                  <Select
+                    options={[...customers, ...madeHere].map((row) => ({
+                      value: row.id,
+                      label: row.fullName,
+                    }))}
+                    value={customerId}
+                    placeholder="Choose the customer"
+                    onChange={(event) => setCustomerId(event.target.value)}
+                  />
+                </QuickAdd>
               </Field>
             )}
           </div>

@@ -37,6 +37,12 @@ export const RECORD_PREFIXES = {
    * row nobody can name is a row nobody refers to.
    */
   activity: 'ACT',
+  /**
+   * A data-principal erasure request — FR-20.2. Numbered like everything else
+   * because the person who asked has to be able to be told what their request is
+   * called, and because a regulator asking what was decided asks by number.
+   */
+  eraseRequest: 'ERQ',
 } as const
 
 export type RecordKind = keyof typeof RECORD_PREFIXES

@@ -7,11 +7,12 @@
  * placement offers only what the selected agency is appointed for.
  */
 
+import type { AmendCommand, Discardable, DiscardCommand, RestoreCommand } from '../../domain/amend'
 import type { DealLineItem, DealState, SalesCreditSource } from '../../domain/workflows'
 import type { ListQuery, Page, ReadRepository } from './query'
 import type { MutationResult } from './result'
 
-export type Deal = {
+export type Deal = Discardable & {
   readonly id: string
   readonly systemNo: string
   readonly status: DealState
@@ -91,4 +92,18 @@ export type DealRepository = ReadRepository<Deal> & {
   create(command: CreateDealCommand): Promise<MutationResult<Deal>>
   setLineItems(id: string, command: SetDealLineItemsCommand): Promise<MutationResult<Deal>>
   consume(id: string, command: ConsumeDealCommand): Promise<MutationResult<Deal>>
+
+  /**
+   * Corrects the attribution — `AMEND_POLICIES.Deal`, which is the agent and the
+   * sub-agent and nothing else. The line items are placement and go through
+   * `setLineItems`, where the agency scope check lives.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Deal>>
+  /**
+   * Removes an application opened in error. Refused once a policy has been
+   * written off it: the policy's provenance points here, and a discarded rung
+   * would leave the audit spine with a hole in it.
+   */
+  discard(id: string, command: DiscardCommand): Promise<MutationResult<Deal>>
+  restore(id: string, command: RestoreCommand): Promise<MutationResult<Deal>>
 }

@@ -12,6 +12,7 @@
  */
 
 import { z } from 'zod'
+import { DISCARD_REASONS } from '../../domain/amend'
 import { RUN_DECISIONS } from '../../domain/automation'
 import { isMoney } from '../../domain/money'
 import type { Money } from '../../domain/money'
@@ -525,6 +526,24 @@ export const customerCredentialSchema = z.object({
 
 /* -------------------------------------------------------------------- demand */
 
+/**
+ * The soft-discard mark — FR-20.2. Absent on every seeded row and optional here
+ * for exactly that reason: a fixture set is the agency's live book, and a
+ * discarded row in it would assert that somebody had already cleaned up a
+ * duplicate the walkthrough never created. The shape is still checked, so a
+ * hand-edited fixture that invents one is caught.
+ */
+const discardMark = z
+  .object({
+    reason: z.enum(DISCARD_REASONS),
+    note: z.string().nullable(),
+    discardedBy: id,
+    discardedAt: stamp,
+  })
+  .nullable()
+  .optional()
+
+
 export const inquirySchema = z.object({
   id,
   systemNo: z.string().regex(/^INQ-\d{4}$/),
@@ -561,6 +580,7 @@ export const inquirySchema = z.object({
   contactMobile: mobile,
   contactEmail: email.nullable(),
   notes: z.string().nullable(),
+  discard: discardMark,
 })
 
 export const quotationSchema = z.object({
@@ -593,6 +613,7 @@ export const quotationSchema = z.object({
   lostReason: z.string().nullable(),
   createdAt: stamp,
   documentId: id.nullable(),
+  discard: discardMark,
 })
 
 export const quotationLineSchema = z.object({
@@ -648,6 +669,7 @@ export const dealSchema = z.object({
   salesCreditSource: z.enum(SALES_CREDIT_SOURCES).nullable(),
   createdAt: stamp,
   consumedByPolicyId: id.nullable(),
+  discard: discardMark,
 })
 
 /* ------------------------------------------------------------------ contract */

@@ -11,6 +11,15 @@
  * messages are the `error` parameter, and issues arrive as `error.issues` with a
  * `path` of keys and indices. None of that matches v3 from memory — it was read
  * off `node_modules/zod/v4` before this file was written.
+ *
+ * **Every base constructor below carries `error`, and that is load-bearing.** An
+ * untouched control holds `null`, so the TYPE check fails before any `.min`,
+ * `.regex` or `.refine` runs — and a message attached only to the refinement
+ * never gets the chance to speak. What reached the screen instead was zod's own
+ * default, `Invalid input: expected string, received null`, which is a sentence
+ * written for whoever wrote the schema and not for the person filling the form
+ * in. Putting `missing` on the constructor is what makes the empty case say
+ * "Premium mode is needed before this can be saved."
  */
 import { z } from 'zod'
 import { isMoney } from '../money'
@@ -48,26 +57,28 @@ function leafSchema(field: LeafFieldDef): z.ZodType {
     }
 
     case 'boolean': {
-      const flag = z.boolean()
+      const flag = z.boolean({ error: missing })
       // A required checkbox means ticked — a consent nobody gave is not consent.
       return field.required ? flag.refine((value) => value, { error: missing }) : flag
     }
 
     case 'date': {
-      const date = z.string().regex(ISO_DATE, { error: `${field.label} must be a date.` })
+      const date = z
+        .string({ error: missing })
+        .regex(ISO_DATE, { error: `${field.label} must be a date.` })
       return field.required ? date : optional(date)
     }
 
     case 'cascade': {
       const depth = field.cascade?.levels.length ?? 0
-      const path = z.array(z.string().min(1))
+      const path = z.array(z.string().min(1), { error: missing })
       return field.required
         ? path.min(depth, { error: `${field.label} needs a choice at every level.` })
         : path
     }
 
     case 'file': {
-      const files = z.array(z.unknown())
+      const files = z.array(z.unknown(), { error: missing })
       return field.required ? files.min(1, { error: missing }) : files
     }
 
@@ -75,8 +86,8 @@ function leafSchema(field: LeafFieldDef): z.ZodType {
       const values = field.options?.map((option) => option.value)
       const choice =
         values === undefined || values.length === 0
-          ? z.string().min(1, { error: missing })
-          : z.string().refine((value) => values.includes(value), {
+          ? z.string({ error: missing }).min(1, { error: missing })
+          : z.string({ error: missing }).refine((value) => values.includes(value), {
               error: `${field.label} is not one of the configured choices.`,
             })
       return field.required ? choice : optional(choice)

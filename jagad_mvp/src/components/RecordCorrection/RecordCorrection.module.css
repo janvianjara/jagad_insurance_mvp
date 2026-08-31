@@ -1,0 +1,196 @@
+/*
+ * One stylesheet for the whole correction surface — the action bar on the
+ * record, the discarded banner, and the three panels that open in the drawer.
+ * Colour comes from the tokens; nothing here names a hex value.
+ */
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.retention {
+  margin: 0;
+  flex: 1 1 24ch;
+  min-inline-size: 0;
+  max-inline-size: var(--measure);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* --------------------------------------------------------- discarded banner */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--warn);
+  border-inline-start-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--ink);
+}
+
+.noticeBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.noticeTitle {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.noticeLine,
+.noticeNote {
+  margin: 0;
+  max-inline-size: var(--measure);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.noticeNote {
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+/* ----------------------------------------------------------------- panels */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.submit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.blocked,
+.quiet {
+  margin: 0;
+  flex: 1 1 100%;
+  max-inline-size: var(--measure);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.refusal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.none {
+  margin: 0;
+  color: var(--ink-2);
+  max-inline-size: var(--measure);
+}
+
+.elsewhere {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+  list-style: none;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* ---------------------------------------------------------------- erasure */
+
+.priorRequests {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priorRequests li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.decisionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.decisionNote {
+  margin: 0;
+  max-inline-size: var(--measure);
+  line-height: var(--leading-loose);
+}
+
+/* The route from correcting a record to removing it. Separated by a rule and
+   set quiet: it is a different decision, reached from here because that is
+   where people arrive at it, not because it is the expected next step. */
+.instead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-block-start: var(--sp-4);
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px solid var(--hair);
+}
+
+.insteadNote {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

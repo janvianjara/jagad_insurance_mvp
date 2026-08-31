@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 import type { RowData, RowSelectionState, SortingState } from '@tanstack/react-table'
 import { useResource } from '../../lib/useResource'
 import { Button } from '../../ui/Button'
-import { DataTable, EmptyState, Pagination, SelectionBar } from '../../ui/data'
+import { DataTable, EmptyState, Pagination, SelectionBar, dataTableColumns } from '../../ui/data'
+import type { DataTableColumn } from '../../ui/data'
 import { Field, Input, Select } from '../../ui/form'
 import { Drawer } from '../../ui/surface'
 import { toneForSeverity } from '../../ui/tone'
@@ -75,10 +76,40 @@ export type WorkQueueProps<Row extends RowData> = {
  *   - a page that has not arrived shows skeleton rows rather than an empty
  *     table, because an empty queue and a loading queue mean opposite things.
  */
+/**
+ * The trailing actions column.
+ *
+ * Built here rather than asked of each queue, so the header, the width and the
+ * click containment are one implementation. The cell swallows its own clicks:
+ * a queue whose rows navigate would otherwise open the record the moment
+ * somebody pressed the button that removes it.
+ */
+function actionsColumn<Row extends RowData>(
+  render: (row: Row) => ReactNode,
+): DataTableColumn<Row> {
+  const column = dataTableColumns<Row>()
+  return column.display({
+    id: 'row-actions',
+    header: () => <span className={styles.actionsHead}>Actions</span>,
+    cell: ({ row }) => (
+      <div
+        className={styles.rowActions}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+        role="presentation"
+      >
+        {render(row.original)}
+      </div>
+    ),
+  })
+}
+
 export function WorkQueue<Row extends RowData>({ config, actions, children }: WorkQueueProps<Row>) {
   const navigate = useNavigate()
   const drawerSlot = useDrawerSlot()
   const [params, setParams] = useSearchParams()
+
+  // Declared after `page` so the action can re-read the list it just changed.
 
   const filters = config.filters ?? []
   const filterKeys = filters.map((filter) => filter.key)
@@ -229,7 +260,16 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
 
         <DataTable
           data={[...rows]}
-          columns={config.columns}
+          columns={
+            config.rowActions
+              ? [
+                  ...config.columns,
+                  actionsColumn<Row>((row) =>
+                    config.rowActions?.(row, { reload: () => page.reload() }),
+                  ),
+                ]
+              : config.columns
+          }
           getRowId={config.getRowId}
           label={config.title}
           loading={page.isLoading}

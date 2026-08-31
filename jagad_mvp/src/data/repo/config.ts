@@ -173,6 +173,19 @@ export type FormFieldDef = {
   /** Conditional visibility, canvas 6.2. Absent means always shown. */
   readonly visibleWhen: { readonly field: string; readonly equals: string } | null
   readonly masterTypeId: string | null
+  /**
+   * Inline choices, for a select whose options are the field's own rather than a
+   * master list's. A select answers with these or with `masterTypeId`, never
+   * with neither — a claim being cashless or a reimbursement file is a property
+   * of the claim form, not a list an administrator curates.
+   *
+   * Optional here and required nowhere, which keeps every stored row that names
+   * a `masterTypeId` valid exactly as written. This mirrors `options` on the
+   * domain's `LeafFieldDef`; the backlog's standing note is that this whole type
+   * should re-export the domain one rather than track it field by field, and
+   * this is one more field of evidence for that.
+   */
+  readonly options?: readonly { readonly value: string; readonly label: string }[]
 }
 
 export type FormStage = {

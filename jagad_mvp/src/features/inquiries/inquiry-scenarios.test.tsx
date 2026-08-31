@@ -185,6 +185,49 @@ describe('canvas 1 — inquiry, TAT and assignment', () => {
     ).toBeInTheDocument()
   })
 
+  it('captures a run of leads without leaving the form, keeping the batch and clearing the person', async () => {
+    // Intake is rarely one lead: a call sheet or a morning's post is a batch, and
+    // a form that navigates away after each save makes the person come back for
+    // every one of them.
+    await signIn(repositories, WHO.meera)
+    const user = userEvent.setup()
+    renderInquiries(repositories, '/inquiries/new')
+
+    await user.type(await screen.findByLabelText(/^Name/), 'Hemal Trivedi')
+    await user.type(screen.getByLabelText(/^Mobile/), '9825110099')
+    await user.selectOptions(screen.getByLabelText(/^Source/), 'walk_in')
+    await user.click(screen.getByRole('button', { name: 'Save and add another' }))
+
+    // The form is still up - no navigation - and it says what it just took.
+    const receipt = await screen.findByRole('region', { name: 'Captured in this sitting' })
+    expect(receipt).toHaveTextContent('1 inquiry captured in this sitting')
+    expect(within(receipt).getByRole('link', { name: 'INQ-1047' })).toBeInTheDocument()
+    expect(within(receipt).getByText('Hemal Trivedi')).toBeInTheDocument()
+
+    // The person is gone, so the next lead cannot inherit their number.
+    expect(screen.getByLabelText(/^Name/)).toHaveValue('')
+    expect(screen.getByLabelText(/^Mobile/)).toHaveValue('')
+    // The batch is not: a run of captures shares its context.
+    expect(screen.getByLabelText(/^Source/)).toHaveValue('walk_in')
+
+    // A second one goes in the same way, and the receipt counts both.
+    await user.type(screen.getByLabelText(/^Name/), 'Nisha Bhatt')
+    await user.type(screen.getByLabelText(/^Mobile/), '9825110100')
+    await user.click(screen.getByRole('button', { name: 'Save and add another' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('region', { name: 'Captured in this sitting' }),
+      ).toHaveTextContent('2 inquiries captured in this sitting')
+    })
+
+    // Both are real records, reached through the repository rather than the screen.
+    const page = await repositories.inquiries.list({ page: 1, pageSize: 200 })
+    const names = page.rows.map((row) => row.contactName)
+    expect(names).toContain('Hemal Trivedi')
+    expect(names).toContain('Nisha Bhatt')
+  })
+
   it('1.7 capture names who takes it, so one save creates the inquiry, assigns it and starts the clock', async () => {
     const user = userEvent.setup()
     renderInquiries(repositories, '/inquiries/new')

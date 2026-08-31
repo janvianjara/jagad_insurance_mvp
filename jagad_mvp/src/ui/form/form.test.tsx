@@ -12,6 +12,7 @@ import { FileDrop } from './FileDrop'
 import { Input } from './Input'
 import { NumberInput } from './NumberInput'
 import { RadioGroup } from './RadioGroup'
+import { QuickAdd, QuickAddForm } from './QuickAdd'
 import { Select } from './Select'
 import { Textarea } from './Textarea'
 import { Toggle } from './Toggle'
@@ -154,6 +155,78 @@ describe('Select', () => {
     await user.selectOptions(select, 'referral')
     expect(select).toHaveValue('referral')
     expect(onChange).toHaveBeenCalled()
+  })
+})
+
+describe('QuickAdd', () => {
+  function Harness({ onEscape }: { onEscape?: () => void }) {
+    const [options, setOptions] = useState([{ value: 'kiran', label: 'Kiran Solanki' }])
+    const [value, setValue] = useState('')
+    const [draft, setDraft] = useState('')
+
+    return (
+      <div onKeyDown={() => onEscape?.()}>
+        <Field label="Agent">
+          <QuickAdd
+            label="New agent"
+            form={(close) => (
+              <QuickAddForm
+                onCancel={close}
+                onSubmit={() => {
+                  setOptions((current) => [...current, { value: 'meera', label: draft }])
+                  setValue('meera')
+                  close()
+                }}
+              >
+                <Field label="Name">
+                  <Input value={draft} onChange={(event) => setDraft(event.target.value)} />
+                </Field>
+              </QuickAddForm>
+            )}
+          >
+            <Select
+              placeholder="No agent"
+              options={options}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </QuickAdd>
+        </Field>
+      </div>
+    )
+  }
+
+  it('adds the missing option and selects it without unmounting the control', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    const select = screen.getByLabelText('Agent')
+    expect(within(select).getAllByRole('option')).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: 'New agent' }))
+    await user.type(screen.getByLabelText('Name'), 'Meera Joshi')
+    // The control the plus belongs to is still on screen while the row is open.
+    expect(screen.getByLabelText('Agent')).toBe(select)
+
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(within(select).getAllByRole('option')).toHaveLength(3)
+    expect(select).toHaveValue('meera')
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+  })
+
+  it('closes on Escape, keeps the key to itself and puts focus back on the plus', async () => {
+    const user = userEvent.setup()
+    const onEscape = vi.fn()
+    render(<Harness onEscape={onEscape} />)
+
+    const trigger = screen.getByRole('button', { name: 'New agent' })
+    await user.click(trigger)
+    await user.type(screen.getByLabelText('Name'), '{Escape}')
+
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    // A dialog or drawer around this must not also be dismissed by that Escape.
+    expect(onEscape).not.toHaveBeenCalled()
+    expect(trigger).toHaveFocus()
   })
 })
 

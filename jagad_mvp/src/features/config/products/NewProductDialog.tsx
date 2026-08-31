@@ -3,9 +3,9 @@ import { INSURANCE_LINES } from '../../../data/repo'
 import type { InsuranceLine } from '../../../data/repo'
 import { reasonOf } from '../../../domain/workflows'
 import { Button } from '../../../ui/Button'
-import { Field, Input, Select } from '../../../ui/form'
+import { Field, Input, QuickAdd, Select } from '../../../ui/form'
 import { Modal, useToaster } from '../../../ui/surface'
-import { LINE_LABELS, useConfigStore, useMarketStore } from '../shared'
+import { CompanyQuickAdd, LINE_LABELS, useConfigStore, useMarketStore } from '../shared'
 import layout from '../shared/config-layout.module.css'
 import styles from '../shared/market-panels.module.css'
 
@@ -74,12 +74,25 @@ export function NewProductDialog() {
       >
         <div className={layout.stack}>
           <Field label="Company" required>
-            <Select
-              value={companyId}
-              placeholder="Choose a company"
-              options={companies.map((company) => ({ value: company.id, label: company.name }))}
-              onChange={(event) => setCompanyId(event.target.value)}
-            />
+            <QuickAdd
+              label="New company"
+              form={(dismiss) => (
+                <CompanyQuickAdd
+                  onCancel={dismiss}
+                  onCreated={(created) => {
+                    setCompanyId(created.id)
+                    dismiss()
+                  }}
+                />
+              )}
+            >
+              <Select
+                value={companyId}
+                placeholder="Choose a company"
+                options={companies.map((company) => ({ value: company.id, label: company.name }))}
+                onChange={(event) => setCompanyId(event.target.value)}
+              />
+            </QuickAdd>
           </Field>
 
           <Field label="Name" required>

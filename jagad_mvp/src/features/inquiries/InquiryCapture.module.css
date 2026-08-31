@@ -33,3 +33,45 @@
   padding-block-start: var(--sp-2);
   border-block-start: 1px solid var(--hair);
 }
+
+/* What this sitting has already captured. Sits above the actions because it is
+   the answer to "did that one save?" and the person asks it at the moment they
+   reach for the button again. */
+.sitting {
+  padding: var(--sp-3);
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-sm);
+  background: var(--ok-soft);
+}
+
+.sittingHead {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.sittingList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sittingList li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+}
+
+.sittingList a {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sittingList span {
+  color: var(--ink-2);
+}

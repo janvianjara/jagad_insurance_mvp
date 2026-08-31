@@ -51,6 +51,7 @@ import type {
   QuotationContext,
   QuotationVersion,
 } from '../../domain/workflows'
+import { isDiscarded } from '../../domain/amend'
 import { deriveCustomerState, requirementsFor } from '../../domain/derive'
 import type { CustomerFacts, DocumentFact } from '../../domain/derive'
 import { CUSTOMER_STATUSES } from '../repo/customers'
@@ -71,6 +72,7 @@ import { committed, notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
+import { amendRecord, discardRecord, restoreRecord } from './correction'
 import { create, move, record } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
@@ -404,6 +406,11 @@ export function createPipelineRepositories(deps: PipelineDeps): {
       t.consentRecords.set(record.id, record)
 
       return outcome
+    },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({ store, table: t.customers, entity: 'Customer', id, command })
     },
   }
 
@@ -1037,6 +1044,35 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         [...logged.events, ...stamped.events],
       )
     },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({ store, table: t.inquiries, entity: 'Inquiry', id, command })
+    },
+
+    async discard(id, command) {
+      await wait()
+      return discardRecord({
+        store,
+        table: t.inquiries,
+        entity: 'Inquiry',
+        id,
+        command,
+        // A converted inquiry produced a quotation, and a quotation is a thing
+        // somebody has been sent. Discarding the lead behind it would leave the
+        // quotation pointing at a row no queue shows.
+        downstreamOf: (row) => {
+          if (row.status !== 'converted') return null
+          const quotation = rowsOf(t.quotations).find((entry) => entry.inquiryId === row.id)
+          return quotation ? `the quotation ${quotation.systemNo}` : 'a quotation'
+        },
+      })
+    },
+
+    async restore(id, command) {
+      await wait()
+      return restoreRecord({ store, table: t.inquiries, entity: 'Inquiry', id, command })
+    },
   }
 
   /* ---------------------------------------------------------- requirements */
@@ -1225,7 +1261,9 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     },
     async forInquiry(inquiryId) {
       await wait()
-      return rowsOf(t.quotations).filter((quotation) => quotation.inquiryId === inquiryId)
+      return rowsOf(t.quotations).filter(
+        (quotation) => quotation.inquiryId === inquiryId && !isDiscarded(quotation),
+      )
     },
     async forCustomer(customerId, query) {
       await wait()
@@ -1545,6 +1583,34 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         apply: (row) => ({ ...row, status: 'lost', lostReason: command.lostReason ?? null }),
       })
     },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({ store, table: t.quotations, entity: 'Quotation', id, command })
+    },
+
+    async discard(id, command) {
+      await wait()
+      return discardRecord({
+        store,
+        table: t.quotations,
+        entity: 'Quotation',
+        id,
+        command,
+        // An award is what an application is opened against, so once one is
+        // recorded the quotation is load-bearing. Void the award first.
+        downstreamOf: (row) => {
+          if (row.awardedAt === null) return null
+          const deal = rowsOf(t.deals).find((entry) => entry.quotationId === row.id)
+          return deal ? `the application ${deal.systemNo}` : 'a recorded award'
+        },
+      })
+    },
+
+    async restore(id, command) {
+      await wait()
+      return restoreRecord({ store, table: t.quotations, entity: 'Quotation', id, command })
+    },
   }
 
   /* ----------------------------------------------------------------- deals */
@@ -1573,7 +1639,9 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     },
     async forQuotation(quotationId) {
       await wait()
-      return rowsOf(t.deals).filter((deal) => deal.quotationId === quotationId)
+      return rowsOf(t.deals).filter(
+        (deal) => deal.quotationId === quotationId && !isDiscarded(deal),
+      )
     },
     async forCustomer(customerId, query) {
       await wait()
@@ -1585,7 +1653,14 @@ export function createPipelineRepositories(deps: PipelineDeps): {
     },
     async byAwardKey(awardKey) {
       await wait()
-      return rowsOf(t.deals).find((deal) => deal.awardKey === awardKey) ?? null
+      /*
+       * Discarded applications are invisible here, and deliberately.
+       * `dealIsUniquePerAward` reads this to decide whether an award already has
+       * an application, and a discarded one is exactly the case where it should
+       * not: an application opened against the wrong customer and then discarded
+       * would otherwise lock the award out of ever being placed properly.
+       */
+      return rowsOf(t.deals).find((deal) => deal.awardKey === awardKey && !isDiscarded(deal)) ?? null
     },
     async awaitingPolicyEntry(query) {
       await wait()
@@ -1606,7 +1681,9 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         command.quotationVersion,
         command.acceptedColumnKeys,
       )
-      const existing = rowsOf(t.deals).find((deal) => deal.awardKey === awardKey)
+      const existing = rowsOf(t.deals).find(
+        (deal) => deal.awardKey === awardKey && !isDiscarded(deal),
+      )
 
       return create<Deal['status'], DealContext, Deal>({
         store,
@@ -1717,6 +1794,31 @@ export function createPipelineRepositories(deps: PipelineDeps): {
         detail: { policyId: command.policyId },
         apply: (row) => ({ ...row, status: 'consumed', consumedByPolicyId: command.policyId }),
       })
+    },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({ store, table: t.deals, entity: 'Deal', id, command })
+    },
+
+    async discard(id, command) {
+      await wait()
+      return discardRecord({
+        store,
+        table: t.deals,
+        entity: 'Deal',
+        id,
+        command,
+        // The policy's provenance points back here. Discarding a consumed deal
+        // would take a rung out of the audit spine.
+        downstreamOf: (row) =>
+          row.consumedByPolicyId === null ? null : `the policy ${row.consumedByPolicyId.toUpperCase()}`,
+      })
+    },
+
+    async restore(id, command) {
+      await wait()
+      return restoreRecord({ store, table: t.deals, entity: 'Deal', id, command })
     },
   }
 

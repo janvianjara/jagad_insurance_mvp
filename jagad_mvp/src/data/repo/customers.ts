@@ -15,6 +15,7 @@
  * only.
  */
 
+import type { AmendCommand } from '../../domain/amend'
 import type { ConsentState, KycCompletionRoute, KycConsentState, ExtractedField } from '../../domain/workflows'
 import type { CustomerFacts, DerivedCustomerState } from '../../domain/derive'
 import type { MessageChannel } from './config'
@@ -285,4 +286,18 @@ export type CustomerRepository = ReadRepository<Customer> & {
     to: ConsentState,
     command: ConsentCommand,
   ): Promise<MutationResult<Customer>>
+
+  /**
+   * Corrects the file — FR-20.4. `AMEND_POLICIES.Customer` is the contact block,
+   * the address, the date of birth and the attribution: everything a person
+   * typed off a phone call or a form, and nothing else. The identity fields are
+   * absent from the allow-list permanently, so no correction can reach an
+   * Aadhaar, a PAN or a bank account by any route.
+   *
+   * There is deliberately no `discard` on this interface and no `delete`. A
+   * customer carries regulatory retention, so the honest path for "remove me" is
+   * an erase request — see `EraseRequestRepository` — which answers with the
+   * obligation that forces retention rather than with a silent refusal.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Customer>>
 }

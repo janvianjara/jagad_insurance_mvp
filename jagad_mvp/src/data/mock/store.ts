@@ -20,6 +20,7 @@ import { createIdCounter, parseSystemNo } from '../../domain/ids'
 import type { IdCounter, RecordPrefix } from '../../domain/ids'
 import { FIXTURE_NOW, buildFixtures } from '../fixtures'
 import type { FixtureOptions, FixtureSet } from '../fixtures'
+import type { EraseRequest } from '../repo/erasure'
 
 /** One table per fixture collection, keyed by the row's own id. */
 export type MockTables = {
@@ -28,6 +29,17 @@ export type MockTables = {
 
 export type MockStore = {
   readonly tables: MockTables
+  /**
+   * The erasure register — FR-20.2, and the one table with no fixture behind it.
+   *
+   * Every table above is hydrated from the fixture set, which is the agency's
+   * book as it stands. An erase request is not part of a book: it is something a
+   * data principal did, and seeding one would assert that somebody asked to be
+   * erased when nobody has — the same lie `recipeRuns` refuses to tell by staying
+   * deliberately empty. So it lives beside the tables rather than in them, empty
+   * at boot and written only by `eraseRequests.request`.
+   */
+  readonly eraseRequests: Map<string, EraseRequest>
   readonly bus: EventBus
   /**
    * The sequence a created record draws its `systemNo` from, seeded from the
@@ -109,6 +121,7 @@ export function createMockStore(options: MockStoreOptions = {}): MockStore {
 
   return {
     tables,
+    eraseRequests: new Map<string, EraseRequest>(),
     bus,
     ids: seedIdCounter(tables),
     now,

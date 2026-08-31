@@ -31,6 +31,7 @@
  *     debit and holds no bank credentials.
  */
 
+import type { AmendCommand } from '../../domain/amend'
 import type { Money } from '../../domain/money'
 import type {
   CollectionInstrument,
@@ -582,6 +583,23 @@ export type PolicyRepository = ReadRepository<Policy> & {
   close(id: string, command: PolicyStepCommand): Promise<MutationResult<Policy>>
   /** Retention lock. The alternative to deletion is waiting, per §9. */
   lock(id: string, command: PolicyStepCommand): Promise<MutationResult<Policy>>
+
+  /**
+   * Corrects what was typed while the policy was being entered — FR-20.4.
+   *
+   * The line D3 draws runs straight through this method. `sumInsured`,
+   * `netPremium`, `gstAmount` and `finalPremium` are correctable while the
+   * record is still draft, proposal, sent or declined, because at that point
+   * they are data entry. The moment the insurer issues, they are contractual and
+   * `amendTouchesNoIssuedMoney` refuses them with the sentence that says so: a
+   * premium changes through an endorsement, which records the delta and the
+   * refund against the version they belong to.
+   *
+   * `insurerNo` is correctable only while it is unset — once the insurer has
+   * given a number it is not ours to edit. And there is no `discard`: a policy
+   * is retained, and `lock` is what §9 offers instead of deletion.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Policy>>
 }
 
 export type PremiumScheduleRepository = {

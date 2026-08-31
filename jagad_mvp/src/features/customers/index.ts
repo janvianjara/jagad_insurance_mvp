@@ -6,6 +6,8 @@ export { CustomerListScreen } from './CustomerListScreen'
 export { Customer360Screen } from './Customer360Screen'
 export { CustomerClockBase, useCustomerNow } from './clock'
 export { CustomerConsent } from './CustomerConsent'
+export { CustomerQuickAdd } from './CustomerQuickAdd'
+export type { CustomerQuickAddProps } from './CustomerQuickAdd'
 export type { CustomerConsentProps } from './CustomerConsent'
 export {
   CUSTOMER_TABS,

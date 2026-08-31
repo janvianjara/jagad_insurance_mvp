@@ -35,6 +35,7 @@ export * from './endorsements'
 export * from './notices'
 export * from './templates'
 export * from './integrations'
+export * from './erasure'
 
 import type { AgencyRepository } from './agencies'
 import type { AgentRepository } from './agents'
@@ -47,6 +48,7 @@ import type { CustomerRepository } from './customers'
 import type { DealRepository } from './deals'
 import type { DocumentRepository } from './documents'
 import type { EndorsementRepository } from './endorsements'
+import type { EraseRequestRepository } from './erasure'
 import type { InquiryRepository } from './inquiries'
 import type { IntegrationRepository } from './integrations'
 import type { NoticeBatchRepository, OcrTemplateRepository } from './notices'
@@ -95,4 +97,6 @@ export type Repositories = {
   readonly ocrTemplates: OcrTemplateRepository
   readonly templates: MessageTemplateRepository
   readonly integrations: IntegrationRepository
+  /** FR-20.2's data-principal register. The honest answer to "delete my record". */
+  readonly eraseRequests: EraseRequestRepository
 }

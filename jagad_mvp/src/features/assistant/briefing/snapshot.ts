@@ -13,8 +13,19 @@
  *
  * Everything here is scoped by the facade before it arrives (FR-22.3). An agent
  * gets their own book because the repository gave them their own book — there is
- * no filtering by user id in this file, and there must never be one, or the
- * scope would have two implementations and only one of them would be tested.
+ * no scope filtering in this file, and there must never be any, or the scope
+ * would have two implementations and only one of them would be tested.
+ *
+ * ASSIGNMENT is a different question from scope, and the sets below split on it
+ * once. An agent's scope is their book, and a book holds tasks other people are
+ * doing on it: Kiran can see the back office's KYC chases on her customers,
+ * because they are her customers. Counting those into "tasks due this week" told
+ * her she had two hundred and thirty-two things past due and named one owned by
+ * the sales manager, while the rail two inches away said eighty — both true, and
+ * together useless. So the snapshot carries the tasks assigned to the person
+ * asking as their own set, taken from the projection's own `ownerId` against the
+ * id the facade already publishes. It filters no record the facade did not
+ * already hand over, and no briefing has to guess which of the two it means.
  */
 
 import type {
@@ -72,6 +83,15 @@ export type QueueSnapshot = {
   readonly tasksMandateFailure: readonly AssistantTask[]
   readonly tasksPolicyEntry: readonly AssistantTask[]
 
+  /**
+   * The open tasks this person is the one to do — the same set the rail counts
+   * as "My tasks". A shared queue's briefing wants `tasksOpen`; a briefing that
+   * says "your book" wants these, or it reports somebody else's work as theirs.
+   */
+  readonly tasksMine: readonly AssistantTask[]
+  readonly tasksMineOverdue: readonly AssistantTask[]
+  readonly tasksMineDueThisWeek: readonly AssistantTask[]
+
   readonly claimsOpen: readonly AssistantClaim[]
   readonly claimsAged: readonly AssistantClaim[]
   readonly claimsInsurerQuery: readonly AssistantClaim[]
@@ -103,6 +123,9 @@ export function emptySnapshot(now: Date, enabled = false): QueueSnapshot {
     tasksDueThisWeek: [],
     tasksMandateFailure: [],
     tasksPolicyEntry: [],
+    tasksMine: [],
+    tasksMineOverdue: [],
+    tasksMineDueThisWeek: [],
     claimsOpen: [],
     claimsAged: [],
     claimsInsurerQuery: [],
@@ -138,6 +161,8 @@ export async function loadQueueSnapshot(
   const inquiriesOpen = inquiries.rows.filter(isOpenInquiry)
   const tasksOpen = tasks.rows.filter(isOpenTask)
   const claimsOpen = claims.rows.filter(isOpenClaim)
+  // Assignment, not scope — see the note at the top of this file.
+  const tasksMine = tasksOpen.filter((row) => row.ownerId === repo.user.id)
 
   return {
     now: now.toISOString(),
@@ -158,6 +183,10 @@ export async function loadQueueSnapshot(
     tasksDueThisWeek: tasksOpen.filter((row) => isDueThisWeek(row, now)),
     tasksMandateFailure: tasksOpen.filter(isMandateFailure),
     tasksPolicyEntry: tasksOpen.filter(isPolicyEntryTask),
+
+    tasksMine,
+    tasksMineOverdue: tasksMine.filter((row) => isOverdueTask(row, now)),
+    tasksMineDueThisWeek: tasksMine.filter((row) => isDueThisWeek(row, now)),
 
     claimsOpen,
     claimsAged: claimsOpen.filter((row) => isAgedClaim(row, now)),

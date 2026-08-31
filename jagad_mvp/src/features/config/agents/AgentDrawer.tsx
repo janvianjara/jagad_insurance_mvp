@@ -1,8 +1,18 @@
 import { useState } from 'react'
 import { reasonOf } from '../../../domain/workflows'
-import { Checkbox, Field, FormSection, Input, NumberInput, Select, Toggle } from '../../../ui/form'
+import {
+  Checkbox,
+  Field,
+  FormSection,
+  Input,
+  NumberInput,
+  QuickAdd,
+  Select,
+  Toggle,
+} from '../../../ui/form'
 import { Badge, StatusPill } from '../../../ui/signal'
 import {
+  AgencyQuickAdd,
   GatedAction,
   bpFromPercent,
   checkSubAgentShare,
@@ -111,11 +121,24 @@ export function AgentDrawer({ agent }: { agent: ConfigAgent }) {
         </Field>
 
         <Field label="Agency" required>
-          <Select
-            value={agencyId}
-            options={agencies.map((agency) => ({ value: agency.id, label: agency.name }))}
-            onChange={(event) => setAgencyId(event.target.value)}
-          />
+          <QuickAdd
+            label="New agency"
+            form={(close) => (
+              <AgencyQuickAdd
+                onCancel={close}
+                onCreated={(agency) => {
+                  setAgencyId(agency.id)
+                  close()
+                }}
+              />
+            )}
+          >
+            <Select
+              value={agencyId}
+              options={agencies.map((agency) => ({ value: agency.id, label: agency.name }))}
+              onChange={(event) => setAgencyId(event.target.value)}
+            />
+          </QuickAdd>
         </Field>
 
         <Field label="City">

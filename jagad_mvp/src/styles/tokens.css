@@ -196,6 +196,18 @@
   --page-gutter-top: var(--sp-4);
   --page-gutter-bottom: var(--sp-9);
 
+  /*
+   * The Assistant's conversation column, and the thread list beside it.
+   *
+   * The transcript is prose, so its width is set from the reading measure and
+   * not from the window: on a wide monitor the column stays where the eye can
+   * follow it and the space goes to the margins, which is what every product
+   * that got this right does. The list beside it is sized to hold a question of
+   * a dozen words on two lines.
+   */
+  --conversation-measure: 48rem;
+  --conversation-aside: 16rem;
+
   --rail-w: 240px;
   --drawer-min-w: 340px;
   --drawer-max-w: 560px;

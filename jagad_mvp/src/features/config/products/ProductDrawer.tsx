@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { CHECKLIST_PURPOSES, INSURANCE_LINES } from '../../../data/repo'
 import type { InsuranceLine } from '../../../data/repo'
-import { Field, FormSection, Input, Select } from '../../../ui/form'
+import { Field, FormSection, Input, QuickAdd, Select } from '../../../ui/form'
 import { StatusPill } from '../../../ui/signal'
 import {
+  CompanyQuickAdd,
   GatedAction,
   LINE_LABELS,
   companyById,
@@ -62,14 +63,27 @@ export function ProductDrawer({ product }: { product: ConfigProduct }) {
         </Field>
 
         <Field label="Company" required>
-          <Select
-            value={companyId}
-            options={companies.map((candidate) => ({
-              value: candidate.id,
-              label: candidate.name,
-            }))}
-            onChange={(event) => setCompanyId(event.target.value)}
-          />
+          <QuickAdd
+            label="New company"
+            form={(close) => (
+              <CompanyQuickAdd
+                onCancel={close}
+                onCreated={(created) => {
+                  setCompanyId(created.id)
+                  close()
+                }}
+              />
+            )}
+          >
+            <Select
+              value={companyId}
+              options={companies.map((candidate) => ({
+                value: candidate.id,
+                label: candidate.name,
+              }))}
+              onChange={(event) => setCompanyId(event.target.value)}
+            />
+          </QuickAdd>
         </Field>
 
         <Field label="Line">

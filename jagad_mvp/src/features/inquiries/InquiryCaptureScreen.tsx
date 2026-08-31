@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
@@ -8,14 +8,30 @@ import { PageHeader } from '../../components/AppShell'
 import { ConfirmGate } from '../../components/guardrails'
 import { Button } from '../../ui/Button'
 import { Icon } from '../../ui/Icon'
-import { Field, FormRow, FormSection, Input, Select, Textarea } from '../../ui/form'
+import { Field, FormRow, FormSection, Input, QuickAdd, Select, Textarea } from '../../ui/form'
 import { Skeleton } from '../../ui/data'
 import { useToaster } from '../../ui/surface'
-import type { CustomerSource, ReferrerKind } from '../../data/repo'
+import type { Customer, CustomerSource, ReferrerKind } from '../../data/repo'
+import { AgentQuickAdd, useMarketStore } from '../config/shared'
+import { CustomerQuickAdd } from '../customers'
 import { useInquiryNow } from './clock'
 import { inquiryIntake } from './data/intake'
 import { SOURCE_LABEL } from './inquiry-view'
 import styles from './InquiryCapture.module.css'
+
+/**
+ * What the two channel pickers need of an agent row, and no more. The
+ * repository's `Agent` and the configuration store's `ConfigAgent` differ only
+ * in whether a sub-agent cap may be absent, which is not a question this form
+ * asks — so the two lists merge on this shape rather than on either type.
+ */
+type AgentChoice = {
+  readonly id: string
+  readonly name: string
+  readonly parentAgentId: string | null
+  readonly userId: string | null
+  readonly active: boolean
+}
 
 /**
  * Minimal capture — plan §4 `/inquiries/new`, canvas 1.6.
@@ -30,6 +46,13 @@ import styles from './InquiryCapture.module.css'
  * agent in from their reporting line, and picking an agent narrows the sub-agent
  * list to that agent's team. An agent alone is a valid answer — direct business
  * has no sub-agent in the middle — and neither field is required.
+ *
+ * Each of those pickers carries a plus. The sub-agent who signed up this morning
+ * and the customer who called ten minutes ago are exactly the names a dropdown
+ * filled at boot does not hold, and losing a half-typed capture to go and create
+ * them is how a lead ends up in somebody's notebook instead. `<QuickAdd>` makes
+ * the record where the person is standing, through the same guards the
+ * configuration screens use, and drops it straight into the field.
  *
  * Leaving the category blank is a real answer rather than an omission: routing
  * then has nothing to match, and the inquiry lands in the unrouted queue with the
@@ -61,6 +84,21 @@ export function InquiryCaptureScreen() {
   const user = useSessionStore((state) => state.user)
   const now = useInquiryNow()
   const intake = inquiryIntake(repositories)
+
+  /*
+   * Channel rows made during this session — through the plus on the pickers
+   * below, or on the agents screen. The repositories are read-only mocks, so the
+   * configuration store is where a new agent lives until a write API lands, and
+   * a picker that ignored it would refuse to show the row it had just made.
+   */
+  const sessionAgents = useMarketStore((state) => state.agents)
+  /**
+   * Customers made from the referrer picker's plus. Held here rather than
+   * reloaded: a reload blanks this form to a skeleton for as long as the read
+   * takes, and a half-typed capture must not flicker because somebody added the
+   * person who referred it.
+   */
+  const [madeHere, setMadeHere] = useState<readonly Customer[]>([])
 
   const context = useResource(async () => {
     const [categories, agents, users, customers] = await Promise.all([
@@ -95,6 +133,26 @@ export function InquiryCaptureScreen() {
   const [touched, setTouched] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  /**
+   * What this sitting has already captured, newest first.
+   *
+   * Intake is rarely one lead. A morning's post, a call sheet or a stack of
+   * walk-in slips is a batch, and a form that navigates away after every save
+   * makes the person come back for each one. So "save and add another" keeps the
+   * form up - and then has to answer the question it creates, which is "did that
+   * one actually save?" This list is the answer: every record made here stays
+   * addressable, so nothing disappears into a toast that has already faded.
+   */
+  const [sitting, setSitting] = useState<readonly { id: string; systemNo: string; name: string }[]>(
+    [],
+  )
+  /**
+   * Which button armed the confirmation gate. The gate is a single component
+   * with one `onConfirm`, so the intent has to be remembered from the press that
+   * opened it rather than read off the button at confirm time.
+   */
+  const [continuing, setContinuing] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   if (!user || !context.data) {
     return (
@@ -105,10 +163,16 @@ export function InquiryCaptureScreen() {
     )
   }
 
-  const agents = context.data.agents.filter((agent) => agent.parentAgentId === null && agent.active)
-  const allSubAgents = context.data.agents.filter(
-    (agent) => agent.parentAgentId !== null && agent.active,
-  )
+  // The store hydrates from these same repositories, so id is enough to dedupe:
+  // what it adds is what capture has not seen yet.
+  const known = new Set(context.data.agents.map((agent) => agent.id))
+  const channel: readonly AgentChoice[] = [
+    ...context.data.agents,
+    ...sessionAgents.filter((agent) => !known.has(agent.id)),
+  ]
+
+  const agents = channel.filter((agent) => agent.parentAgentId === null && agent.active)
+  const allSubAgents = channel.filter((agent) => agent.parentAgentId !== null && agent.active)
   // Choosing an agent narrows the sub-agent list to that agent's own team, so the
   // pair on the form can never name a reporting line the channel does not have.
   const subAgents =
@@ -135,11 +199,14 @@ export function InquiryCaptureScreen() {
   const linkedAgentId =
     agentId !== ''
       ? agentId
-      : (context.data.agents.find((agent) => agent.id === linkedSubAgentId)?.parentAgentId ?? null)
+      : (channel.find((agent) => agent.id === linkedSubAgentId)?.parentAgentId ?? null)
 
   const referrerOptions =
     referrerKind === 'customer'
-      ? context.data.customers.map((row) => ({ value: row.id, label: row.fullName }))
+      ? [...context.data.customers, ...madeHere].map((row) => ({
+          value: row.id,
+          label: row.fullName,
+        }))
       : referrerKind === 'sub_agent'
         ? allSubAgents.map((row) => ({ value: row.id, label: row.name }))
         : context.data.users
@@ -171,7 +238,28 @@ export function InquiryCaptureScreen() {
       ? { assignee, category: chosenCategory }
       : null
 
-  async function save() {
+  /**
+   * Clears the person and keeps the batch.
+   *
+   * Which fields survive is the whole design of this affordance. A run of
+   * captures shares its context - the same call sheet is one source, one
+   * category, one agent, and often one assignee - and clearing those would make
+   * "add another" slower than starting again. What must never survive is the
+   * person: a name or a mobile left behind from the previous lead is how one
+   * customer's number ends up on another's record.
+   */
+  function clearForNextCapture() {
+    setContactName('')
+    setContactMobile('')
+    setNotes('')
+    setReferrerId('')
+    setReferrerName('')
+    setTouched(false)
+    setRefusal(null)
+    nameRef.current?.focus()
+  }
+
+  async function save(andAnother: boolean) {
     setTouched(true)
     setRefusal(null)
     if (contactName.trim() === '' || contactMobile.trim() === '') return
@@ -229,6 +317,14 @@ export function InquiryCaptureScreen() {
               tone: 'bad',
             },
       )
+      if (andAnother) {
+        setSitting((made) => [
+          { id: captured.id, systemNo: captured.systemNo, name: captured.contactName },
+          ...made,
+        ])
+        clearForNextCapture()
+        return
+      }
       void navigate(`/inquiries/${captured.id}`)
       return
     }
@@ -238,7 +334,33 @@ export function InquiryCaptureScreen() {
       detail: 'It is in routing now.',
       tone: 'ok',
     })
+
+    if (andAnother) {
+      setSitting((made) => [
+        { id: captured.id, systemNo: captured.systemNo, name: captured.contactName },
+        ...made,
+      ])
+      clearForNextCapture()
+      return
+    }
     void navigate(`/inquiries/${captured.id}`)
+  }
+
+  /**
+   * Both buttons come through here. Naming an assignee means the save notifies
+   * somebody, so it stops at the gate first either way - "add another" is not a
+   * reason to skip a confirmation.
+   */
+  function submit(andAnother: boolean) {
+    setTouched(true)
+    setRefusal(null)
+    if (contactName.trim() === '' || contactMobile.trim() === '') return
+    if (assignment) {
+      setContinuing(andAnother)
+      setArmed(true)
+      return
+    }
+    void save(andAnother)
   }
 
   return (
@@ -257,13 +379,7 @@ export function InquiryCaptureScreen() {
         aria-label="New inquiry"
         onSubmit={(event) => {
           event.preventDefault()
-          setTouched(true)
-          setRefusal(null)
-          if (contactName.trim() === '' || contactMobile.trim() === '') return
-          // Naming somebody means this save notifies them, so it stops at the
-          // gate first. With nobody named it is a record and nothing else.
-          if (assignment) setArmed(true)
-          else void save()
+          submit(false)
         }}
       >
         {refusal ? (
@@ -284,6 +400,7 @@ export function InquiryCaptureScreen() {
               error={nameMissing ? 'An inquiry needs a name.' : undefined}
             >
               <Input
+                ref={nameRef}
                 value={contactName}
                 autoComplete="name"
                 onChange={(event) => setContactName(event.target.value)}
@@ -370,13 +487,46 @@ export function InquiryCaptureScreen() {
                     autoComplete="off"
                     onChange={(event) => setReferrerName(event.target.value)}
                   />
-                ) : (
+                ) : referrerKind === 'staff' ? (
                   <Select
                     value={referrerId}
                     placeholder="Pick who referred them"
                     options={referrerOptions}
                     onChange={(event) => setReferrerId(event.target.value)}
                   />
+                ) : (
+                  <QuickAdd
+                    label={referrerKind === 'customer' ? 'New customer' : 'New sub-agent'}
+                    form={(close) =>
+                      referrerKind === 'customer' ? (
+                        <CustomerQuickAdd
+                          source={source}
+                          onCancel={close}
+                          onCreated={(customer) => {
+                            setMadeHere((current) => [...current, customer])
+                            setReferrerId(customer.id)
+                            close()
+                          }}
+                        />
+                      ) : (
+                        <AgentQuickAdd
+                          role="sub_agent"
+                          onCancel={close}
+                          onCreated={(agent) => {
+                            setReferrerId(agent.id)
+                            close()
+                          }}
+                        />
+                      )
+                    }
+                  >
+                    <Select
+                      value={referrerId}
+                      placeholder="Pick who referred them"
+                      options={referrerOptions}
+                      onChange={(event) => setReferrerId(event.target.value)}
+                    />
+                  </QuickAdd>
                 )}
               </Field>
             </FormRow>
@@ -388,34 +538,66 @@ export function InquiryCaptureScreen() {
               optional
               hint="Attaches the inquiry to the agent it belongs to. Picking a sub-agent fills this in from their reporting line."
             >
-              <Select
-                value={agentId}
-                placeholder="No agent"
-                options={agents.map((agent) => ({ value: agent.id, label: agent.name }))}
-                onChange={(event) => {
-                  const next = event.target.value
-                  setAgentId(next)
-                  // A sub-agent left behind by the change would name a line that
-                  // does not exist, so it goes rather than being silently kept.
-                  const kept = allSubAgents.find((agent) => agent.id === subAgentId)
-                  if (next !== '' && kept && kept.parentAgentId !== next) setSubAgentId('')
-                }}
-              />
+              <QuickAdd
+                label="New agent"
+                form={(close) => (
+                  <AgentQuickAdd
+                    onCancel={close}
+                    onCreated={(agent) => {
+                      setAgentId(agent.id)
+                      setSubAgentId('')
+                      close()
+                    }}
+                  />
+                )}
+              >
+                <Select
+                  value={agentId}
+                  placeholder="No agent"
+                  options={agents.map((agent) => ({ value: agent.id, label: agent.name }))}
+                  onChange={(event) => {
+                    const next = event.target.value
+                    setAgentId(next)
+                    // A sub-agent left behind by the change would name a line that
+                    // does not exist, so it goes rather than being silently kept.
+                    const kept = allSubAgents.find((agent) => agent.id === subAgentId)
+                    if (next !== '' && kept && kept.parentAgentId !== next) setSubAgentId('')
+                  }}
+                />
+              </QuickAdd>
             </Field>
             <Field label="Sub-agent" optional hint="Links the inquiry to whoever captured it.">
-              <Select
-                value={subAgentId}
-                placeholder={agentId === '' ? 'No sub-agent' : 'No sub-agent — the agent directly'}
-                options={subAgents.map((agent) => ({ value: agent.id, label: agent.name }))}
-                onChange={(event) => {
-                  const next = event.target.value
-                  setSubAgentId(next)
-                  // The sub-agent carries its agent with it; showing that in the
-                  // field above beats leaving the person to infer it.
-                  const parent = allSubAgents.find((agent) => agent.id === next)?.parentAgentId
-                  if (parent) setAgentId(parent)
-                }}
-              />
+              <QuickAdd
+                label="New sub-agent"
+                form={(close) => (
+                  <AgentQuickAdd
+                    role="sub_agent"
+                    // The agent already named above is the reporting line; the
+                    // row below fills it in rather than asking a second time.
+                    parentAgentId={agentId === '' ? null : agentId}
+                    onCancel={close}
+                    onCreated={(agent) => {
+                      setSubAgentId(agent.id)
+                      if (agent.parentAgentId) setAgentId(agent.parentAgentId)
+                      close()
+                    }}
+                  />
+                )}
+              >
+                <Select
+                  value={subAgentId}
+                  placeholder={agentId === '' ? 'No sub-agent' : 'No sub-agent — the agent directly'}
+                  options={subAgents.map((agent) => ({ value: agent.id, label: agent.name }))}
+                  onChange={(event) => {
+                    const next = event.target.value
+                    setSubAgentId(next)
+                    // The sub-agent carries its agent with it; showing that in the
+                    // field above beats leaving the person to infer it.
+                    const parent = allSubAgents.find((agent) => agent.id === next)?.parentAgentId
+                    if (parent) setAgentId(parent)
+                  }}
+                />
+              </QuickAdd>
             </Field>
           </FormRow>
 
@@ -474,11 +656,46 @@ export function InquiryCaptureScreen() {
             confirmLabel="Save and assign"
             receipt="Saved. They have been notified and the clock has started."
             onCancel={() => setArmed(false)}
-            onConfirm={() => void save()}
+            onConfirm={() => void save(continuing)}
           />
         ) : null}
 
+        {sitting.length > 0 ? (
+          /*
+           * A labelled region, deliberately NOT `role="status"`. The toast
+           * already announces each save as a live region, and a second one
+           * saying the same thing means a screen reader hears the capture twice.
+           * This list is a persistent reference - what have I taken so far, and
+           * where did it go - which is a landmark to navigate to, not an
+           * announcement to interrupt with.
+           */
+          <section className={styles.sitting} aria-label="Captured in this sitting">
+            <p className={styles.sittingHead}>
+              {sitting.length === 1
+                ? '1 inquiry captured in this sitting'
+                : `${sitting.length} inquiries captured in this sitting`}
+            </p>
+            <ul className={styles.sittingList}>
+              {sitting.map((made) => (
+                <li key={made.id}>
+                  <Link to={`/inquiries/${made.id}`}>{made.systemNo}</Link>
+                  <span>{made.name}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <div className={styles.actions}>
+          <Button
+            type="button"
+            variant="quiet"
+            icon="plus"
+            disabled={saving || armed}
+            onClick={() => submit(true)}
+          >
+            Save and add another
+          </Button>
           <Button type="submit" variant="primary" icon="check" disabled={saving || armed}>
             {assignment ? `Save and assign to ${assignment.assignee.name}` : 'Save inquiry'}
           </Button>

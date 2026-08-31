@@ -22,10 +22,21 @@ body,
  * brand, nav and role switcher - scrolls off the top of a screen that was never
  * supposed to move. The sticky table header stops sticking at the same moment,
  * because it is pinned to a scrollport nobody is scrolling.
+ *
+ * `clip` rather than `hidden`, and the difference is the whole point. `hidden`
+ * still makes the viewport a SCROLLPORT - it only takes the scrollbar away, so
+ * the document can still be scrolled by script and, far more often, by the
+ * browser itself when it moves focus to something it believes is out of view.
+ * One stray absolutely positioned box sitting past the bottom of the window is
+ * then enough to slide the entire shell - rail, main column and drawer together
+ * - up out of the viewport, leaving white where the app used to be. `clip`
+ * leaves no scrollport to scroll, so no focus move can ever shift the shell.
+ * The `hidden` line stays first as the fallback for engines without `clip`.
  */
 html,
 body {
   overflow: hidden;
+  overflow: clip;
 }
 
 body,

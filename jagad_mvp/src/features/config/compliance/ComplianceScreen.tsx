@@ -5,6 +5,7 @@ import { EmptyState, Skeleton } from '../../../ui/data'
 import { SectionNav, useConfigStore, useEnsureConfig } from '../shared'
 import type { Section } from '../shared'
 import { ConsentLedger } from './ConsentLedger'
+import { ErasureRegister } from './ErasureRegister'
 import { RetentionClasses } from './RetentionClasses'
 import { auditQueue } from './audit-queue'
 import { buildAuditTrail } from './audit-trail'
@@ -16,6 +17,7 @@ const SECTIONS: readonly Section[] = [
   { id: 'audit', label: 'Audit search' },
   { id: 'consent', label: 'Consent' },
   { id: 'retention', label: 'Retention' },
+  { id: 'erasure', label: 'Erasure requests' },
 ]
 
 const AUDIT = 'audit'
@@ -78,6 +80,15 @@ export default function ComplianceScreen() {
       <>
         <PageHeader title="Consent" actions={nav} />
         <ConsentLedger />
+      </>
+    )
+  }
+
+  if (section === 'erasure') {
+    return (
+      <>
+        <PageHeader title="Erasure requests" actions={nav} />
+        <ErasureRegister />
       </>
     )
   }

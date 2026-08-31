@@ -54,6 +54,7 @@ import type { RenewalTask, Task } from './tasks'
 import type { CommissionRule, LedgerEntry } from './commission'
 import type { Claim } from './claims'
 import type { Endorsement } from './endorsements'
+import type { EraseRequest } from './erasure'
 import type { IntegrationConfig } from './integrations'
 import type { NoticeBatch, NoticeMatch, OcrTemplate } from './notices'
 import type {
@@ -739,6 +740,28 @@ export const DATA_FIELD_CLASSES = {
     toAddress: 'contact',
   },
 
+  /**
+   * A data-principal erasure request — FR-20.2. Everything on it is operational
+   * except the note, which is prose a staff member typed while recording what
+   * somebody asked for and routinely names them.
+   */
+  EraseRequest: {
+    id: 'operational',
+    systemNo: 'operational',
+    subjectEntity: 'operational',
+    subjectId: 'operational',
+    requestedBy: 'operational',
+    recordedBy: 'operational',
+    requestedAt: 'operational',
+    decidedAt: 'operational',
+    decidedBy: 'operational',
+    verdict: 'operational',
+    obligations: 'operational',
+    obligationNote: 'operational',
+    suppressed: 'operational',
+    note: 'contact',
+  },
+
   Claim: {
     id: 'operational',
     systemNo: 'operational',
@@ -858,6 +881,7 @@ export const DATA_ENTITIES_ARE_CLASSIFIED = {
   NoticeMatch: true satisfies Registered<'NoticeMatch', NoticeMatch>,
   OcrTemplate: true satisfies Registered<'OcrTemplate', OcrTemplate>,
   IntegrationConfig: true satisfies Registered<'IntegrationConfig', IntegrationConfig>,
+  EraseRequest: true satisfies Registered<'EraseRequest', EraseRequest>,
 } as const
 
 export function dataClassOf<E extends DataEntityName>(entity: E, field: DataFieldOf<E>): DataClass {

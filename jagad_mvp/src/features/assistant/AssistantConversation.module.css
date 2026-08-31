@@ -1,27 +1,57 @@
 /*
- * The prototype's three regions, in plan §2 tokens.
+ * The conversation, as a chat surface rather than as a page of sections.
  *
- *   the feed  scrolls, and holds one centred column of turns
- *   .sug    the suggestion chips, under the feed
- *   .comp   the composer, under those
+ *   .feed   the transcript. THE scrolling region on the full screen.
+ *   .ask    the dock under it - chips, composer, the one line of small print.
+ *   .aside  the session's other conversations, beside both.
  *
- * The chips and the composer do not scroll away, because they are the only way
- * in and a way in that moves is one a person has to look for. The prototype
- * pins them by making the feed the only scrolling region; ours sticks them to
- * the bottom of the shell's scroller, which reaches the same place without the
- * shell having to know this screen exists.
+ * The full screen is a HEIGHT-CONSTRAINED layout, and that is the whole
+ * difference between this and a page. It fills what the shell's main column
+ * gives it (`flex: 1` against `main`'s flex column, `min-height: 0` so a long
+ * transcript shrinks the feed instead of growing the screen), and it hands the
+ * scrolling to the feed alone. The dock is then simply the last row of the
+ * grid: it is at the bottom of the window because the grid reaches the bottom
+ * of the window, not because it is stuck there.
  *
- * Spacing is the prototype's, read off its own rules: a 720px column, 26px
- * between turns, a 28px gutter, chips 8px apart. The gutter comes from the
- * page tokens so this screen breathes like every other one.
+ * It used to be `min-height: 100%` with `align-content: start` and a
+ * `position: sticky; bottom: 0` dock, and those three lines cannot all be true
+ * at once: rows packed to the start end where the content ends, so the dock had
+ * no travel to stick within. It landed directly under the last turn with the
+ * rest of the window empty below it, and a long answer scrolled underneath it
+ * and was clipped by it. Both are gone with the row track.
+ *
+ * Spacing is the prototype's: one column set from the prose, 26px between
+ * turns, chips 8px apart.
  */
 .conversation {
   display: grid;
-  gap: var(--sp-6);
-  align-content: start;
-  min-height: 100%;
-  padding-block: var(--page-gutter-top) 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
   padding-inline: var(--page-gutter-x);
+}
+
+/*
+ * The full screen: take what is left of the main column under the header, and
+ * own the scrolling inside it. `min-block-size: 0` is the load-bearing half —
+ * without it a flex item refuses to shrink below its content, the transcript
+ * pushes the dock off the bottom of the window, and the shell's column starts
+ * scrolling instead of the feed.
+ */
+.conversation[data-pinned] {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+/*
+ * In the Cmd/Ctrl-K drawer the panel is a few hundred pixels wide and already
+ * scrolls inside itself, so there the conversation is a stack again: the feed
+ * grows, the dock follows it, and the panel's own scrollport carries both.
+ */
+.conversation:not([data-pinned]) {
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: var(--sp-6);
+  padding-block: var(--sp-4) 0;
 }
 
 /*
@@ -34,8 +64,20 @@
   gap: var(--sp-7);
   align-content: start;
   inline-size: 100%;
-  max-inline-size: 45rem;
+  max-inline-size: var(--conversation-measure);
   margin-inline: auto;
+}
+
+/*
+ * The transcript scrolls, and nothing above or beside it does. `contain` stops
+ * a wheel gesture that runs out of transcript from being handed to the shell,
+ * which is the same promise `main` makes to the window.
+ */
+.conversation[data-pinned] .feed {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: var(--page-gutter-top) var(--sp-6);
+  scroll-padding-block-end: var(--sp-6);
 }
 
 /* A question and its answer are one exchange, and read closer together than
@@ -50,14 +92,16 @@
 /*
  * The session's other conversations, in a column beside the feed.
  *
- * Two rows and two columns, with the aside spanning both rows: the list has to
- * sit beside the composer as well as the feed, or the pinned ask region slides
- * under it and the column ends halfway down the screen. The feed keeps its own
- * measure inside whatever width is left, so the prose column narrows on a small
- * screen rather than the list being squeezed to nothing.
+ * It spans both rows — it sits beside the dock as well as beside the feed —
+ * and scrolls on its own, so a session with twenty conversations in it cannot
+ * push the composer off the screen.
+ *
+ * The column appears with the first conversation. Before that the screen is a
+ * conversation and nothing else, which is what a person who has just arrived is
+ * looking at: an empty list of things they have not done yet is not company.
  */
 .conversation[data-aside] {
-  grid-template-columns: minmax(0, 1fr) 15rem;
+  grid-template-columns: minmax(0, 1fr) var(--conversation-aside);
   grid-template-areas: 'feed aside' 'ask aside';
   column-gap: var(--sp-6);
 }
@@ -72,10 +116,12 @@
 
 .asideColumn {
   grid-area: aside;
-  align-self: start;
-  position: sticky;
-  inset-block-start: var(--sp-4);
-  padding-block-start: var(--sp-1);
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: var(--page-gutter-top) var(--sp-6);
+  padding-inline-start: var(--sp-6);
+  border-inline-start: 1px solid var(--hair);
 }
 
 /* Below the point where the two columns stop fitting, the list follows the
@@ -83,14 +129,11 @@
 @media (max-width: 64rem) {
   .conversation[data-aside] {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'feed' 'aside' 'ask';
+    grid-template-areas: 'feed' 'ask';
   }
 
   .asideColumn {
-    position: static;
-    inline-size: 100%;
-    max-inline-size: 45rem;
-    margin-inline: auto;
+    display: none;
   }
 }
 
@@ -120,40 +163,32 @@
 
 /* --------------------------------------------------------------------- ask */
 
+/*
+ * The dock: the way in, always in the same place.
+ *
+ * It spans the full width of its column and carries the hairline, while what is
+ * inside it keeps the feed's measure — so the rule reads as the edge of the
+ * transcript region rather than as a box drawn around the composer.
+ */
 .ask {
-  display: grid;
-  gap: var(--sp-3);
-  inline-size: 100%;
-  max-inline-size: 45rem;
-  margin-inline: auto;
-  padding-block: var(--sp-4) var(--page-gutter-bottom);
   background: var(--ground);
 }
 
-/*
- * Pinned on the full screen only. In the drawer the panel is a few hundred
- * pixels wide and scrolls inside itself; a second pinned region there would
- * leave the feed two turns tall.
- */
 .conversation[data-pinned] .ask {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  border-block-start: 1px solid var(--hair);
 }
 
-/*
- * A soft edge above the pinned region, so a turn scrolling under it fades out
- * rather than being sliced. It is the surface colour resolving to itself, which
- * keeps it a token and not a hex.
- */
-.conversation[data-pinned] .ask::before {
-  content: '';
-  position: absolute;
-  inset-block-start: calc(var(--sp-4) * -1);
-  inset-inline: 0;
-  block-size: var(--sp-4);
-  background: linear-gradient(to bottom, transparent, var(--ground));
-  pointer-events: none;
+.askInner {
+  display: grid;
+  gap: var(--sp-3);
+  inline-size: 100%;
+  max-inline-size: var(--conversation-measure);
+  margin-inline: auto;
+  padding-block: var(--sp-4) var(--sp-5);
+}
+
+.conversation:not([data-pinned]) .askInner {
+  padding-block: 0 var(--sp-4);
 }
 
 .askTitle {

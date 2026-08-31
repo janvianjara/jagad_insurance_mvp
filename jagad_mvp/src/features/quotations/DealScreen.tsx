@@ -6,6 +6,7 @@ import { can } from '../../domain/permissions'
 import { dealHasLineItems } from '../../domain/workflows'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import { ConfirmGate, RollUp } from '../../components/guardrails'
 import type { RollUpComponent } from '../../components/guardrails'
 import { sumMoney } from '../../domain/money'
@@ -110,6 +111,27 @@ export function DealScreen() {
       />
 
       <div className={styles.screen}>
+        {/*
+          * A deal carries no prose of its own — every descriptive field on it
+          * belongs to the quotation behind it — so the only thing correctable
+          * here is the attribution, which is exactly the thing that gets picked
+          * wrong off a dropdown. Discard is offered because a deal raised
+          * against the wrong customer is a mistake rather than an obligation;
+          * one a policy has been written from refuses, with the machine's
+          * sentence saying why.
+          */}
+        <RecordCorrection
+          entity="Deal"
+          resource="deals"
+          record={deal}
+          subject={deal.systemNo}
+          noun="deal"
+          amend={(command) => repositories.deals.amend(deal.id, command)}
+          discard={(command) => repositories.deals.discard(deal.id, command)}
+          restore={(command) => repositories.deals.restore(deal.id, command)}
+          onWritten={() => setReads((previous) => previous + 1)}
+        />
+
         {refusal ? (
           <p className={styles.refusal} role="alert">
             <Icon name="alert" size="sm" />

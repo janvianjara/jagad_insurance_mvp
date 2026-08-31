@@ -17,6 +17,7 @@ import type { QuotationColumn, QuotationOrigin } from '../../domain/workflows'
 import type { DomainEvent } from '../../domain/events'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import { BenefitMatrix, draftFromLines, matrixReadyToGenerate, openMatrixDraft, premiumStopMessage, toQuotationLines } from '../../components/BenefitMatrix'
 import type { MatrixColumn, MatrixDraft } from '../../components/BenefitMatrix'
 import { DocumentViewer, buildQuotationDocument } from '../../components/DocumentViewer'
@@ -516,6 +517,24 @@ export function QuotationComposerScreen() {
 
       <div className={styles.screen}>
         {versions.length > 0 ? switcher : null}
+
+        {/*
+          * What a correction may touch on a quotation is the prose and the
+          * attribution — never a figure. A premium belongs to the version it
+          * was sent on, so changing one is a revision rather than an edit, and
+          * the panel says so in a line rather than offering a box that refuses.
+          */}
+        <RecordCorrection
+          entity="Quotation"
+          resource="quotations"
+          record={quotation}
+          subject={quotation.systemNo}
+          noun="quotation"
+          amend={(command) => repositories.quotations.amend(quotation.id, command)}
+          discard={(command) => repositories.quotations.discard(quotation.id, command)}
+          restore={(command) => repositories.quotations.restore(quotation.id, command)}
+          onWritten={() => setReads((previous) => previous + 1)}
+        />
 
         {refusal ? (
           <p className={styles.refusal} role="alert">

@@ -11,6 +11,7 @@ import { useResource } from '../../lib/useResource'
 import { AssignmentTrail } from '../../components/AssignmentTrail'
 import { PageHeader } from '../../components/AppShell'
 import { ConfirmGate } from '../../components/guardrails'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import type { ConfirmChange } from '../../components/guardrails'
 import { Button } from '../../ui/Button'
 import type { ButtonVariant } from '../../ui/Button'
@@ -278,6 +279,33 @@ export function InquiryDetailScreen() {
 
       <div className={styles.screen}>
         <DevClock />
+
+        {/*
+          * Correcting and discarding, at the top of the record.
+          *
+          * A mistyped mobile number is the commonest thing wrong with an
+          * inquiry and it used to have no way out of the record at all. The
+          * banner for a discarded lead renders here too, above everything the
+          * screen otherwise says, because a discarded record that reads like a
+          * live one is the defect this whole affordance would introduce.
+          */}
+        <RecordCorrection
+          entity="Inquiry"
+          resource="inquiries"
+          record={inquiry}
+          subject={inquiry.systemNo}
+          noun="inquiry"
+          amend={(command) => intake.amend(inquiry.id, command)}
+          discard={(command) => intake.discard(inquiry.id, command)}
+          restore={(command) => intake.restore(inquiry.id, command)}
+          onWritten={(next) =>
+            setWritten((previous) => ({
+              id,
+              record: next,
+              events: previous && previous.id === id ? previous.events : [],
+            }))
+          }
+        />
 
         {inquiry.status === 'unrouted' ? (
           <div className={styles.unrouted} role="alert">

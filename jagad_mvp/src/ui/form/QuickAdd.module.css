@@ -1,0 +1,74 @@
+/*
+ * The plus that sits beside a record-backed dropdown, and the row it opens.
+ *
+ * The panel is a sibling of the control rather than an overlay on purpose: a
+ * modal over a half-filled form is the thing people are afraid of, and a native
+ * select's own popup cannot hold a button anyway.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trigger {
+  flex: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--bad);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}

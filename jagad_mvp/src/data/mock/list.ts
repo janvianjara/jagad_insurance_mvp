@@ -14,8 +14,43 @@
  * reconcile.
  */
 
+import { isDiscarded } from '../../domain/amend'
 import { DEFAULT_PAGE_SIZE } from '../repo/query'
 import type { ListQuery, Page, SortSpec } from '../repo/query'
+
+/**
+ * The filter every queue has without declaring it — FR-20.2's soft discard.
+ *
+ * A discarded inquiry leaves its queue and stays in the book. That is one rule
+ * about every list in the product, so it is applied here rather than in each of
+ * the repositories that would otherwise each have to remember it — a queue that
+ * forgot would show a duplicate lead somebody had already dealt with, and the
+ * whole point of the discard is that it stops appearing.
+ *
+ * It is handled before `matchesFilters` and stripped from what that sees, so a
+ * `ListSpec` never declares it and no existing spec had to change. The values are
+ * the two a checkbox filter produces, so the state still round-trips through a
+ * URL like every other filter: absent or `['false']` shows live rows only,
+ * `['true']` shows discarded ones only, both together show everything.
+ */
+export const DISCARDED_FILTER_KEY = 'discarded'
+
+const DISCARD_SELECTIONS = ['true', 'false'] as const
+
+function passesDiscardFilter(row: unknown, selected: readonly string[]): boolean {
+  for (const value of selected) {
+    if (!(DISCARD_SELECTIONS as readonly string[]).includes(value)) {
+      throw new Error(
+        `Unknown "${DISCARDED_FILTER_KEY}" filter value "${value}". It takes "true", "false" or both.`,
+      )
+    }
+  }
+
+  const discarded = isDiscarded(row)
+  // The default, and the one that matters: nothing selected hides discarded rows.
+  if (selected.length === 0) return !discarded
+  return selected.includes(discarded ? 'true' : 'false')
+}
 
 export type Cell = string | number | boolean | null | undefined
 export type FieldReader<T> = (row: T) => Cell
@@ -75,10 +110,17 @@ export function runQuery<T>(
   query: ListQuery = {},
 ): Page<T> {
   const needle = (query.search ?? '').trim().toLowerCase()
-  const filters = query.filters ?? {}
+  const supplied = query.filters ?? {}
+  const discardSelection = supplied[DISCARDED_FILTER_KEY] ?? []
+  const filters = Object.fromEntries(
+    Object.entries(supplied).filter(([key]) => key !== DISCARDED_FILTER_KEY),
+  )
 
   let matched = rows.filter(
-    (row) => (needle === '' || matchesSearch(row, spec, needle)) && matchesFilters(row, spec, filters),
+    (row) =>
+      passesDiscardFilter(row, discardSelection) &&
+      (needle === '' || matchesSearch(row, spec, needle)) &&
+      matchesFilters(row, spec, filters),
   )
 
   const sort = query.sort ?? spec.defaultSort

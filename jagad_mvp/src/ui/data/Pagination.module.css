@@ -45,6 +45,8 @@
 }
 
 .step {
+  /* The containing block for the label inside it - see `.srOnly`. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -70,8 +72,13 @@
   white-space: nowrap;
 }
 
+/* Pinned to the button it names. Left at a static position it would be laid
+   out against the document instead, adding a box of page overflow wherever the
+   pager happened to sit when the column was scrolled. */
 .srOnly {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   width: 1px;
   height: 1px;
   padding: 0;

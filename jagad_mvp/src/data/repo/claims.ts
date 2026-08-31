@@ -12,6 +12,7 @@
  * `claimMachine`, so P2 adds screens rather than rules.
  */
 
+import type { AmendCommand } from '../../domain/amend'
 import type { Money } from '../../domain/money'
 import type { ClaimState, ClaimType, SettlementSource } from '../../domain/workflows'
 import type { ListQuery, Page, ReadRepository } from './query'
@@ -88,4 +89,18 @@ export type ClaimRepository = ReadRepository<Claim> & {
     to: ClaimState,
     command: ClaimTransitionCommand,
   ): Promise<MutationResult<Claim>>
+
+  /**
+   * Corrects the references on a claim — `AMEND_POLICIES.Claim`: the insurer's
+   * number while it is still unset, which member the claim is for, and the two
+   * people it is attributed to.
+   *
+   * The settlement figure is not correctable and never will be. It is typed from
+   * the insurer's advice through `claimMachine`, where
+   * `settlementTypedFromInsurerAdvice` keeps the reference beside the amount, and
+   * a figure a person could edit afterwards is a figure the advice no longer
+   * supports. `companyRemark` is not correctable either: it is the insurer's own
+   * words, and on a health claim it carries a diagnosis.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Claim>>
 }

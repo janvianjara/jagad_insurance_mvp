@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { SCHEMA_PROBLEM_CODES, validateFormSchema } from '../../domain/forms'
 import { containsFullAadhaar } from '../../domain/workflows'
 import { buildFixtures } from './index'
 import type { FixtureSet } from './index'
@@ -486,6 +487,32 @@ describe('the volume the plan asks for', () => {
     expect(subAgents).toHaveLength(1)
     // Canvas 6.4: the team is built inside the cap, not beyond it.
     expect(subAgents[0].sharePercentBp).toBeLessThanOrEqual(kiran?.subAgentCapPercentBp ?? 0)
+  })
+
+  it('publishes no required choice a person could reach a dead end in', () => {
+    /*
+     * A select with neither inline options nor a master list renders as an empty
+     * box that will not open. `validateFormSchema` calls that advisory on
+     * purpose — a choice waiting on a master list somebody has not configured
+     * yet is a form that still works — but advisory stops being true the moment
+     * the field is required: there is then no value to give, so the form can
+     * never be saved, and the screen says only that the field is needed. Two
+     * seeded rows shipped in that state.
+     */
+    for (const schema of fixtures.formSchemas) {
+      const required = new Set(
+        schema.stages.flatMap((stage) =>
+          stage.fields.filter((field) => field.required).map((field) => field.key),
+        ),
+      )
+      const stuck = validateFormSchema(schema)
+        .filter((problem) => problem.code === SCHEMA_PROBLEM_CODES.choiceWithoutOptions)
+        .filter((problem) => problem.fieldKey !== null && required.has(problem.fieldKey))
+
+      expect(
+        stuck.map((problem) => `${schema.objectKey} v${schema.version}: ${problem.message}`),
+      ).toEqual([])
+    }
   })
 
   it('locks an Individual agency to one company and lets a Broker hold several', () => {

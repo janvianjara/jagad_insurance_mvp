@@ -10,6 +10,7 @@ import type { DomainEvent } from '../../domain/events'
 import { can } from '../../domain/permissions'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import { ChecklistPanel } from '../../components/ChecklistPanel'
 import type { ChecklistItem } from '../../components/ChecklistPanel'
 import { MachineActions } from '../../components/MachineActions'
@@ -116,6 +117,16 @@ export function ClaimDetailScreen() {
   const policy = useResource(
     () => (claim ? repositories.policies.get(claim.policyId) : Promise.resolve(null)),
     `claim-policy:${claim?.policyId ?? ''}`,
+  )
+  /**
+   * The household, so a correction to "who was treated" is a name off a list
+   * rather than an id somebody has to know. Nothing else on this screen needs
+   * it, and no health field is read: a member's name and relationship are all a
+   * correction can express.
+   */
+  const members = useResource(
+    async () => (claim ? repositories.customers.members(claim.customerId) : []),
+    `claim-members:${claim?.customerId ?? ''}`,
   )
   /**
    * The upload ledger, which is what `dischargeSummaryReceived` reads. The screen
@@ -280,6 +291,36 @@ export function ClaimDetailScreen() {
       />
 
       <div className={styles.screen}>
+        {/*
+          * Correcting a claim reaches four fields and no figure. The settlement
+          * is typed from the insurer's advice through the machine below, and a
+          * claim exists because a policy was issued, so its record is always
+          * past the point where an amount could be corrected at all.
+          */}
+        <RecordCorrection
+          entity="Claim"
+          resource="claims"
+          record={claim}
+          subject={claim.systemNo}
+          noun="claim"
+          issued
+          choices={{
+            memberId: (members.data ?? []).map((member) => ({
+              value: member.id,
+              label: `${member.fullName} — ${member.relationship}`,
+            })),
+          }}
+          amend={(command) => repositories.claims.amend(claim.id, command)}
+          onWritten={(next) =>
+            setWritten((previous) => ({
+              id,
+              record: next,
+              events: previous && previous.id === id ? previous.events : [],
+              messages: previous && previous.id === id ? previous.messages : [],
+            }))
+          }
+        />
+
         {claim.state === CLAIM_STATES.blocked ? (
           <div className={styles.alert} role="alert">
             <Icon name="alert" size="md" />

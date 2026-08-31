@@ -156,6 +156,33 @@ export const DOMAIN_EVENT_NAMES = [
   'document.opened',
   'message.sent',
 
+  /*
+   * Correction, discard and erasure — FR-20.2, FR-20.4.
+   *
+   * `record.` rather than `inquiry.` or `customer.` because a correction is the
+   * one act in this vocabulary that is genuinely the same act on every entity:
+   * six entity-prefixed names for it would be six names nobody could subscribe
+   * to as one, and the audit timeline would have to know all six to render "what
+   * has been corrected on this file". The subject says which record it was.
+   *
+   * What the detail may carry is settled by `DomainEvent.detail` above and
+   * implemented in `src/domain/amend.ts`: which fields changed, the reason and
+   * the actor always; a before and after only for an ordinary field, and never
+   * for a money or classified one. That is why there is no `record.field_set`
+   * carrying a value — a name that invited one would be a name somebody used.
+   */
+  'record.amended',
+  'record.discarded',
+  'record.restored',
+  /*
+   * The data principal's request and its decision — FR-20.2. Two names rather
+   * than one because a request that is refused retention is still a request the
+   * platform received, and a log that only records granted erasures cannot
+   * answer "did anybody ever ask".
+   */
+  'erasure.requested',
+  'erasure.decided',
+
   // Assistant — FR-22
   'assistant.notice_raised',
   'assistant.action_confirmed',

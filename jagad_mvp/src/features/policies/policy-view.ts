@@ -163,6 +163,22 @@ export function isCourier(channel: DispatchChannel): boolean {
  */
 export const LIVE_POLICY_STATES: readonly PolicyState[] = ['issued', 'dispatched', 'documents_collected']
 
+/**
+ * The four states in which the insurer has NOT issued, and a policy's figures
+ * are still data entry — D3's line, as `contract.ts` reads it off the record.
+ *
+ * The correction form asks this so it can decline to offer a premium box on an
+ * issued policy rather than offering one that refuses. The repository asks the
+ * same question again on the write, so if these two ever disagree the guard
+ * still wins and the person still reads the endorsement sentence: the worst this
+ * can cost is a field offered that then refuses, never a figure written.
+ */
+const PRE_ISSUE_STATES: readonly PolicyState[] = ['draft', 'proposal', 'sent', 'declined']
+
+export function insurerHasIssued(policy: { readonly status: PolicyState }): boolean {
+  return !PRE_ISSUE_STATES.includes(policy.status)
+}
+
 /** The day `now` falls on, as the record's own dates are written. */
 function dayOf(now: Date): string {
   return now.toISOString().slice(0, 10)

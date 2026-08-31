@@ -8,6 +8,7 @@ import { canHardDeletePolicy, retentionWindowElapsed } from '../../domain/workfl
 import type { KycState } from '../../domain/workflows'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import { RollUp } from '../../components/guardrails'
 import type { RollUpComponent } from '../../components/guardrails'
 import type {
@@ -42,6 +43,7 @@ import {
   PAYMENT_TONE,
   LIVE_POLICY_STATES,
   PREMIUM_MODE_LABEL,
+  insurerHasIssued,
   policyLabelFor,
   policyToneFor,
 } from './policy-view'
@@ -429,6 +431,26 @@ export function PolicyDetailScreen() {
         actions={
           <StatusPill tone={policyToneFor(policy, now)}>{policyLabelFor(policy, now)}</StatusPill>
         }
+      />
+
+      {/*
+        * Correcting a policy, with D3's line drawn where the domain draws it.
+        *
+        * Before the insurer issues, the four figures are data entry and a typo
+        * in one is correctable. From `issued` onwards they are contractual and
+        * are not offered at all — the panel says in one line that a premium
+        * after issue changes through an endorsement, which is where it actually
+        * changes. There is no discard: a policy is never deleted.
+        */}
+      <RecordCorrection
+        entity="Policy"
+        resource="policies"
+        record={policy}
+        subject={policy.systemNo}
+        noun="policy"
+        issued={insurerHasIssued(policy)}
+        amend={(command) => repositories.policies.amend(policy.id, command)}
+        onWritten={() => setReads((previous) => previous + 1)}
       />
 
       <Tabs

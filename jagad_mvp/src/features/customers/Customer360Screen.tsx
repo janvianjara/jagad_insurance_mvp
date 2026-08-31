@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useRepositories } from '../../app/repositories-context'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordCorrection } from '../../components/RecordCorrection'
 import { ConsentBadge } from '../../components/ConsentBadge'
 import { MaskedField } from '../../components/MaskedField'
 import { RecordTimeline } from '../../components/RecordTimeline'
@@ -545,6 +546,28 @@ export function Customer360Screen() {
       />
 
       <div className={styles.screen}>
+        {/*
+          * Correction, and the honest answer to the question this screen gets
+          * asked most: why can I not delete this customer.
+          *
+          * There is no discard on a customer and no delete behind it — the file
+          * carries retention that outlives anybody's preference, and the type
+          * system refuses the attempt rather than the runtime. What is offered
+          * instead is the regulated path: a data-principal erasure request,
+          * answered by reading what the platform actually holds and naming the
+          * obligation where one exists (FR-20.2).
+          */}
+        <RecordCorrection
+          entity="Customer"
+          resource="customers"
+          record={customer}
+          subject={customer.systemNo}
+          noun="customer file"
+          amend={(command) => repositories.customers.amend(customer.id, command)}
+          erase={{ subjectEntity: 'Customer', subjectId: customer.id }}
+          onWritten={() => setReads((previous) => previous + 1)}
+        />
+
         <Panel title="Contact" level={3}>
           <KeyValueList
             columns={2}

@@ -172,13 +172,23 @@ const documentsToReview: NavCount = async (repositories) =>
   (await repositories.documents.awaitingReview(PROBE)).total
 
 const openTasks: NavCount = async (repositories) =>
-  (await repositories.tasks.list({ ...PROBE, filters: { state: [TASK_STATES.open] } })).total
+  (await repositories.tasks.list({ ...PROBE, filters: { state: UNFINISHED_TASKS } })).total
+
+/*
+ * Unfinished, not untouched. A task somebody picked up this morning is still on
+ * their list, so `in_progress` counts here exactly as `open` does — which is
+ * what the tasks queue shows, what the Assistant's briefing counts, and what a
+ * person means by "my tasks". Counting only `open` made the badge disagree with
+ * the briefing beside it on the same screen, and the badge was the one that was
+ * wrong.
+ */
+const UNFINISHED_TASKS = [TASK_STATES.open, TASK_STATES.inProgress]
 
 const myTasks: NavCount = async (repositories, user) =>
   (
     await repositories.tasks.list({
       ...PROBE,
-      filters: { state: [TASK_STATES.open], ownerId: [user.id] },
+      filters: { state: UNFINISHED_TASKS, ownerId: [user.id] },
     })
   ).total
 

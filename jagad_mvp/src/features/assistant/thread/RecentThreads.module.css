@@ -89,7 +89,6 @@
   background: var(--ink-3);
 }
 
-.empty,
 .note {
   display: flex;
   gap: var(--sp-2);

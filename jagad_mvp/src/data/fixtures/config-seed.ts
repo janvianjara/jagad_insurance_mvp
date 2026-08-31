@@ -1047,7 +1047,24 @@ const POLICY_ENTRY_STAGES = [
       { key: 'netPremium', label: 'Net premium', kind: 'money' as const, required: false, visibleWhen: null, masterTypeId: null },
       { key: 'gstAmount', label: 'GST', kind: 'money' as const, required: false, visibleWhen: null, masterTypeId: null },
       { key: 'finalPremium', label: 'Final premium', kind: 'money' as const, required: true, visibleWhen: null, masterTypeId: null },
-      { key: 'premiumMode', label: 'Premium mode', kind: 'select' as const, required: true, visibleWhen: null, masterTypeId: null },
+      // Premium mode is a domain set, not an admin master: what the schedule
+      // means is decided in `premiumSchedule`, so the options are inlined here
+      // rather than being a list somebody could edit out from under it.
+      {
+        key: 'premiumMode',
+        label: 'Premium mode',
+        kind: 'select' as const,
+        required: true,
+        visibleWhen: null,
+        masterTypeId: null,
+        options: [
+          { value: 'single', label: 'Single premium' },
+          { value: 'annual', label: 'Annual' },
+          { value: 'half_yearly', label: 'Half yearly' },
+          { value: 'quarterly', label: 'Quarterly' },
+          { value: 'monthly', label: 'Monthly' },
+        ],
+      },
     ],
   },
   {
@@ -1144,7 +1161,20 @@ export const FORM_SCHEMAS: readonly FormSchema[] = [
         key: 'event',
         label: 'Event',
         fields: [
-          { key: 'claimType', label: 'Claim type', kind: 'select', required: true, visibleWhen: null, masterTypeId: null },
+          // The two arms of `claimMachine`, and the field the Hospital question
+          // below is shown by. Inlined for the same reason as premium mode.
+          {
+            key: 'claimType',
+            label: 'Claim type',
+            kind: 'select',
+            required: true,
+            visibleWhen: null,
+            masterTypeId: null,
+            options: [
+              { value: 'cashless', label: 'Cashless' },
+              { value: 'file', label: 'Reimbursement file' },
+            ],
+          },
           { key: 'occurredOn', label: 'Date of event', kind: 'date', required: true, visibleWhen: null, masterTypeId: null },
           { key: 'hospitalName', label: 'Hospital', kind: 'text', required: false, visibleWhen: { field: 'claimType', equals: 'cashless' }, masterTypeId: null },
         ],

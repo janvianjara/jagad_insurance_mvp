@@ -44,6 +44,8 @@ export function QuotationQueueScreen() {
     customers: context.data.customers,
     users: context.data.users,
     now: new Date(),
+    actorId: user.id,
+    discard: (id, command) => repositories.quotations.discard(id, command),
   })
 
   return (

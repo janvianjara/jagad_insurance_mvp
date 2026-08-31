@@ -17,6 +17,14 @@ export type { Section, SectionNavProps } from './SectionNav'
 export { InlineMasterAdd } from './InlineMasterAdd'
 export type { InlineMasterAddProps } from './InlineMasterAdd'
 
+export { AgencyQuickAdd, AgentQuickAdd, CompanyQuickAdd, ProductQuickAdd } from './MarketQuickAdd'
+export type {
+  AgencyQuickAddProps,
+  AgentQuickAddProps,
+  CompanyQuickAddProps,
+  ProductQuickAddProps,
+} from './MarketQuickAdd'
+
 export {
   masterKeyFrom,
   masterTypeByKey,

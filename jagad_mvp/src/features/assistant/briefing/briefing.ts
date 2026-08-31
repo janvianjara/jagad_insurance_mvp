@@ -96,6 +96,8 @@ export const ROW_SOURCES = {
   agedClaims: 'agedClaims',
   insurerQueries: 'insurerQueries',
   overdueTasks: 'overdueTasks',
+  /** The same list, narrowed to the tasks the person asking is the one to do. */
+  myOverdueTasks: 'myOverdueTasks',
   mandateFailures: 'mandateFailures',
   renewalsDueThisWeek: 'renewalsDueThisWeek',
   quotationsAwaitingReply: 'quotationsAwaitingReply',
@@ -315,8 +317,18 @@ const AGENT: BriefingTemplate = {
     ROW_SOURCES.tatLapsed,
     ROW_SOURCES.tatAtRisk,
     ROW_SOURCES.quotationsAwaitingReply,
-    ROW_SOURCES.overdueTasks,
+    ROW_SOURCES.myOverdueTasks,
   ],
+  /*
+   * An agent's scope is their BOOK, and a book carries work other people are
+   * doing on it — the back office's KYC chases, the sales manager's follow-ups,
+   * all of them on this agent's customers and all of them visible to her. The
+   * lead and quotation clauses are about the book and count it. The task clauses
+   * are about her afternoon, so they count what is assigned to her, which is the
+   * same set the rail calls "My tasks". Counting the book into them once told
+   * her she had two hundred and thirty-two things past due, and named the oldest
+   * — a task belonging to the sales manager.
+   */
   clauses: (s) => [
     clause({
       key: 'open',
@@ -335,9 +347,9 @@ const AGENT: BriefingTemplate = {
     clause({
       key: 'due',
       band: CLAUSE_BANDS.headline,
-      count: s.tasksDueThisWeek.length,
-      lead: count(s.tasksDueThisWeek.length, 'task', 'tasks'),
-      rest: ' due this week',
+      count: s.tasksMineDueThisWeek.length,
+      lead: count(s.tasksMineDueThisWeek.length, 'task', 'tasks'),
+      rest: ' assigned to you, due this week',
     }),
     clause({
       key: 'lapsed',
@@ -365,13 +377,13 @@ const AGENT: BriefingTemplate = {
       {
         key: 'overdue',
         band: CLAUSE_BANDS.attention,
-        count: s.tasksOverdue.length,
-        lead: `${s.tasksOverdue.length} already past due`,
+        count: s.tasksMineOverdue.length,
+        lead: `${s.tasksMineOverdue.length} of yours already past due`,
         consequence: 'nothing on that list moves until somebody touches it',
       },
       named(
-        earliestBy(s.tasksOverdue, (row) => row.dueAt)?.systemNo,
-        s.tasksOverdue.length,
+        earliestBy(s.tasksMineOverdue, (row) => row.dueAt)?.systemNo,
+        s.tasksMineOverdue.length,
         'the oldest',
       ),
     ),
@@ -663,6 +675,17 @@ function rowsFor(source: RowSource, snapshot: QueueSnapshot): readonly BlockRow[
     }))
   }
 
+  if (source === ROW_SOURCES.myOverdueTasks) {
+    return snapshot.tasksMineOverdue.map((row) => ({
+      id: row.id,
+      severity: 'hot' as const,
+      primary: row.title,
+      secondary: `${row.systemNo} · ${row.kind.replace(/_/g, ' ')}`,
+      to: `/tasks?record=${row.id}`,
+      right: { cell: 'date' as const, value: row.dueAt, mode: 'short' as const },
+    }))
+  }
+
   if (source === ROW_SOURCES.overdueTasks) {
     return snapshot.tasksOverdue.map((row) => ({
       id: row.id,
@@ -714,6 +737,7 @@ const ROW_CAPTIONS: Readonly<Record<RowSource, string>> = {
   [ROW_SOURCES.agedClaims]: 'Open past thirty days',
   [ROW_SOURCES.insurerQueries]: 'Waiting on an insurer query',
   [ROW_SOURCES.overdueTasks]: 'Past due',
+  [ROW_SOURCES.myOverdueTasks]: 'Past due, assigned to you',
   [ROW_SOURCES.mandateFailures]: 'Failed mandates, follow-up still open',
   [ROW_SOURCES.renewalsDueThisWeek]: 'Renewals due this week',
   [ROW_SOURCES.quotationsAwaitingReply]: 'Shared, no reply yet',
@@ -905,6 +929,9 @@ export function snapshotCounts(snapshot: QueueSnapshot): Readonly<Record<string,
     tasksDueThisWeek: snapshot.tasksDueThisWeek.length,
     tasksMandateFailure: snapshot.tasksMandateFailure.length,
     tasksPolicyEntry: snapshot.tasksPolicyEntry.length,
+    tasksMine: snapshot.tasksMine.length,
+    tasksMineOverdue: snapshot.tasksMineOverdue.length,
+    tasksMineDueThisWeek: snapshot.tasksMineDueThisWeek.length,
     claimsOpen: snapshot.claimsOpen.length,
     claimsAged: snapshot.claimsAged.length,
     claimsInsurerQuery: snapshot.claimsInsurerQuery.length,

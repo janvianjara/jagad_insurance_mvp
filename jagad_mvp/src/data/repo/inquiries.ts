@@ -8,6 +8,7 @@
  * from the category's routing recipe, never from a constant.
  */
 
+import type { AmendCommand, Discardable, DiscardCommand, RestoreCommand } from '../../domain/amend'
 import type { InquiryAssignment, InquiryState } from '../../domain/workflows'
 import type { Activity, ActivityChannel, ActivityDirection } from './activities'
 import type { Task, TaskKind } from './tasks'
@@ -42,7 +43,7 @@ export type ReferralAttribution = {
   readonly capturedAt: string
 }
 
-export type Inquiry = {
+export type Inquiry = Discardable & {
   readonly id: string
   readonly systemNo: string
   readonly status: InquiryState
@@ -282,4 +283,23 @@ export type InquiryRepository = ReadRepository<Inquiry> & {
   markUnrouted(id: string, command: UnrouteInquiryCommand): Promise<MutationResult<Inquiry>>
   convert(id: string, command: CloseInquiryCommand): Promise<MutationResult<Inquiry>>
   markLost(id: string, command: CloseInquiryCommand): Promise<MutationResult<Inquiry>>
+
+  /**
+   * Corrects what was taken down wrong — FR-20.4.
+   *
+   * The allow-list is `AMEND_POLICIES.Inquiry` in `src/domain/amend.ts` and it is
+   * the contact block plus the attribution, which is exactly what gets mistyped
+   * on a phone call. Anything else refuses with a sentence saying why. Every
+   * accepted correction emits `record.amended`, so the trail says who changed
+   * what and on what grounds.
+   */
+  amend(id: string, command: AmendCommand): Promise<MutationResult<Inquiry>>
+  /**
+   * Takes a duplicate or a wrong number out of the queues without taking it out
+   * of the book. Soft and reversible: the row keeps its number, leaves every
+   * list by default and comes back through `restore`. An inquiry that has
+   * already converted is refused, because something downstream points at it.
+   */
+  discard(id: string, command: DiscardCommand): Promise<MutationResult<Inquiry>>
+  restore(id: string, command: RestoreCommand): Promise<MutationResult<Inquiry>>
 }

@@ -11,6 +11,8 @@ import {
   FormSection,
   Input,
   NumberInput,
+  QuickAdd,
+  QuickAddForm,
   RadioGroup,
   Select,
   Textarea,
@@ -107,6 +109,9 @@ export default function FormGallery() {
   const [autoRenew, setAutoRenew] = useState(false)
   const [members, setMembers] = useState<number | null>(3)
   const [files, setFiles] = useState<File[]>([])
+  const [agents, setAgents] = useState<SelectOption[]>([{ value: 'kiran', label: 'Kiran Solanki' }])
+  const [agent, setAgent] = useState('')
+  const [newAgent, setNewAgent] = useState('')
 
   return (
     <div className={styles.gallery}>
@@ -197,6 +202,70 @@ export default function FormGallery() {
             </Field>
           </FormRow>
           <p className={styles.state}>path: [{path.join(', ')}]</p>
+        </div>
+      </Block>
+
+      <Block
+        title="Adding the option that is missing"
+        note="A dropdown that does not hold the name somebody needs is a dead end: the record is created a screen away, and a half-typed form is what it costs. The plus expands one row under the control, writes through the same guards the configuration screen uses, and selects what it made. It never navigates and never covers the work."
+      >
+        <div className={styles.pane}>
+          <FormRow columns={2}>
+            <Field label="Agent" optional hint="Attaches this to the agent it belongs to.">
+              <QuickAdd
+                label="New agent"
+                form={(close) => (
+                  <QuickAddForm
+                    submitLabel="Add agent"
+                    onCancel={close}
+                    onSubmit={() => {
+                      const value = newAgent.trim().toLowerCase().replace(/\s+/g, '-')
+                      if (value === '') return
+                      setAgents((current) => [...current, { value, label: newAgent.trim() }])
+                      setAgent(value)
+                      setNewAgent('')
+                      close()
+                    }}
+                  >
+                    <Field label="Name" required>
+                      <Input
+                        value={newAgent}
+                        placeholder="Meera Joshi"
+                        onChange={(event) => setNewAgent(event.target.value)}
+                      />
+                    </Field>
+                  </QuickAddForm>
+                )}
+              >
+                <Select
+                  options={agents}
+                  placeholder="No agent"
+                  value={agent}
+                  onChange={(event) => setAgent(event.target.value)}
+                />
+              </QuickAdd>
+            </Field>
+            <Field
+              label="Sub-agent"
+              optional
+              hint="The plus refuses rather than making an orphan when what it needs is not chosen yet."
+            >
+              <QuickAdd
+                label="New sub-agent"
+                disabled={agent === ''}
+                disabledReason="Choose an agent first: a sub-agent reports to one."
+                form={(close) => (
+                  <QuickAddForm submitLabel="Add sub-agent" onCancel={close} onSubmit={close}>
+                    <Field label="Name" required>
+                      <Input placeholder="Meera Joshi" />
+                    </Field>
+                  </QuickAddForm>
+                )}
+              >
+                <Select options={[]} placeholder="No sub-agent" />
+              </QuickAdd>
+            </Field>
+          </FormRow>
         </div>
       </Block>
 

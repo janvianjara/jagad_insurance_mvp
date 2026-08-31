@@ -110,6 +110,12 @@ export type QueueBulkAction<Row extends RowData> = {
  * cannot filter, sort, page or select — those belong to the person, through the
  * URL — and it is given no access to the rows.
  */
+/** What a row action may do to the list it sits in. */
+export type QueueRowControls = {
+  /** Re-read the current page. Call after a write that removes or changes the row. */
+  readonly reload: () => void
+}
+
 export type QueueDrawerControls = {
   /** Re-read the current page. Call after a write that changes what a row is. */
   readonly reload: () => void
@@ -138,6 +144,20 @@ type QueueRowsToRoute<Row extends RowData> = {
 export type QueueRowTarget<Row extends RowData> = QueueRowsToDrawer<Row> | QueueRowsToRoute<Row>
 
 type QueueBase<Row extends RowData> = {
+  /**
+   * Per-row actions, rendered in a trailing column.
+   *
+   * Deliberately narrow. A queue's job is to show what needs a person and hand
+   * them to the record, so anything that opens a form or asks a question belongs
+   * on the record. What earns a place here is the act that removes a row from
+   * the very list you are looking at: making somebody open a record to discard
+   * it means opening one record per duplicate, and the whole reason the row is
+   * in front of them is that it should not be.
+   *
+   * The cell stops its own clicks, so pressing a row action never also follows
+   * the row to its record.
+   */
+  readonly rowActions?: (row: Row, queue: QueueRowControls) => ReactNode
   /** Stable name for this queue. Used in labels and as the table's accessible name. */
   readonly key: string
   readonly title: string

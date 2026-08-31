@@ -1,4 +1,6 @@
 .root {
+  /* The containing block for `.labelHidden`, which is taken out of flow. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--sp-3);
@@ -63,8 +65,12 @@
   font-size: var(--text-sm);
 }
 
+/* Pinned to the control's own corner rather than left at a static position
+   against the document, so it travels with the column it sits in. */
 .labelHidden {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

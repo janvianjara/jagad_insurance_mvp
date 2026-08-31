@@ -18,6 +18,7 @@ import type { Repositories } from '../repo'
 import { createAutomationRepositories } from './automation'
 import { createCatalogueRepositories } from './catalogue'
 import { createContractRepositories } from './contract'
+import { createErasureRepositories } from './erasure'
 import { createLatency, DEFAULT_LATENCY } from './latency'
 import type { Latency, LatencyOptions, LatencyProfile } from './latency'
 import { createPipelineRepositories } from './pipeline'
@@ -25,6 +26,7 @@ import { createServicingRepositories } from './servicing'
 import { createMockStore } from './store'
 import type { MockStore, MockStoreOptions } from './store'
 
+export * from './correction'
 export * from './latency'
 export * from './list'
 export * from './move'
@@ -62,6 +64,16 @@ export function createMockRepositories(
     activities: contract.activities,
   })
   const servicing = createServicingRepositories(deps)
+  const erasure = createErasureRepositories(deps)
 
-  return { ...automation, ...catalogue, ...pipeline, ...contract, ...servicing, store, latency }
+  return {
+    ...automation,
+    ...catalogue,
+    ...pipeline,
+    ...contract,
+    ...servicing,
+    ...erasure,
+    store,
+    latency,
+  }
 }

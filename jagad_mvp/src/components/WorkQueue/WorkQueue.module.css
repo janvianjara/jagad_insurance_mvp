@@ -54,3 +54,16 @@
   padding: 0;
   background: transparent;
 }
+
+/* The trailing row-action cell. Right-aligned and quiet: it is a way out of the
+   list, not the thing the list is for. */
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+}
+
+.actionsHead {
+  display: block;
+  text-align: right;
+}

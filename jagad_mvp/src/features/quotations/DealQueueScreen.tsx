@@ -36,6 +36,8 @@ export function DealQueueScreen() {
     customers: context.data.customers,
     users: context.data.users,
     now: new Date(),
+    actorId: user.id,
+    discard: (id, command) => repositories.deals.discard(id, command),
   })
 
   return <WorkQueue config={config} />

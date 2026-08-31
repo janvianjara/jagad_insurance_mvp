@@ -579,88 +579,91 @@ export function AssistantConversation({
           sit in.
         */}
         <div className={styles.ask}>
-          <section aria-labelledby={askHeadingId}>
-            <h2 id={askHeadingId} className={styles.askTitle}>
-              {lastAnswered ? 'What usually follows' : 'Ask about your queue'}
-            </h2>
+          <div className={styles.askInner}>
+            <section aria-labelledby={askHeadingId}>
+              <h2 id={askHeadingId} className={styles.askTitle}>
+                {lastAnswered ? 'What usually follows' : 'Ask about your queue'}
+              </h2>
 
-            <div className={styles.chips} role="group" aria-label="Suggested questions">
-              {offered.map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className={styles.chip}
-                  data-kind={card.kind}
-                  onClick={() => {
-                    void run(card)
-                  }}
+              <div className={styles.chips} role="group" aria-label="Suggested questions">
+                {offered.map((card) => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    className={styles.chip}
+                    data-kind={card.kind}
+                    onClick={() => {
+                      void run(card)
+                    }}
+                    disabled={!session.enabled}
+                  >
+                    <span>{card.label}</span>
+                    {/*
+                      The prototype tags a chip with the kind of request it is
+                      about to make and hides the tag on a plain read (`.chip.read
+                      .mt {display:none}`) — so the tag means "this one is not just
+                      a look-up" rather than being a label on everything.
+                    */}
+                    {card.kind === REQUEST_KINDS.ask ? null : (
+                      <span className={styles.chipKind}>{card.kind}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <form
+              className={styles.composer}
+              onSubmit={(event) => {
+                event.preventDefault()
+                void send()
+              }}
+            >
+              <label className={styles.composerLabel} htmlFor={composerId}>
+                Ask a question
+              </label>
+              <div className={styles.box}>
+                <input
+                  id={composerId}
+                  className={styles.input}
+                  value={typed}
+                  onChange={(event) => setTyped(event.target.value)}
+                  placeholder="Ask, or describe what you want done"
+                  autoComplete="off"
                   disabled={!session.enabled}
+                />
+                <button
+                  type="submit"
+                  className={styles.send}
+                  aria-label="Send"
+                  disabled={!session.enabled || typed.trim().length === 0}
                 >
-                  <span>{card.label}</span>
-                  {/*
-                    The prototype tags a chip with the kind of request it is
-                    about to make and hides the tag on a plain read (`.chip.read
-                    .mt {display:none}`) — so the tag means "this one is not just
-                    a look-up" rather than being a label on everything.
-                  */}
-                  {card.kind === REQUEST_KINDS.ask ? null : (
-                    <span className={styles.chipKind}>{card.kind}</span>
-                  )}
+                  <Icon name="upload" size="sm" />
                 </button>
-              ))}
-            </div>
-          </section>
+              </div>
+            </form>
 
-          <form
-            className={styles.composer}
-            onSubmit={(event) => {
-              event.preventDefault()
-              void send()
-            }}
-          >
-            <label className={styles.composerLabel} htmlFor={composerId}>
-              Ask a question
-            </label>
-            <div className={styles.box}>
-              <input
-                id={composerId}
-                className={styles.input}
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-                placeholder="Ask, or describe what you want done"
-                autoComplete="off"
-                disabled={!session.enabled}
-              />
-              <button
-                type="submit"
-                className={styles.send}
-                aria-label="Send"
-                disabled={!session.enabled || typed.trim().length === 0}
-              >
-                <Icon name="upload" size="sm" />
-              </button>
-            </div>
-          </form>
-
-          {/*
-            One line, and the last thing on the screen. It used to be three, and
-            a third of it explained what a typed question would do — which the
-            composer above now demonstrates by doing it. What is left is the part
-            no behaviour can show: that nothing here is stored, and that nothing
-            here works out an amount (FR-22.5).
-          */}
-          <p className={styles.askNote}>
-            Every suggestion runs a live query over the records this account can see. Nothing here is
-            a stored answer, and nothing here works out a premium, a settlement or a refund.
-            {capabilitiesTo ? (
-              <>
-                {' '}
-                <Link className={styles.askLink} to={capabilitiesTo}>
-                  What it will and will not do
-                </Link>
-              </>
-            ) : null}
-          </p>
+            {/*
+              One line, and the last thing on the screen. It carries the part no
+              behaviour can show: that nothing here is stored, that nothing here
+              works out an amount (FR-22.5), and how long a conversation lasts —
+              the last of those said here rather than in an empty thread list,
+              because it is true on the first visit and the list is not there yet.
+            */}
+            <p className={styles.askNote}>
+              Every suggestion runs a live query over the records this account can see. Nothing here
+              is a stored answer, nothing here works out a premium, a settlement or a refund, and the
+              conversation lasts as long as this browser session.
+              {capabilitiesTo ? (
+                <>
+                  {' '}
+                  <Link className={styles.askLink} to={capabilitiesTo}>
+                    What it will and will not do
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          </div>
         </div>
       </div>
 

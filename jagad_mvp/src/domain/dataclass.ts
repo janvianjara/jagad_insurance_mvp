@@ -172,6 +172,13 @@ export const FIELD_CLASSES = {
     contactMobile: 'contact',
     contactEmail: 'contact',
     notes: 'contact',
+    /*
+     * The discard mark — FR-20.2. `contact` rather than `operational` because
+     * the mark carries the note a staff member typed when they discarded the
+     * row, and a note explaining a duplicate routinely names the person it
+     * duplicates.
+     */
+    discard: 'contact',
   },
 
   Quotation: {
@@ -196,6 +203,13 @@ export const FIELD_CLASSES = {
     lostReason: 'operational',
     createdAt: 'operational',
     documentId: 'document-content',
+    /*
+     * The discard mark — FR-20.2. `contact` rather than `operational` because
+     * the mark carries the note a staff member typed when they discarded the
+     * row, and a note explaining a duplicate routinely names the person it
+     * duplicates.
+     */
+    discard: 'contact',
   },
 
   Deal: {
@@ -215,6 +229,13 @@ export const FIELD_CLASSES = {
     salesCreditSource: 'operational',
     createdAt: 'operational',
     consumedByPolicyId: 'operational',
+    /*
+     * The discard mark — FR-20.2. `contact` rather than `operational` because
+     * the mark carries the note a staff member typed when they discarded the
+     * row, and a note explaining a duplicate routinely names the person it
+     * duplicates.
+     */
+    discard: 'contact',
   },
 } as const satisfies Record<string, Record<string, DataClass>>
 

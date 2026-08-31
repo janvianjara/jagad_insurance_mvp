@@ -5,8 +5,9 @@ import { useSessionStore } from '../../app/store'
 import { ConfirmGate } from '../../components/guardrails'
 import type { Company, OcrTemplate } from '../../data/repo'
 import { Button } from '../../ui/Button'
-import { Field, Input, Select } from '../../ui/form'
+import { Field, Input, QuickAdd, Select } from '../../ui/form'
 import { Modal, useToaster } from '../../ui/surface'
+import { CompanyQuickAdd, useMarketStore } from '../config/shared'
 import styles from './Notices.module.css'
 
 export type UploadNoticesDialogProps = {
@@ -30,6 +31,18 @@ export function UploadNoticesDialog({ companies, templates, onUploaded }: Upload
   const toaster = useToaster()
   const user = useSessionStore((state) => state.user)
 
+  /*
+   * Insurers added to the panel during this session live in the configuration
+   * store until a write API lands, so the picker reads both and dedupes on id —
+   * the store hydrated from these same repositories.
+   */
+  const sessionCompanies = useMarketStore((state) => state.companies)
+  const known = new Set(companies.map((row) => row.id))
+  const panel = [
+    ...companies.map((row) => ({ id: row.id, name: row.name })),
+    ...sessionCompanies.filter((row) => !known.has(row.id)).map((row) => ({ id: row.id, name: row.name })),
+  ]
+
   const [open, setOpen] = useState(false)
   const [companyId, setCompanyId] = useState('')
   const [fileName, setFileName] = useState('')
@@ -39,7 +52,7 @@ export function UploadNoticesDialog({ companies, templates, onUploaded }: Upload
   const template =
     templates.find((row) => row.companyId === companyId && row.docType === 'renewal_notice' && row.active) ??
     null
-  const company = companies.find((row) => row.id === companyId) ?? null
+  const company = panel.find((row) => row.id === companyId) ?? null
   const ready = user !== null && company !== null && fileName.trim() !== '' && expiryMonth !== ''
 
   function close() {
@@ -84,12 +97,25 @@ export function UploadNoticesDialog({ companies, templates, onUploaded }: Upload
       >
         <div className={styles.uploadForm}>
           <Field label="Insurer" required>
-            <Select
-              value={companyId}
-              placeholder="Which company sent it"
-              options={companies.map((row) => ({ value: row.id, label: row.name }))}
-              onChange={(event) => setCompanyId(event.target.value)}
-            />
+            <QuickAdd
+              label="New company"
+              form={(dismiss) => (
+                <CompanyQuickAdd
+                  onCancel={dismiss}
+                  onCreated={(created) => {
+                    setCompanyId(created.id)
+                    dismiss()
+                  }}
+                />
+              )}
+            >
+              <Select
+                value={companyId}
+                placeholder="Which company sent it"
+                options={panel.map((row) => ({ value: row.id, label: row.name }))}
+                onChange={(event) => setCompanyId(event.target.value)}
+              />
+            </QuickAdd>
           </Field>
 
           <Field

@@ -14,6 +14,8 @@
 /* Columns grow with the number of products, so the grid scrolls rather than
    squeezing a benefit value into three characters. */
 .scroll {
+  /* The containing block for the table's caption - see `.tableCaption`. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -30,6 +32,8 @@
 /* Named for a screen reader, not printed twice above the grid. */
 .tableCaption {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   inline-size: 1px;
   block-size: 1px;
   padding: 0;

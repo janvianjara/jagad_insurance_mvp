@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router'
 import { AssistantConversation } from './AssistantConversation'
 import { CapabilitiesView } from './capabilities/CapabilitiesView'
 import { RecentThreads } from './thread/RecentThreads'
-import { newThreadId } from './thread/thread-store'
+import { newThreadId, useThreadsStore } from './thread/thread-store'
 
 /**
  * `/assistant` — the landing view for every role that holds the grant (D-G).
@@ -47,6 +47,14 @@ const CAPABILITIES = 'capabilities'
 export default function AssistantScreen() {
   const [params] = useSearchParams()
   const [threadId, setThreadId] = useState(newThreadId)
+  /*
+   * The column beside the feed exists once there is a conversation to list. An
+   * empty one is a sixth of the landing screen spent telling somebody that the
+   * thing they have not done yet will appear here when they do it, and it is
+   * the first thing they see. Asked something, the list appears beside the
+   * exchange and the conversation narrows to make room for it.
+   */
+  const listed = useThreadsStore((state) => state.order.length > 0)
 
   if (params.get(VIEW_PARAM) === CAPABILITIES) {
     return <CapabilitiesView backTo="/assistant" />
@@ -56,7 +64,7 @@ export default function AssistantScreen() {
     <AssistantConversation
       threadId={threadId}
       withHeader
-      aside={<RecentThreads currentThreadId={threadId} />}
+      {...(listed ? { aside: <RecentThreads currentThreadId={threadId} /> } : {})}
       capabilitiesTo={`/assistant?${VIEW_PARAM}=${CAPABILITIES}`}
       onRestart={() => setThreadId(newThreadId())}
     />

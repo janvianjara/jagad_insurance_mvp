@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { reasonOf } from '../../../domain/workflows'
 import { Button } from '../../../ui/Button'
-import { Field, Input, NumberInput, Select } from '../../../ui/form'
+import { Field, Input, NumberInput, QuickAdd, Select } from '../../../ui/form'
 import { Modal, useToaster } from '../../../ui/surface'
-import { bpFromPercent, nextAgentCode, percentFromBp, useMarketStore } from '../shared'
+import {
+  AgencyQuickAdd,
+  AgentQuickAdd,
+  bpFromPercent,
+  nextAgentCode,
+  percentFromBp,
+  useMarketStore,
+} from '../shared'
 import layout from '../shared/config-layout.module.css'
 import styles from '../shared/market-panels.module.css'
 
@@ -99,24 +106,53 @@ export function NewAgentDialog() {
           </Field>
 
           <Field label="Agency" required>
-            <Select
-              value={agencyId}
-              placeholder="Choose an agency"
-              options={agencies.map((agency) => ({ value: agency.id, label: agency.name }))}
-              onChange={(event) => setAgencyId(event.target.value)}
-            />
+            <QuickAdd
+              label="New agency"
+              form={(dismiss) => (
+                <AgencyQuickAdd
+                  onCancel={dismiss}
+                  onCreated={(agency) => {
+                    setAgencyId(agency.id)
+                    dismiss()
+                  }}
+                />
+              )}
+            >
+              <Select
+                value={agencyId}
+                placeholder="Choose an agency"
+                options={agencies.map((agency) => ({ value: agency.id, label: agency.name }))}
+                onChange={(event) => setAgencyId(event.target.value)}
+              />
+            </QuickAdd>
           </Field>
 
           <Field
             label="Reports to"
             hint="Only agents granted sub-agents are offered. Empty means this is an agent in their own right."
           >
-            <Select
-              value={parentAgentId}
-              placeholder="Nobody"
-              options={possibleParents.map((agent) => ({ value: agent.id, label: agent.name }))}
-              onChange={(event) => setParentAgentId(event.target.value)}
-            />
+            <QuickAdd
+              label="New agent to report to"
+              form={(dismiss) => (
+                <AgentQuickAdd
+                  // Made in order to have a team, so it is made with one.
+                  grantSubAgents
+                  onCancel={dismiss}
+                  onCreated={(agent) => {
+                    setParentAgentId(agent.id)
+                    setAgencyId(agent.agencyId)
+                    dismiss()
+                  }}
+                />
+              )}
+            >
+              <Select
+                value={parentAgentId}
+                placeholder="Nobody"
+                options={possibleParents.map((agent) => ({ value: agent.id, label: agent.name }))}
+                onChange={(event) => setParentAgentId(event.target.value)}
+              />
+            </QuickAdd>
           </Field>
 
           <Field label="Own percentage" required>

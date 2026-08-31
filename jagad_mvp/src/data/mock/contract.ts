@@ -59,6 +59,7 @@ import { notFound, rejected } from '../repo/result'
 import type { MutationResult } from '../repo/result'
 import { runQuery } from './list'
 import type { Latency } from './latency'
+import { amendRecord } from './correction'
 import { append, create, move, record } from './move'
 import { rowsOf } from './store'
 import type { MockStore } from './store'
@@ -503,6 +504,31 @@ export function createContractRepositories(deps: ContractDeps): {
     async lock(id, command) {
       await wait()
       return step(id, 'locked', command)
+    },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({
+        store,
+        table: t.policies,
+        entity: 'Policy',
+        id,
+        command,
+        /*
+         * D3's line, read off the record rather than passed in.
+         *
+         * Four states mean the insurer has not issued: the policy is still being
+         * drafted, the proposal is being prepared, it has gone out, or it came
+         * back declined. In every one of those the premium on the record is data
+         * entry and a typo in it is correctable. Everything from `issued`
+         * onwards is a contract, and its figures change through an endorsement.
+         */
+        issuedOf: (row) =>
+          row.status !== 'draft' &&
+          row.status !== 'proposal' &&
+          row.status !== 'sent' &&
+          row.status !== 'declined',
+      })
     },
   }
 
@@ -1047,6 +1073,24 @@ export function createContractRepositories(deps: ContractDeps): {
           companyRemark: command.companyRemark ?? row.companyRemark,
           documentsCollected: command.documentsCollected ?? row.documentsCollected,
         }),
+      })
+    },
+
+    async amend(id, command) {
+      await wait()
+      return amendRecord({
+        store,
+        table: t.claims,
+        entity: 'Claim',
+        id,
+        command,
+        /*
+         * A claim exists because a policy was issued, so its own record is
+         * always past the point where a figure could be corrected. Nothing in
+         * `AMEND_POLICIES.Claim` is an amount, and this keeps it that way if one
+         * is ever added by mistake.
+         */
+        issuedOf: () => true,
       })
     },
   }

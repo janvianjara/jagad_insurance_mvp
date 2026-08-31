@@ -7,7 +7,10 @@
  */
 
 import type { Customer, Deal, ListQuery, Page, Quotation, StaffUser } from '../../data/repo'
-import type { QueueConfig } from '../../components/WorkQueue'
+import type { QueueConfig, QueueRowControls } from '../../components/WorkQueue'
+import { DISCARDED_FILTER, RowDiscardAction, discardBulkAction } from '../../components/RecordCorrection'
+import type { DiscardReason } from '../../domain/amend'
+import type { MutationResult } from '../../data/repo'
 import { dataTableColumns } from '../../ui/data'
 import { StatusPill } from '../../ui/signal'
 import { Money as AmountText, RecordId, RelativeTime } from '../../ui/type'
@@ -27,12 +30,22 @@ export type QuotationQueueDeps = {
   readonly customers: readonly Customer[]
   readonly users: readonly StaffUser[]
   readonly now: Date
+  readonly actorId?: string
+  /**
+   * Removal from the list. Optional, and its absence is the control: a caller
+   * that cannot write - the gallery, a read-only harness - simply leaves it out
+   * and the queue offers no discard rather than offering one that refuses.
+   */
+  readonly discard?: (
+    id: string,
+    command: { readonly reason: DiscardReason; readonly actorId: string },
+  ) => Promise<MutationResult<Quotation>>
 }
 
 const quotationColumn = dataTableColumns<Quotation>()
 
 export function quotationQueueConfig(deps: QuotationQueueDeps): QueueConfig<Quotation> {
-  const { load, customers, users, now } = deps
+  const { load, customers, users, now, actorId, discard } = deps
   const customerName = (id: string) =>
     customers.find((customer) => customer.id === id)?.fullName ?? id
 
@@ -106,7 +119,32 @@ export function quotationQueueConfig(deps: QuotationQueueDeps): QueueConfig<Quot
           .filter((user) => user.active)
           .map((user) => ({ value: user.id, label: user.name })),
       },
+      // The queues hide a discarded row by default, so this is the way back to
+      // one. It lives in the URL like every other filter, so the view survives a
+      // reload and can be handed to somebody else.
+      DISCARDED_FILTER,
     ],
+    ...(discard && actorId
+      ? {
+          rowActions: (row: Quotation, queue: QueueRowControls) => (
+            <RowDiscardAction
+              entity="Quotation"
+              subject={row.systemNo}
+              actorId={actorId}
+              onDiscard={(command) => discard(row.id, command)}
+              onDiscarded={queue.reload}
+            />
+          ),
+          bulkActions: [
+            discardBulkAction<Quotation>({
+              noun: 'quotation',
+              plural: 'quotations',
+              actorId,
+              discard,
+            }),
+          ],
+        }
+      : {}),
     sortable: ['createdAt', 'systemNo', 'version'],
     defaultSort: { field: 'createdAt', direction: 'desc' },
     searchPlaceholder: 'Quotation reference',
@@ -127,12 +165,22 @@ export type DealQueueDeps = {
   readonly customers: readonly Customer[]
   readonly users: readonly StaffUser[]
   readonly now: Date
+  readonly actorId?: string
+  /**
+   * Removal from the list. Optional, and its absence is the control: a caller
+   * that cannot write - the gallery, a read-only harness - simply leaves it out
+   * and the queue offers no discard rather than offering one that refuses.
+   */
+  readonly discard?: (
+    id: string,
+    command: { readonly reason: DiscardReason; readonly actorId: string },
+  ) => Promise<MutationResult<Deal>>
 }
 
 const dealColumn = dataTableColumns<Deal>()
 
 export function dealQueueConfig(deps: DealQueueDeps): QueueConfig<Deal> {
-  const { load, customers, users, now } = deps
+  const { load, customers, users, now, actorId, discard } = deps
   const customerName = (id: string) =>
     customers.find((customer) => customer.id === id)?.fullName ?? id
 
@@ -185,7 +233,29 @@ export function dealQueueConfig(deps: DealQueueDeps): QueueConfig<Deal> {
         label: 'Status',
         options: Object.entries(DEAL_LABEL).map(([value, label]) => ({ value, label })),
       },
+      DISCARDED_FILTER,
     ],
+    ...(discard && actorId
+      ? {
+          rowActions: (row: Deal, queue: QueueRowControls) => (
+            <RowDiscardAction
+              entity="Deal"
+              subject={row.systemNo}
+              actorId={actorId}
+              onDiscard={(command) => discard(row.id, command)}
+              onDiscarded={queue.reload}
+            />
+          ),
+          bulkActions: [
+            discardBulkAction<Deal>({
+              noun: 'deal',
+              plural: 'deals',
+              actorId,
+              discard,
+            }),
+          ],
+        }
+      : {}),
     sortable: ['createdAt', 'systemNo'],
     defaultSort: { field: 'createdAt', direction: 'desc' },
     searchPlaceholder: 'Application number',
