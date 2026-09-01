@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { PageHeader } from '../../components/AppShell'
@@ -178,7 +178,7 @@ export function QuotationNewScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/quotations">Quotations</Link>}
+        backTo={{ to: '/quotations', label: 'Quotations' }}
         title="New quotation"
       />
 
@@ -193,7 +193,6 @@ export function QuotationNewScreen() {
         {requirement === null ? null : (
           <Panel
             title="What they said they need"
-            description="Captured on the inquiry. This is the conversation the composer used to assume you remembered."
           >
             <dl className={styles.requirement}>
               {answeredRequirement(requirement).map((row) => (
@@ -208,7 +207,6 @@ export function QuotationNewScreen() {
 
         <Panel
           title="Customer"
-          description="Somebody already on the books, or a new record started here."
         >
           <Field label="Customer" required>
             <Combobox
@@ -282,7 +280,6 @@ export function QuotationNewScreen() {
 
         <Panel
           title="Policies to compare"
-          description="One column per company and product. Pick as many as the customer is being shown."
           actions={
             <Field label="Line" className={styles.lineField}>
               <Select

@@ -474,3 +474,30 @@ describe('FileDrop', () => {
     expect(onFiles).not.toHaveBeenCalled()
   })
 })
+
+describe('FileDrop states what it accepts', () => {
+  /*
+   * The browser enforces `accept` by dimming every other file in the picker and
+   * explaining nothing. A person whose folder held no PDF opened the dialog,
+   * found everything grey, and reported the upload as having "no way to add
+   * files" — nothing was broken, the field simply never said what it wanted.
+   */
+  it('derives the terms from the accept attribute', () => {
+    render(<FileDrop accept="application/pdf,image/*" />)
+
+    expect(screen.getByText('PDF or image')).toBeInTheDocument()
+  })
+
+  it('lets an explicit hint win over the derived one', () => {
+    render(<FileDrop accept="application/pdf" hint="The insurer's own schedule" />)
+
+    expect(screen.getByText("The insurer's own schedule")).toBeInTheDocument()
+    expect(screen.queryByText('PDF only')).not.toBeInTheDocument()
+  })
+
+  it('says nothing when the field takes anything', () => {
+    const { container } = render(<FileDrop />)
+
+    expect(container.textContent).not.toMatch(/only|or image/)
+  })
+})

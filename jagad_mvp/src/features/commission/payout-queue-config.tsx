@@ -156,6 +156,8 @@ export function payoutQueueConfig(deps: PayoutQueueDeps): QueueConfig<PayoutRow>
     column.accessor('gst', {
       header: 'GST',
       enableSorting: false,
+      // Never folded away for being constant: constant IS the disclosure here.
+      meta: { alwaysShow: true },
       cell: ({ row }) => (
         <span className={styles.numeric}>
           <Money paise={row.original.gst?.paise ?? null} symbol={false} absentText="not recorded" />

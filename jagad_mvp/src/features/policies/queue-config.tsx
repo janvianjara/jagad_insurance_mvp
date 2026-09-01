@@ -152,22 +152,39 @@ export function policyQueueConfig(deps: PolicyQueueDeps): QueueConfig<Policy> {
       },
       {
         key: 'companyId',
+        advanced: true,
         label: 'Company',
         options: companies.map((company) => ({ value: company.id, label: company.name })),
       },
       {
         key: 'premiumMode',
+        advanced: true,
         label: 'Premium mode',
         options: Object.entries(PREMIUM_MODE_LABEL).map(([value, label]) => ({ value, label })),
       },
       {
         key: 'paymentState',
+        advanced: true,
         label: 'Payment',
         options: Object.entries(PAYMENT_LABEL).map(([value, label]) => ({ value, label })),
       },
     ],
     sortable: ['systemNo', 'startDate', 'expiryDate'],
-    defaultSort: { field: 'expiryDate', direction: 'asc' },
+    /*
+     * The book, most recently written first.
+     *
+     * This used to be `expiryDate asc`, which sounds like "renewals soonest" and
+     * is not what it does: a draft has no expiry, `compare` sorts null ahead of
+     * every date, and the register therefore opened on twenty-five unissued
+     * drafts — every one of them reading `insurer no. awaited`, `Unpaid` and
+     * `no expiry recorded`, so four of the eight columns carried no information
+     * at all. The one screen called "Policies" showed no policy.
+     *
+     * `startDate desc` reverses the null rule with it, so entries that are not
+     * yet policies fall to the back where they belong. Renewal urgency is the
+     * renewals queue's job, and it has one.
+     */
+    defaultSort: { field: 'startDate', direction: 'desc' },
     searchPlaceholder: "Our number or the insurer's",
     stripeMapping: (row) => policySeverity(row, now),
     load: (query: ListQuery) => desk.list(query),

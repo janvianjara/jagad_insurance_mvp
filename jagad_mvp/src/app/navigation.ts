@@ -356,22 +356,23 @@ export const NAVIGATION: Readonly<Record<StarterTemplateKey, RoleNav>> = {
         label: 'Records',
         items: [{ ...DOCUMENTS, count: documentsToReview, countLabel: 'documents to review' }],
       },
+      /*
+       * One item, where twelve used to be.
+       *
+       * The twelve configuration screens still exist and still have their own
+       * addresses; what changed is that the rail no longer spends half its
+       * height listing them. It had twenty-six items, and at 1440x900 it ran out
+       * of viewport at Commission — so every configuration screen sat below a
+       * fold with no affordance saying anything was down there, and the rail's
+       * own account footer covered the cut.
+       *
+       * `/config` indexes them, the way `/back-office` indexes its six queues.
+       */
       {
         key: 'configuration',
         label: 'Configuration',
         items: [
-          { key: 'config-users', label: 'Users', to: '/config/users', icon: 'users', resource: 'config' },
-          { key: 'config-masters', label: 'Masters', to: '/config/masters', icon: 'folder', resource: 'config' },
-          { key: 'config-companies', label: 'Companies', to: '/config/companies', icon: 'building', resource: 'config' },
-          { key: 'config-products', label: 'Products', to: '/config/products', icon: 'book', resource: 'config' },
-          { key: 'config-benefits', label: 'Benefits', to: '/config/benefits', icon: 'grid', resource: 'config' },
-          { key: 'config-agencies', label: 'Agencies', to: '/config/agencies', icon: 'building', resource: 'config' },
-          { key: 'config-agents', label: 'Agents', to: '/config/agents', icon: 'users', resource: 'config' },
-          { key: 'config-forms', label: 'Forms', to: '/config/forms', icon: 'edit', resource: 'config' },
-          { key: 'config-templates', label: 'Templates', to: '/config/templates', icon: 'msg', resource: 'config' },
-          { key: 'config-integrations', label: 'Integrations', to: '/config/integrations', icon: 'plug', resource: 'config' },
-          { key: 'config-automation', label: 'Automation', to: '/config/automation', icon: 'spark', resource: 'config' },
-          { key: 'config-compliance', label: 'Compliance', to: '/config/compliance', icon: 'lock', resource: 'config' },
+          { key: 'config', label: 'Settings', to: '/config', icon: 'grid', resource: 'config', end: true },
         ],
       },
     ],

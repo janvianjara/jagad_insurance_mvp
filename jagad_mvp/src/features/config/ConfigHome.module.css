@@ -1,0 +1,90 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The gutter lives here so the list below can centre itself against the
+     column rather than being pinned to the left edge of it. */
+  padding-inline: var(--page-gutter-x);
+}
+
+/* Rows, not cards. The product shows records in rows and twelve links are not a
+   reason to introduce a second visual language. */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /*
+   * Centred, not left-aligned.
+   *
+   * A 78ch list pinned to the left gutter of a 1600px column leaves half the
+   * screen empty to its right and reads as a page that failed to finish
+   * laying itself out. Twelve rows of settings are a document, and a document
+   * sits in the middle of its column.
+   */
+  width: 100%;
+  max-width: var(--measure-wide);
+  margin-inline: auto;
+  margin-block: var(--page-gutter-top) var(--page-gutter-bottom);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  color: inherit;
+  text-decoration: none;
+  border-top: 1px solid var(--hair);
+}
+
+.list > li:first-child .row {
+  border-top: none;
+}
+
+.row:hover {
+  background: var(--surface);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.icon {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.holds {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.go {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+.row:hover .go {
+  color: var(--action);
+}

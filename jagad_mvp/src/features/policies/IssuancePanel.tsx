@@ -335,7 +335,6 @@ export function IssuancePanel({
     <div className={[styles.panel, className].filter(Boolean).join(' ')} data-issuance={record.id}>
       <Panel
         title="This policy"
-        description="Both numbers, always. The insurer's arrives with their document and is awaited until it does."
       >
         <div className={styles.standing}>
           <RecordId systemNo={record.systemNo} insurerNo={record.insurerNo} layout="stacked" />
@@ -373,7 +372,6 @@ export function IssuancePanel({
       {attached ? (
         <Panel
           title="What the document says — confirm each value"
-          description="Read by the extractor, vouched for by a person. Editing a value withdraws the confirmation, and the original read is kept either way."
         >
           {extractions.length === 0 ? (
             <p className={styles.note}>{extractorNote(record, product)}</p>

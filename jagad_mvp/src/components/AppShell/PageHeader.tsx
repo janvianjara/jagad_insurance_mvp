@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
+import { Icon } from '../../ui/Icon'
 import styles from './PageHeader.module.css'
 
 export type PageHeaderProps = {
@@ -10,6 +12,19 @@ export type PageHeaderProps = {
   actions?: ReactNode
   /** Where this screen sits, for anything more than one level deep. */
   breadcrumb?: ReactNode
+  /**
+   * The way out of a record, back to the list it came from.
+   *
+   * Give it a path and a name — `{ to: '/claims', label: 'Claims' }` — and the
+   * header draws the one back control the whole product uses.
+   *
+   * It exists because the product had none. Seven detail screens passed a bare
+   * link as `breadcrumb`, which rendered as small grey text in the top corner
+   * and read as a label rather than as a control; `/policies/:id` passed nothing
+   * at all. The browser button worked and nothing on the page did, which is the
+   * kind of gap people report as "there is no back button" — correctly.
+   */
+  backTo?: { to: string; label: string }
 }
 
 /**
@@ -20,9 +35,15 @@ export type PageHeaderProps = {
  * previous screen's title on every navigation, and it makes the title impossible
  * to read off the component you are looking at.
  */
-export function PageHeader({ title, meta, actions, breadcrumb }: PageHeaderProps) {
+export function PageHeader({ title, meta, actions, breadcrumb, backTo }: PageHeaderProps) {
   return (
     <header className={styles.header}>
+      {backTo ? (
+        <Link className={styles.back} to={backTo.to}>
+          <Icon name="chevron-left" size="sm" />
+          {backTo.label}
+        </Link>
+      ) : null}
       {breadcrumb ? <nav className={styles.breadcrumb}>{breadcrumb}</nav> : null}
       <div className={styles.row}>
         <div className={styles.heading}>

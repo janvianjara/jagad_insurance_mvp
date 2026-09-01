@@ -224,7 +224,7 @@ export function EndorsementCaptureScreen() {
     <>
       <PageHeader
         title="New endorsement"
-        breadcrumb={<Link to="/endorsements">Endorsements</Link>}
+        backTo={{ to: '/endorsements', label: 'Endorsements' }}
         actions={
           <Button variant="quiet" onClick={() => void navigate('/endorsements')}>
             Cancel
@@ -235,7 +235,6 @@ export function EndorsementCaptureScreen() {
       <div className={styles.page}>
         <FormSection
           title="What is being endorsed"
-          description="An endorsement changes a policy already in force. Pick the policy first — everything below reshapes around the kind of change it is."
         >
           <FormRow columns={2}>
             <Field label="Policy" required>
@@ -300,7 +299,6 @@ export function EndorsementCaptureScreen() {
 
           <Checkbox
             label="This change swaps the insured person or asset outright"
-            description="A different person, a different vehicle, a different property. Tick it if it is true — the answer decides whether this can be an endorsement at all."
             checked={replacesInsuredEntity}
             onChange={(event) => setReplacesInsuredEntity(event.target.checked)}
           />

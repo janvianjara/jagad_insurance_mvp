@@ -32,6 +32,7 @@ export const ICON_NAMES = [
   // rule is that a mark comes from this sprite rather than from a glyph.
   'chevron-down',
   'chevron-right',
+  'chevron-left',
   'close',
   'search',
   'calendar',

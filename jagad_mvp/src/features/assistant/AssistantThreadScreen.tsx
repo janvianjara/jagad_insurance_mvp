@@ -52,7 +52,7 @@ export default function AssistantThreadScreen() {
       <>
         <PageHeader
           title="Conversation"
-          breadcrumb={<Link to="/assistant">Assistant</Link>}
+          backTo={{ to: '/assistant', label: 'Assistant' }}
           meta={<span>Not in this session</span>}
         />
         <div className={styles.missing}>
@@ -75,7 +75,7 @@ export default function AssistantThreadScreen() {
       threadId={threadId}
       withHeader
       headerTitle="Conversation"
-      breadcrumb={<Link to="/assistant">Assistant</Link>}
+      backTo={{ to: '/assistant', label: 'Assistant' }}
       aside={<RecentThreads currentThreadId={threadId} />}
       capabilitiesTo={`${here}?${VIEW_PARAM}=${CAPABILITIES}`}
       onRestart={() => {

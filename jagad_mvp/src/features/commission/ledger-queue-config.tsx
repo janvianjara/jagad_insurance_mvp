@@ -134,6 +134,15 @@ export function ledgerQueueConfig(deps: LedgerQueueDeps): QueueConfig<LedgerLine
     column.accessor('booked', {
       header: 'Booked',
       enableSorting: false,
+      /*
+       * Stays even when every row reads the same.
+       *
+       * Computed and Booked are shown side by side precisely because the build
+       * has no commission write API, so Booked is absent on most rows — and a
+       * money column that vanishes when it is empty is a money column that hides
+       * the gap it exists to name.
+       */
+      meta: { alwaysShow: true },
       cell: ({ row }) => (
         <span className={styles.numeric}>
           <Money
@@ -149,6 +158,7 @@ export function ledgerQueueConfig(deps: LedgerQueueDeps): QueueConfig<LedgerLine
     column.accessor('reconciliation', {
       header: 'Reconciliation',
       enableSorting: false,
+      meta: { alwaysShow: true },
       cell: ({ row }) => (
         <StatusPill tone={RECONCILIATION_TONES[row.original.reconciliation]}>
           {RECONCILIATION_LABELS[row.original.reconciliation]}

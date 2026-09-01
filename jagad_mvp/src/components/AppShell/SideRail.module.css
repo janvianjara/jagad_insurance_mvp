@@ -39,8 +39,29 @@
   overscroll-behavior: contain;
   padding: var(--sp-3) var(--sp-2);
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
   align-content: start;
+
+  /*
+   * Scroll shadows, so a rail that continues below the fold says so.
+   *
+   * The admin rail has more destinations than a 900px window has room for, and
+   * it always will — that is a property of the role, not a bug to design away.
+   * What WAS a bug is that it cut off mid-item against a pinned footer with no
+   * affordance at all, which reads as a broken screen rather than a scrollable
+   * one. Nobody scrolls a list they have no reason to believe continues.
+   *
+   * The `local` gradients are painted with the content and scroll away at the
+   * ends; the `scroll` ones are painted on the frame and stay. Where a `local`
+   * layer has scrolled clear, the `scroll` layer under it shows — so the shadow
+   * appears only on the edge that actually has more behind it. CSS only: no
+   * scroll listener, no measurement, nothing to keep in sync.
+   */
+  background:
+    linear-gradient(var(--surface) 30%, transparent) top / 100% var(--sp-3) local no-repeat,
+    linear-gradient(transparent, var(--surface) 70%) bottom / 100% var(--sp-3) local no-repeat,
+    linear-gradient(var(--hair), transparent) top / 100% var(--sp-1) scroll no-repeat,
+    linear-gradient(transparent, var(--hair)) bottom / 100% var(--sp-1) scroll no-repeat;
 }
 
 .section {
@@ -66,11 +87,20 @@
   gap: 1px;
 }
 
+/*
+ * 34px, not `--row-h`.
+ *
+ * Nav items were tracking the TABLE row height, so switching the product to
+ * comfortable density made the rail taller — and the rail is the one surface
+ * whose height is fixed by the window rather than by the data. Density is about
+ * how many records fit on a screen; it has nothing to say about how tall a link
+ * to a screen should be.
+ */
 .item {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  min-height: var(--row-h);
+  min-height: 34px;
   padding-inline: var(--sp-2);
   border-radius: var(--radius-md);
   color: var(--ink-2);

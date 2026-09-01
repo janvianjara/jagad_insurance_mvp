@@ -114,6 +114,7 @@ export function AssistantConversation({
   withHeader = false,
   headerTitle = 'Assistant',
   breadcrumb,
+  backTo,
   aside,
   threadId,
   onRestart,
@@ -145,6 +146,8 @@ export function AssistantConversation({
   /** The screen's `<h1>`. Every screen in this product names itself in it. */
   headerTitle?: string
   breadcrumb?: ReactNode
+  /** Forwarded to `<PageHeader>` — the one back control the product uses. */
+  backTo?: { to: string; label: string }
   /**
    * A column beside the feed — the session's other conversations.
    *
@@ -447,6 +450,7 @@ export function AssistantConversation({
         <PageHeader
           title={headerTitle}
           {...(breadcrumb ? { breadcrumb } : {})}
+          {...(backTo ? { backTo } : {})}
           meta={
             <>
               <span className={styles.threadName}>{title}</span>
@@ -644,25 +648,26 @@ export function AssistantConversation({
             </form>
 
             {/*
-              One line, and the last thing on the screen. It carries the part no
-              behaviour can show: that nothing here is stored, that nothing here
-              works out an amount (FR-22.5), and how long a conversation lasts —
-              the last of those said here rather than in an empty thread list,
-              because it is true on the first visit and the list is not there yet.
+              The link, not the essay.
+
+              Three sentences used to sit here saying that nothing is stored,
+              that nothing works out an amount (FR-22.5) and how long a
+              conversation lasts — immediately above a link to the page whose
+              entire job is to say those things, at length and better. It was the
+              largest block of text on the landing view of every role, and it was
+              a summary of the next click.
+
+              FR-22.5 is not weakened by this: `CapabilitiesView` carries the
+              "What it will not do" section in full, and it is one click from
+              here on every screen the Assistant appears on.
             */}
-            <p className={styles.askNote}>
-              Every suggestion runs a live query over the records this account can see. Nothing here
-              is a stored answer, nothing here works out a premium, a settlement or a refund, and the
-              conversation lasts as long as this browser session.
-              {capabilitiesTo ? (
-                <>
-                  {' '}
-                  <Link className={styles.askLink} to={capabilitiesTo}>
-                    What it will and will not do
-                  </Link>
-                </>
-              ) : null}
-            </p>
+            {capabilitiesTo ? (
+              <p className={styles.askNote}>
+                <Link className={styles.askLink} to={capabilitiesTo}>
+                  What it will and will not do
+                </Link>
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

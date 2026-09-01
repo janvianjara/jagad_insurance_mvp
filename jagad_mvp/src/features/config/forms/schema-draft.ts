@@ -305,6 +305,44 @@ export function moveField(
   )
 }
 
+/**
+ * Where a dragged field lands: lifted out of the stage it was on, dropped into
+ * a stage at a position. The same function serves a reorder within one stage
+ * and a move to another, because to the schema they are one operation — the
+ * field's identity never changes, only which list holds it and where.
+ *
+ * A reserved field moves freely. Reserved-ness is about a key existing on the
+ * object, not about which step somebody meets it on: `stageRemovalRefusal`
+ * already stops the stage it sits on from being deleted, and the validator
+ * checks the schema as a whole rather than stage by stage.
+ */
+export function dropField(
+  stages: readonly FormStage[],
+  fromStageKey: string,
+  fieldKey: string,
+  toStageKey: string,
+  toIndex: number,
+): readonly FormStage[] {
+  const source = stages.find((stage) => stage.key === fromStageKey)
+  const moved = source?.fields.find((field) => field.key === fieldKey)
+  if (moved === undefined) return stages
+  if (!stages.some((stage) => stage.key === toStageKey)) return stages
+
+  const lifted = stages.map((stage) =>
+    stage.key === fromStageKey
+      ? { ...stage, fields: stage.fields.filter((field) => field.key !== fieldKey) }
+      : stage,
+  )
+
+  return lifted.map((stage) => {
+    if (stage.key !== toStageKey) return stage
+    const at = Math.max(0, Math.min(toIndex, stage.fields.length))
+    const fields = [...stage.fields]
+    fields.splice(at, 0, moved)
+    return { ...stage, fields }
+  })
+}
+
 /* ------------------------------------------------- group rows (leaves only) */
 
 export function addGroupChild(

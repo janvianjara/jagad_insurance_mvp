@@ -192,7 +192,6 @@ export function CustomerConsent({
 
       <Panel
         title="What this consent covers"
-        description="One channel is recorded against the link itself, because that is what the record holds. What each channel would carry, and what has gone out on it, is beside it."
       >
         <ul className={styles.channels} aria-label="Consent by channel">
           {standings.map((standing) => (

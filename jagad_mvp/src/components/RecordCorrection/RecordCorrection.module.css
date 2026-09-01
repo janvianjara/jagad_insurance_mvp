@@ -19,12 +19,29 @@
 
 .retention {
   margin: 0;
-  flex: 1 1 24ch;
+  /*
+   * Height from content, always.
+   *
+   * This used to read `flex: 1 1 24ch` unconditionally, which is a ROW measure:
+   * inside `.actions` it means "share the line with the Correct button, wanting
+   * about 24 characters". But the refusal branch renders this same paragraph as
+   * a direct child of `.bar`, and `.bar` is a COLUMN — so `flex-basis` resolved
+   * against the vertical axis instead and 24ch became a 173px height floor under
+   * two lines of text. That was the empty band between the notice and the tabs
+   * on every record a role may not correct.
+   *
+   * The basis now lives with the container that has a row to share.
+   */
+  flex: none;
   min-inline-size: 0;
   max-inline-size: var(--measure);
   color: var(--ink-3);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+}
+
+.actions .retention {
+  flex: 1 1 24ch;
 }
 
 /* --------------------------------------------------------- discarded banner */

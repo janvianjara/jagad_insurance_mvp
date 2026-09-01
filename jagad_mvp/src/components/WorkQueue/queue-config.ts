@@ -40,6 +40,21 @@ export type QueueFilter = {
   readonly options: readonly QueueFilterOption[]
   /** Text for the "no choice made" option. */
   readonly anyLabel?: string
+  /**
+   * Keep this one folded away until somebody asks for it.
+   *
+   * The inquiry queue declared seven controls across the top of the screen and
+   * the policy queue six, which is more chrome than most of those screens have
+   * rows above the fold — and on any given day a person narrows by one or two of
+   * them. Marking the rest `advanced` puts them a click away instead of in the
+   * way.
+   *
+   * It changes NOTHING about the URL: an advanced filter reads and writes the
+   * same search parameter it always did, so a linked view restores exactly, and
+   * `<WorkQueue>` opens the panel by itself whenever one of them is carrying a
+   * value. A filter that is doing something is never hidden.
+   */
+  readonly advanced?: boolean
 }
 
 /** What a bulk action is handed: the ticked ids, plus whichever rows are on screen. */
@@ -128,6 +143,12 @@ type QueueRowsToDrawer<Row extends RowData> = {
   readonly rowTarget: 'drawer'
   readonly drawerTitle: (row: Row) => string
   readonly drawerSubtitle?: (row: Row) => string | undefined
+  /**
+   * Opens the drawer full-bleed. For the queues whose "record" is a workspace
+   * rather than a document — the schema builder is three columns and a live
+   * preview, and 440px is not a width you can configure a form in.
+   */
+  readonly drawerMaximised?: boolean
   /**
    * `queue` is ignored by every read-only drawer, which is why it is a second
    * parameter rather than a required one: a `(row) => ReactNode` stays assignable.

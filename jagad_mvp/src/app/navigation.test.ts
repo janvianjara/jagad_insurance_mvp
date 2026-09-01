@@ -96,8 +96,23 @@ describe('permission filtering', () => {
       section.items.map((item) => item.key),
     )
 
-    expect(adminKeys).toContain('config-users')
-    expect(agentKeys).not.toContain('config-users')
+    expect(adminKeys).toContain('config')
+    expect(agentKeys).not.toContain('config')
+  })
+
+  /*
+   * The rail has to fit on the screen it is drawn on. Twenty-six items did not:
+   * at 1440x900 it cut off mid-item, and everything under Configuration was
+   * unreachable without a scroll nothing advertised.
+   *
+   * The bound is deliberately generous — this is a guard against the rail
+   * quietly growing back, not a design constraint on any one role.
+   */
+  it('keeps every role’s rail short enough to fit on one screen', () => {
+    for (const role of ROLES) {
+      const items = visibleNavigation(userFor(role)).flatMap((section) => section.items)
+      expect(items.length, `${role} rail`).toBeLessThanOrEqual(16)
+    }
   })
 })
 

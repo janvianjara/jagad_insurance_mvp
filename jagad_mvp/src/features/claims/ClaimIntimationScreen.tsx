@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { CLAIM_STATES, CLAIM_TYPES, claimMachine } from '../../domain/workflows'
@@ -170,7 +170,7 @@ export function ClaimIntimationScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/claims">Claims</Link>}
+        backTo={{ to: '/claims', label: 'Claims' }}
         title="Intimate a claim"
         meta={
           <span className={styles.meta}>

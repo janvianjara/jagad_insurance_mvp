@@ -161,7 +161,6 @@ export function Customer360Screen() {
       <>
         <Panel
           title="Household"
-          description="A floater covers a family, so the household is the unit a coverage gap is spotted on."
         >
           {household ? (
             <KeyValueList
@@ -179,8 +178,7 @@ export function Customer360Screen() {
             />
           ) : (
             <p className={styles.none}>
-              This customer is not grouped into a household. Grouping is what lets a floater's
-              covered lives and a coverage gap be seen together.
+              This customer is not grouped into a household.
             </p>
           )}
         </Panel>
@@ -188,12 +186,10 @@ export function Customer360Screen() {
         <Panel
           title="Leads they sent us"
           level={3}
-          description="Referrals are worth knowing about while the person is still in front of you."
         >
           {referred.length === 0 ? (
             <p className={styles.none}>
-              Nobody has been referred by this customer. A lead captured with them named as the
-              referrer appears here.
+              Nobody has been referred by this customer.
             </p>
           ) : (
             <ul className={styles.rows}>
@@ -276,12 +272,10 @@ export function Customer360Screen() {
     policies: (
       <Panel
         title="Policies"
-        description="Both numbers on every row: ours always, the insurer's once it has arrived."
       >
         {policies.length === 0 ? (
           <p className={styles.none}>
-            No policy has been entered for this customer yet. A won deal feeds policy entry with its
-            line items already filled in.
+            No policy has been entered for this customer yet.
           </p>
         ) : (
           <ul className={styles.rows}>
@@ -391,8 +385,7 @@ export function Customer360Screen() {
       >
         {collections.length === 0 ? (
           <p className={styles.none}>
-            No collection has been recorded against this customer's policies. A payment made direct
-            to the company appears as a reference rather than as money on the agency's books.
+            No collection has been recorded against this customer's policies.
           </p>
         ) : (
           <ul className={styles.rows}>
@@ -440,7 +433,6 @@ export function Customer360Screen() {
     requests: (
       <Panel
         title="Change requests and open work"
-        description="Everything raised against this customer that somebody still owes an answer on. Customer-raised change requests arrive with the portal in P1; until then this is the work the agency raised itself."
       >
         {tasks.length === 0 ? (
           <p className={styles.none}>Nothing is outstanding on this customer.</p>
@@ -501,7 +493,7 @@ export function Customer360Screen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/customers">Customers</Link>}
+        backTo={{ to: '/customers', label: 'Customers' }}
         title={customer.fullName}
         meta={
           <>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import type { ReactNode } from 'react'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
@@ -11,6 +11,7 @@ import { can } from '../../domain/permissions'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
 import { RecordCorrection } from '../../components/RecordCorrection'
+import { RecordLink } from '../../components/RecordLink'
 import { ChecklistPanel } from '../../components/ChecklistPanel'
 import type { ChecklistItem } from '../../components/ChecklistPanel'
 import { MachineActions } from '../../components/MachineActions'
@@ -248,8 +249,40 @@ export function ClaimDetailScreen() {
   }))
 
   const facts: readonly { key: string; label: string; value: ReactNode }[] = [
-    { key: 'customer', label: 'Customer', value: customerName },
-    { key: 'policy', label: 'Policy', value: policy.data?.systemNo ?? claim.policyId },
+    /*
+     * The customer and the policy are LINKS.
+     *
+     * A claim carries both keys and this screen printed both as text, so the
+     * only route from a claim to the policy it was raised against was the rail
+     * and a search by number — on the one screen where a person most needs the
+     * contract in front of them.
+     *
+     * `label={null}` while the resource is in flight: these are two separate
+     * reads from the claim itself, so there is a real window in which the name
+     * is not yet known, and it must not be confused with a link that is broken.
+     */
+    {
+      key: 'customer',
+      label: 'Customer',
+      value: (
+        <RecordLink
+          to={customer.data ? `/customers/${customer.data.id}` : undefined}
+          label={customer.isLoading ? null : (customer.data?.fullName ?? '')}
+          absentText={customerName}
+        />
+      ),
+    },
+    {
+      key: 'policy',
+      label: 'Policy',
+      value: (
+        <RecordLink
+          to={policy.data ? `/policies/${policy.data.id}` : undefined}
+          label={policy.isLoading ? null : (policy.data?.systemNo ?? '')}
+          absentText={claim.policyId}
+        />
+      ),
+    },
     {
       key: 'policyState',
       label: 'Policy status',
@@ -277,7 +310,7 @@ export function ClaimDetailScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/claims">Claims</Link>}
+        backTo={{ to: '/claims', label: 'Claims' }}
         title={customerName}
         meta={
           <>
@@ -347,7 +380,6 @@ export function ClaimDetailScreen() {
 
         <Panel
           title="The claim pipeline"
-          description={`A ${CLAIM_TYPE_LABEL[claim.claimType].toLowerCase()} claim walks these steps. The fork is the machine's, so the other route's steps are not offered here.`}
         >
           <ol className={styles.pipeline} aria-label="Claim pipeline">
             {pipeline.map((state, index) => (
@@ -364,9 +396,7 @@ export function ClaimDetailScreen() {
           </ol>
           {claim.state === CLAIM_STATES.queryOpen ? (
             <p className={styles.loop}>
-              The insurer has raised a query. The loop back to filed can run as many times as the
-              company asks, and the explanation goes to the customer and the hospital in the
-              language they were spoken to in.
+              The insurer has raised a query.
             </p>
           ) : null}
         </Panel>
@@ -375,7 +405,6 @@ export function ClaimDetailScreen() {
           <div className={styles.main}>
             <Panel
               title="What happens next"
-              description="Every move here goes through the workflow machine. A refused move writes nothing and says why."
             >
               <MachineActions
                 actions={actions}
@@ -393,7 +422,6 @@ export function ClaimDetailScreen() {
             {claim.checklistItems.length > 0 ? (
               <Panel
                 title="Document checklist"
-                description="Per company and product, from configuration. Documents collected by the customer or picked up on field are the same state either way."
               >
                 <ChecklistPanel
                   items={checklistItems}
@@ -478,12 +506,11 @@ export function ClaimDetailScreen() {
 
             <Panel
               title="Record timeline"
-              description="Every event on this claim, as the machine emitted it."
             >
               <RecordTimeline
                 events={events}
                 options={{ actorName: (actor) => (actor ? nameOfUser(users, actor) : 'System') }}
-                emptyText="Nothing has been recorded against this claim in this session. Every move made from here appears in this list, with who made it and when."
+                emptyText="Nothing has been recorded against this claim in this session."
               />
             </Panel>
           </div>
@@ -523,8 +550,7 @@ export function ClaimDetailScreen() {
                   ]}
                 />
                 <p className={styles.quiet}>
-                  Presence is recorded, never the document itself. Nothing on this link is read into
-                  the record beyond the file name.
+                  Presence is recorded, never the document itself.
                 </p>
               </Panel>
             ) : null}
@@ -532,15 +558,13 @@ export function ClaimDetailScreen() {
             <Panel
               title="Customer updates"
               level={3}
-              description="FR-11: every status change fires a message."
             >
               <p className={styles.routing} data-route={plan.to} data-reroute={String(plan.rerouteLogged)}>
                 {plan.note}
               </p>
               {messages.length === 0 ? (
                 <p className={styles.quiet}>
-                  No status message has been sent from this screen yet. Each move below sends one and
-                  records where it went.
+                  No status message has been sent from this screen yet.
                 </p>
               ) : (
                 <ul className={styles.messages} aria-label="Status messages">

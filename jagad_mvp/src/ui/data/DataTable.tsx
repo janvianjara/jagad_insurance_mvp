@@ -23,6 +23,39 @@ const EMPTY_SELECTION: RowSelectionState = {}
 const EMPTY_SORTING: SortingState = []
 const EMPTY_VISIBILITY: ColumnVisibilityState = {}
 
+/**
+ * Below this, "every value is the same" is not evidence of anything — a page of
+ * one row makes every column constant, and two rows agreeing is a coincidence.
+ */
+const CONSTANT_MIN_ROWS = 3
+
+/** What must survive the collapse, so a table never folds down to one column. */
+const CONSTANT_MIN_KEPT = 2
+
+/**
+ * A value safe to compare for the constant-column rule.
+ *
+ * Deliberately primitives only. An accessor returning an object or an array is
+ * compared by identity, and two rows holding equal-but-distinct objects would
+ * read as varying while two rows sharing one frozen object would read as
+ * constant — neither answer is about the data. A column like that keeps its
+ * place, which is the conservative direction.
+ */
+function comparableValue(value: unknown): string | null {
+  if (value === null) return 'null'
+  // NOT comparable. A display column — row actions, a checkbox, anything drawn
+  // rather than read — has no accessor, so `getValue` answers `undefined` for
+  // every row. Treating that as a value made "no data here" look like the most
+  // constant column on the page, and the first thing the rule folded away was
+  // the Discard button.
+  if (value === undefined) return null
+  const kind = typeof value
+  if (kind === 'string' || kind === 'number' || kind === 'boolean' || kind === 'bigint') {
+    return `${kind}:${String(value)}`
+  }
+  return null
+}
+
 export type DataTableProps<TData extends RowData> = {
   /** Rows for the page being shown. Keep the array reference stable between renders. */
   data: TData[]
@@ -62,6 +95,21 @@ export type DataTableProps<TData extends RowData> = {
    * holding thirty.
    */
   fill?: boolean
+  /**
+   * Fold away any column holding the same value in every row on this page, and
+   * state those values once in the table's caption instead.
+   *
+   * A column whose cells all read `Unpaid` costs a full column of width and
+   * returns no bits: it cannot order the page, cannot distinguish two rows, and
+   * cannot be scanned for an exception, because there isn't one. Four of the
+   * eight columns on the policy queue were in that state, which is most of why
+   * every remaining cell wrapped to two lines.
+   *
+   * The fact is not discarded — it moves to the caption, where it is said once
+   * rather than twenty-five times. That is the whole trade: the reader loses
+   * nothing they could have used and gets the width back.
+   */
+  collapseConstantColumns?: boolean
 }
 
 /**
@@ -97,6 +145,7 @@ export function DataTable<TData extends RowData>({
   rowTone,
   stickyHeader = true,
   fill,
+  collapseConstantColumns,
 }: DataTableProps<TData>) {
   const [ownSelection, setOwnSelection] = useState<RowSelectionState>(EMPTY_SELECTION)
   const [ownSorting, setOwnSorting] = useState<SortingState>(EMPTY_SORTING)
@@ -137,8 +186,58 @@ export function DataTable<TData extends RowData>({
   })
 
   const rows = table.getRowModel().rows
+
+  /*
+   * Which columns say the same thing in every row on this page.
+   *
+   * Read off the table rather than off `data` so it is the CELL value that is
+   * compared — the one the reader is actually looking at — and so a column with
+   * no accessor is skipped for free instead of being special-cased.
+   */
+  const constantColumnIds = new Set<string>()
+  if (collapseConstantColumns && !loading && !error && rows.length >= CONSTANT_MIN_ROWS) {
+    for (const column of table.getVisibleLeafColumns()) {
+      // Belt and braces with the `undefined` rule above: a column that reads
+      // nothing off the row is not a column about the data.
+      if (column.accessorFn === undefined) continue
+      // Some columns are constant BECAUSE that is what they have to report.
+      if (column.columnDef.meta?.alwaysShow === true) continue
+      const first = comparableValue(rows[0].getValue(column.id))
+      if (first === null) continue
+      if (rows.every((row) => comparableValue(row.getValue(column.id)) === first)) {
+        constantColumnIds.add(column.id)
+      }
+    }
+    // Folding a table down to its last column or two is not a simplification.
+    while (
+      constantColumnIds.size > 0 &&
+      table.getVisibleLeafColumns().length - constantColumnIds.size < CONSTANT_MIN_KEPT
+    ) {
+      const last = [...constantColumnIds].pop()
+      if (last === undefined) break
+      constantColumnIds.delete(last)
+    }
+  }
+
+  /** The folded columns, with the one value each of them holds, ready to render. */
+  const constantFacts =
+    constantColumnIds.size > 0
+      ? table
+          .getHeaderGroups()
+          .flatMap((group) => group.headers)
+          .filter((header) => constantColumnIds.has(header.column.id))
+          .map((header) => ({
+            id: header.column.id,
+            header,
+            cell: rows[0].getVisibleCells().find((cell) => cell.column.id === header.column.id),
+          }))
+          .filter((fact) => fact.cell !== undefined)
+      : []
+
+  const shown = (columnId: string) => !constantColumnIds.has(columnId)
   const leadingColumns = (selectable ? 1 : 0) + (rowTone ? 1 : 0)
-  const spanAll = table.getVisibleLeafColumns().length + leadingColumns
+  const spanAll =
+    table.getVisibleLeafColumns().length - constantColumnIds.size + leadingColumns
 
   function focusRowAt(index: number) {
     const target = bodyRef.current?.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]')[index]
@@ -184,6 +283,22 @@ export function DataTable<TData extends RowData>({
         aria-multiselectable={selectable ? true : undefined}
         className={[styles.table, stickyHeader ? styles.sticky : null].filter(Boolean).join(' ')}
       >
+        {constantFacts.length > 0 ? (
+          <caption className={styles.caption}>
+            <div className={styles.captionInner}>
+              <span className={styles.captionLead}>Every row:</span>
+              {constantFacts.map((fact) => (
+                <span key={fact.id} className={styles.captionFact}>
+                  <span className={styles.captionLabel}>
+                    <table.FlexRender header={fact.header} />
+                  </span>
+                  {fact.cell ? <table.FlexRender cell={fact.cell} /> : null}
+                </span>
+              ))}
+            </div>
+          </caption>
+        ) : null}
+
         <thead className={styles.head}>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
@@ -207,7 +322,7 @@ export function DataTable<TData extends RowData>({
                   />
                 </th>
               ) : null}
-              {group.headers.map((header) => {
+              {group.headers.filter((header) => shown(header.column.id)).map((header) => {
                 const sorted = header.column.getIsSorted()
                 const canSort = header.column.getCanSort()
                 const toggle = header.column.getToggleSortingHandler()
@@ -311,11 +426,14 @@ export function DataTable<TData extends RowData>({
                         />
                       </td>
                     ) : null}
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} role="gridcell" className={styles.td}>
-                        <table.FlexRender cell={cell} />
-                      </td>
-                    ))}
+                    {row
+                      .getVisibleCells()
+                      .filter((cell) => shown(cell.column.id))
+                      .map((cell) => (
+                        <td key={cell.id} role="gridcell" className={styles.td}>
+                          <table.FlexRender cell={cell} />
+                        </td>
+                      ))}
                   </tr>
                 )
               })

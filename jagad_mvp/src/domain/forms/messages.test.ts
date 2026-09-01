@@ -76,7 +76,11 @@ describe('an unanswered required field says what a person can act on', () => {
       : result.error.issues.find((candidate) => candidate.path.includes('premiumMode'))
     const field = findField(schema!, 'premiumMode')
 
-    expect(issue?.message).toBe(`${field?.label} is needed before this can be saved.`)
+    /*
+     * "submitted", not "saved". Policy entry can always be saved part-finished
+     * through "Save what is recorded"; a required field only blocks the submit.
+     */
+    expect(issue?.message).toBe(`${field?.label} is needed before this can be submitted.`)
   })
 
   it('leaks no library vocabulary from any field of any kind, on any seed schema', () => {

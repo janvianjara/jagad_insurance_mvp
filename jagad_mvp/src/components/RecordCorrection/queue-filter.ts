@@ -20,6 +20,10 @@ export const DISCARDED_FILTER_KEY = 'discarded'
 
 export const DISCARDED_FILTER: QueueFilter = {
   key: DISCARDED_FILTER_KEY,
+  // Folded away by default on every queue that offers it: looking at discarded
+  // records is a deliberate act, not a daily one. It unfolds itself whenever it
+  // is set, so a link to the discarded view still explains itself.
+  advanced: true,
   label: 'Discarded',
   anyLabel: 'Live records',
   options: [

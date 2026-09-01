@@ -16,12 +16,12 @@ body,
 }
 
 /*
- * The shell is a viewport-height grid and `main` is its scrollport. Without
- * this the document itself stays scrollable, a wheel gesture over a long table
- * scrolls `main` to its limit and then CHAINS to the window, and the rail -
- * brand, nav and role switcher - scrolls off the top of a screen that was never
- * supposed to move. The sticky table header stops sticking at the same moment,
- * because it is pinned to a scrollport nobody is scrolling.
+ * The staff shell is a viewport-height grid and `main` is its scrollport.
+ * Without this the document itself stays scrollable, a wheel gesture over a
+ * long table scrolls `main` to its limit and then CHAINS to the window, and the
+ * rail - brand, nav and role switcher - scrolls off the top of a screen that
+ * was never supposed to move. The sticky table header stops sticking at the
+ * same moment, because it is pinned to a scrollport nobody is scrolling.
  *
  * `clip` rather than `hidden`, and the difference is the whole point. `hidden`
  * still makes the viewport a SCROLLPORT - it only takes the scrollbar away, so
@@ -32,9 +32,19 @@ body,
  * - up out of the viewport, leaving white where the app used to be. `clip`
  * leaves no scrollport to scroll, so no focus move can ever shift the shell.
  * The `hidden` line stays first as the fallback for engines without `clip`.
+ *
+ * Only WHILE THE SHELL IS ON SCREEN, and that condition is the whole reason
+ * this rule is written with `:has()` rather than applied to the document. The
+ * customer portal, login and the tokenised consent and upload pages render
+ * outside the shell (§11.1, D-I); each is an ordinary column of content that
+ * runs past the bottom of the window and expects the WINDOW to scroll it. Held
+ * unconditionally, this rule left the portal's policy list with no scroller at
+ * all - everything below the fold unreachable. The shell marks itself with
+ * `data-shell="app"`, so the lock arrives and leaves with it and no screen has
+ * to remember to opt in or out.
  */
-html,
-body {
+html:has([data-shell='app']),
+html:has([data-shell='app']) body {
   overflow: hidden;
   overflow: clip;
 }

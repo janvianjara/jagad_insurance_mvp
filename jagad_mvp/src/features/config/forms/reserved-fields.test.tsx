@@ -19,6 +19,11 @@ import FormsScreen from './FormsScreen'
  * the layer a person meets. This asserts the fourth refusal, which is the only
  * one an admin ever sees: the option is not offered, and the registry's own
  * sentence says why the platform depends on the field.
+ *
+ * A field in the builder is a row that opens. What the row itself says — the
+ * "Reserved" mark, and the absence of a Remove — is asserted where it is shown;
+ * the registry's sentence lives in the panel, so these open it first, which is
+ * what a person does before trying to remove anything.
  */
 
 let repositories: Repositories
@@ -45,6 +50,17 @@ function fieldRow(scope: HTMLElement, key: string): HTMLElement {
   return row as HTMLElement
 }
 
+/** Opens a field's panel. The disclosure is the row's name, so that is what we press. */
+async function openField(
+  user: ReturnType<typeof userEvent.setup>,
+  scope: HTMLElement,
+  key: string,
+): Promise<HTMLElement> {
+  const row = fieldRow(scope, key)
+  await user.click(within(row).getByRole('button', { expanded: false }))
+  return row
+}
+
 beforeEach(() => {
   repositories = createMockRepositories({ latency: NO_LATENCY })
   useFormsStore.getState().reset()
@@ -53,10 +69,11 @@ beforeEach(() => {
 
 describe('a reserved field in the builder', () => {
   it('offers no way to remove it, and says what depends on it', async () => {
+    const user = userEvent.setup()
     openSchema('frm-inquiry-v1')
     const drawer = await builderFor(/Inquiry · version 1/)
 
-    const mobile = fieldRow(drawer, 'contactMobile')
+    const mobile = await openField(user, drawer, 'contactMobile')
     expect(within(mobile).getByText('Reserved')).toBeInTheDocument()
     expect(within(mobile).queryByRole('button', { name: 'Remove field' })).toBeNull()
 
@@ -68,7 +85,9 @@ describe('a reserved field in the builder', () => {
     // A field nothing reads by name is removable, so the absence above is a
     // rule rather than the drawer simply having no delete button.
     expect(
-      within(fieldRow(drawer, 'contactEmail')).getByRole('button', { name: 'Remove field' }),
+      within(await openField(user, drawer, 'contactEmail')).getByRole('button', {
+        name: 'Remove field',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -107,7 +126,9 @@ describe('removing a field that nothing reads by name', () => {
     const drawer = await builderFor(/Inquiry · version 1/)
 
     await user.click(
-      within(fieldRow(drawer, 'contactEmail')).getByRole('button', { name: 'Remove field' }),
+      within(await openField(user, drawer, 'contactEmail')).getByRole('button', {
+        name: 'Remove field',
+      }),
     )
 
     // The draft changed; the store has not.

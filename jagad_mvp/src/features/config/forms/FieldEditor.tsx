@@ -15,9 +15,18 @@
  *   that a figure shown in an amount box is a suggestion. The only arithmetic
  *   on offer is the roll-up below: the typed components it sums, the typed GST
  *   figure it adds, and nothing else.
+ *
+ * A field is a ROW first and a panel second. Every field of a schema laid out as
+ * a full panel is a column somebody scrolls instead of reads, and the preview
+ * beside it — the thing that tells you what you just did — scrolls away with it.
+ * So the row states the case (mark, label, key, kind, whether it is required,
+ * whether the platform reads it) and opens on request. One is open at a time.
  */
 
+import { useEffect, useRef, useState } from 'react'
+import type { DragEvent } from 'react'
 import { Button } from '../../../ui/Button'
+import { Icon } from '../../../ui/Icon'
 import { Checkbox, Field, Input, NumberInput, Select, Textarea, Toggle } from '../../../ui/form'
 import type { SelectOption } from '../../../ui/form'
 import { Badge } from '../../../ui/signal'
@@ -32,6 +41,7 @@ import type {
   RollUpFieldDef,
 } from '../../../domain/forms'
 import {
+  KIND_ICONS,
   KIND_LABELS,
   OFFERED_KINDS,
   changeKind,
@@ -73,9 +83,18 @@ export type FieldEditorProps = {
   masterTypeOptions: readonly SelectOption[]
   first: boolean
   last: boolean
+  /** Whether this row's panel is showing. The list opens one row at a time. */
+  open: boolean
+  /** True while this row is the one being dragged, so it can fade. */
+  dragging: boolean
+  onToggle: () => void
   onChange: (next: FormFieldDef) => void
   onRemove: () => void
   onMove: (delta: number) => void
+  onDragStart: () => void
+  onDragEnd: () => void
+  /** Somebody let go over this row: `before` says which side of it. */
+  onDropAt: (before: boolean) => void
 }
 
 export function FieldEditor({
@@ -87,30 +106,104 @@ export function FieldEditor({
   masterTypeOptions,
   first,
   last,
+  open,
+  dragging,
+  onToggle,
   onChange,
   onRemove,
   onMove,
+  onDragStart,
+  onDragEnd,
+  onDropAt,
 }: FieldEditorProps) {
   const derived = isRollUpField(field)
   const kinds = reserved ? reserved.kinds : OFFERED_KINDS
   const rule = field.visibleWhen
   const simple = isSimpleRule(rule)
+  // Which side of this row the pointer is on, so the insertion line is drawn
+  // where the field will actually land rather than where the row happens to be.
+  const [edge, setEdge] = useState<'before' | 'after' | null>(null)
+  const rowRef = useRef<HTMLLIElement>(null)
+
+  // A field added from the palette opens where it landed, which is often below
+  // the fold of a long stage. Bringing it into view is the difference between
+  // "nothing happened" and "there it is". `nearest`, so a row already on screen
+  // is left where it is.
+  useEffect(() => {
+    if (!open) return
+    rowRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [open])
+
+  function edgeUnder(event: DragEvent<HTMLLIElement>): 'before' | 'after' {
+    const box = event.currentTarget.getBoundingClientRect()
+    return event.clientY < box.top + box.height / 2 ? 'before' : 'after'
+  }
 
   return (
     <li
+      ref={rowRef}
       className={styles.field}
       data-field-key={field.key}
       data-reserved={reserved ? '' : undefined}
       data-derived={derived ? '' : undefined}
+      data-open={open ? '' : undefined}
+      data-dragging={dragging ? '' : undefined}
+      data-edge={edge ?? undefined}
+      onDragOver={(event) => {
+        event.preventDefault()
+        setEdge(edgeUnder(event))
+      }}
+      onDragLeave={() => setEdge(null)}
+      onDrop={(event) => {
+        event.preventDefault()
+        const where = edgeUnder(event)
+        setEdge(null)
+        onDropAt(where === 'before')
+      }}
     >
-      <div className={styles.fieldHead}>
-        <span className={styles.fieldName}>
-          <span>{field.label}</span>
-          <span className={layout.mono}>{field.key}</span>
+      <div
+        className={styles.fieldHead}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', field.key)
+          onDragStart()
+        }}
+        onDragEnd={onDragEnd}
+      >
+        {/* The grip is decoration: dragging is the mouse's way to reorder, and
+            Move up / Move down beside it is the keyboard's. Neither is the only
+            way, which is why this one carries no accessible name. */}
+        <Icon name="sort" size="sm" className={styles.grip} />
+
+        <button
+          type="button"
+          className={styles.fieldOpen}
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          <Icon name={KIND_ICONS[field.kind]} size="sm" className={styles.fieldMark} />
+          <span className={styles.fieldName}>
+            <span>{field.label}</span>
+            <span className={layout.mono}>{field.key}</span>
+          </span>
+        </button>
+
+        <span className={styles.fieldTags}>
           <Badge tone={derived ? 'info' : 'neutral'}>{KIND_LABELS[field.kind]}</Badge>
+          {field.required ? <Badge tone="neutral">Required</Badge> : null}
           {reserved ? <Badge tone="idle">Reserved</Badge> : null}
         </span>
+      </div>
 
+      {open ? (
+        <div className={styles.fieldBody}>
+
+        {/* Moving and removing live in the panel, not on the row. A row is read
+            far more often than it is acted on, and three buttons on every one of
+            eighteen rows is a column of buttons with a schema hidden in it. The
+            mouse reorders by dragging the row itself; this is the keyboard's way
+            and the deliberate way. */}
         <span className={layout.rowActions}>
           <Button
             type="button"
@@ -136,109 +229,110 @@ export function FieldEditor({
             </Button>
           )}
         </span>
-      </div>
 
-      {reserved ? (
-        <p className={styles.locked} data-reserved-note={field.key}>
-          The platform reads <code>{field.key}</code> by name, so this builder offers no way to
-          remove or rename it. {reserved.because} Its kind is limited to{' '}
-          {reserved.kinds.map((kind) => KIND_LABELS[kind]).join(' or ')}, because changing the
-          control changes what the field means.
-        </p>
-      ) : null}
+        {reserved ? (
+          <p className={styles.locked} data-reserved-note={field.key}>
+            The platform reads <code>{field.key}</code> by name, so this builder offers no way to
+            remove or rename it. {reserved.because} Its kind is limited to{' '}
+            {reserved.kinds.map((kind) => KIND_LABELS[kind]).join(' or ')}, because changing the
+            control changes what the field means.
+          </p>
+        ) : null}
 
-      <div className={styles.controls}>
-        <Field label="Label" required>
-          <Input
-            value={field.label}
-            onChange={(event) => onChange(patchBase(field, { label: event.target.value }))}
-          />
-        </Field>
+        <div className={styles.controls}>
+          <Field label="Label" required>
+            <Input
+              value={field.label}
+              onChange={(event) => onChange(patchBase(field, { label: event.target.value }))}
+            />
+          </Field>
 
-        <Field
-          label="Kind"
-          hint={reserved ? 'Limited by the platform.' : undefined}
-        >
-          <Select
-            value={field.kind}
-            options={kindOptions(kinds)}
-            disabled={reserved !== null && reserved.kinds.length === 1}
-            onChange={(event) => onChange(changeKind(field, event.target.value as FieldKind))}
-          />
-        </Field>
+          <Field
+            label="Kind"
+            hint={reserved ? 'Limited by the platform.' : undefined}
+          >
+            <Select
+              value={field.kind}
+              options={kindOptions(kinds)}
+              disabled={reserved !== null && reserved.kinds.length === 1}
+              onChange={(event) => onChange(changeKind(field, event.target.value as FieldKind))}
+            />
+          </Field>
 
-        <Field label="Hint" hint="Shown under the control. Never a figure.">
-          <Input
-            value={field.hint ?? ''}
-            onChange={(event) =>
-              onChange(
-                patchBase(field, {
-                  hint: event.target.value.trim() === '' ? undefined : event.target.value,
-                }),
-              )
-            }
-          />
-        </Field>
+          <Field label="Hint" hint="Shown under the control. Never a figure.">
+            <Input
+              value={field.hint ?? ''}
+              onChange={(event) =>
+                onChange(
+                  patchBase(field, {
+                    hint: event.target.value.trim() === '' ? undefined : event.target.value,
+                  }),
+                )
+              }
+            />
+          </Field>
 
-        {derived ? null : (
-          <Toggle
-            checked={field.required}
-            label="Required"
-            description="A hidden field is never counted as missing."
-            onCheckedChange={(checked) => onChange(patchBase(field, { required: checked }))}
-          />
-        )}
-      </div>
+          {derived ? null : (
+            <Toggle
+              checked={field.required}
+              label="Required"
+              description="A hidden field is never counted as missing."
+              onCheckedChange={(checked) => onChange(patchBase(field, { required: checked }))}
+            />
+          )}
+        </div>
 
-      {/* ------------------------------------------------------- branching */}
-      <div className={styles.controls}>
-        <Field
-          label="Shown when"
-          hint="Amounts are not offered: a form may not branch on money it was given (D3)."
-        >
-          <Select
-            value={simple ? rule.field : ''}
-            placeholder="Always shown"
-            options={conditionSources.map((key) => ({ value: key, label: labels[key] ?? key }))}
-            disabled={rule !== null && !simple}
-            onChange={(event) =>
-              onChange(
-                patchBase(field, {
-                  visibleWhen:
-                    event.target.value === ''
-                      ? null
-                      : equalsRule(event.target.value, simple ? rule.equals : ''),
-                }),
-              )
-            }
-          />
-        </Field>
+        {/* ------------------------------------------------------- branching */}
+        <div className={styles.controls}>
+          <Field
+            label="Shown when"
+            hint="Amounts are not offered: a form may not branch on money it was given (D3)."
+          >
+            <Select
+              value={simple ? rule.field : ''}
+              placeholder="Always shown"
+              options={conditionSources.map((key) => ({ value: key, label: labels[key] ?? key }))}
+              disabled={rule !== null && !simple}
+              onChange={(event) =>
+                onChange(
+                  patchBase(field, {
+                    visibleWhen:
+                      event.target.value === ''
+                        ? null
+                        : equalsRule(event.target.value, simple ? rule.equals : ''),
+                  }),
+                )
+              }
+            />
+          </Field>
 
-        <Field label="…equals" hint="The stored value, not the label.">
-          <Input
-            value={simple ? rule.equals : ''}
-            disabled={!simple}
-            onChange={(event) =>
-              simple
-                ? onChange(
-                    patchBase(field, { visibleWhen: equalsRule(rule.field, event.target.value) }),
-                  )
-                : undefined
-            }
-          />
-        </Field>
+          <Field label="…equals" hint="The stored value, not the label.">
+            <Input
+              value={simple ? rule.equals : ''}
+              disabled={!simple}
+              onChange={(event) =>
+                simple
+                  ? onChange(
+                      patchBase(field, { visibleWhen: equalsRule(rule.field, event.target.value) }),
+                    )
+                  : undefined
+              }
+            />
+          </Field>
 
-        <p className={styles.note}>{ruleSummary(rule, labels)}</p>
-      </div>
+          <p className={styles.note}>{ruleSummary(rule, labels)}</p>
+        </div>
 
-      {isRollUpField(field) ? (
-        <RollUpControls field={field} labels={labels} moneyKeys={moneyKeys} onChange={onChange} />
-      ) : null}
+        {isRollUpField(field) ? (
+          <RollUpControls field={field} labels={labels} moneyKeys={moneyKeys} onChange={onChange} />
+        ) : null}
 
-      {isGroupField(field) ? <GroupControls field={field} onChange={onChange} /> : null}
+        {isGroupField(field) ? <GroupControls field={field} onChange={onChange} /> : null}
 
-      {isLeafField(field) ? (
-        <LeafControls field={field} masterTypeOptions={masterTypeOptions} onChange={onChange} />
+        {isLeafField(field) ? (
+          <LeafControls field={field} masterTypeOptions={masterTypeOptions} onChange={onChange} />
+        ) : null}
+        </div>
       ) : null}
     </li>
   )

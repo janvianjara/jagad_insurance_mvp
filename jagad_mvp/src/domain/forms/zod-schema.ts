@@ -19,7 +19,7 @@
  * default, `Invalid input: expected string, received null`, which is a sentence
  * written for whoever wrote the schema and not for the person filling the form
  * in. Putting `missing` on the constructor is what makes the empty case say
- * "Premium mode is needed before this can be saved."
+ * "Premium mode is needed before this can be submitted."
  */
 import { z } from 'zod'
 import { isMoney } from '../money'
@@ -36,7 +36,17 @@ function optional(inner: z.ZodType): z.ZodType {
 }
 
 function leafSchema(field: LeafFieldDef): z.ZodType {
-  const missing = `${field.label} is needed before this can be saved.`
+  /*
+   * "before this can be submitted", not "before this can be saved".
+   *
+   * Policy entry offers "Save what is recorded", which writes the entry to the
+   * completion queue with the empty fields named on it — it works whether or not
+   * a required field is filled, and it is the whole point of a form nobody has
+   * to finish in one sitting. So a required field saying it blocked SAVING
+   * contradicted a button three inches below it, and read as a dead end on a
+   * screen that has none. It blocks submission, and now says so.
+   */
+  const missing = `${field.label} is needed before this can be submitted.`
 
   switch (field.kind) {
     case 'money': {

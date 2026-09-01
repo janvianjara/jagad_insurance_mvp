@@ -27,9 +27,22 @@
   min-width: 0;
 }
 
+/*
+ * The anchor.
+ *
+ * At 22px against a 13px body this was 1.7x, which is not a hierarchy — it is
+ * two sizes of the same thing, and it is most of why every screen read as one
+ * flat grey field with nowhere for the eye to land. 28px takes it to 2.2x, which
+ * is enough for the title to be found without looking for it.
+ *
+ * `--text-2xl` is not a new token: it has been declared since P-06 and spent in
+ * four places. This is the fifth, and it is the one that needed it.
+ */
 .title {
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
   color: var(--ink);
   margin: 0;
 }
@@ -49,3 +62,32 @@
   margin-left: auto;
 }
 
+
+/*
+ * The back control. Shaped like a control rather than like a caption: the
+ * breadcrumb it replaces was 12px grey text in the corner, which nobody read as
+ * something to press, and the product was reported as having no back button.
+ */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  align-self: start;
+  margin-left: calc(var(--sp-2) * -1);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.back:hover {
+  background: var(--sunken);
+  color: var(--action);
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

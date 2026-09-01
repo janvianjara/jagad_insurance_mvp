@@ -207,7 +207,6 @@ export function KycFile({ customerId }: KycFileProps) {
     <div className={styles.file} data-kyc-file={customerId}>
       <Panel
         title="Where this stands"
-        description="The state, the consent link and the four digits of Aadhaar this platform is allowed to hold."
       >
         <div className={styles.standing}>
           <StatusPill tone={KYC_TONE[customer.kycState]}>{KYC_LABEL[customer.kycState]}</StatusPill>

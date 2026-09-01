@@ -266,6 +266,14 @@ export const ROUTE_MAP: readonly RouteSpec[] = [
 
   /* -------------------------------------------------------- configuration */
   {
+    path: '/config',
+    title: 'Settings',
+    phase: 'M0',
+    layout: 'app',
+    resource: 'config',
+    note: 'Not in §4’s list, for the same reason /deals is not: the rail needs one index for the twelve configuration screens rather than twelve items nobody can reach.',
+  },
+  {
     path: '/config/users',
     title: 'Users',
     phase: 'M0',

@@ -259,7 +259,7 @@ export function RenewalDetailScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/renewals">Renewals</Link>}
+        backTo={{ to: '/renewals', label: 'Renewals' }}
         title={customerName}
         meta={
           <>
@@ -382,7 +382,6 @@ export function RenewalDetailScreen() {
             {showOutcome ? (
               <Panel
                 title="The outcome"
-                description="A renewal is a new term, a new document version and a commission recalculation. A lapse is a reason, because the win-back list is worked from it."
               >
                 <div className={styles.entry}>
                   <div className={styles.termRow}>
@@ -451,7 +450,6 @@ export function RenewalDetailScreen() {
 
             <Panel
               title="Record timeline"
-              description="Every event on this renewal, as the machine emitted it."
             >
               <RecordTimeline
                 events={events}

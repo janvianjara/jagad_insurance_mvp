@@ -103,17 +103,28 @@ describe('the demo clock', () => {
 
 describe('the golden path', () => {
   it('is walkable from the rail, screen by screen, in the order the demo script gives them', async () => {
+    const user = userEvent.setup()
     const scenario = renderScenario(repositories, '/')
 
     // 1. Land on the Assistant, which is where every role starts.
     expect(await screen.findByRole('heading', { name: 'Assistant' })).toBeInTheDocument()
 
-    // 2. Configuration, the claim the whole flow-6 story rests on.
-    await clickRailLink(/^Companies/)
+    /*
+     * 2. Configuration, the claim the whole flow-6 story rests on.
+     *
+     * Reached through Settings rather than from twelve rail items. The rail
+     * carries one configuration destination now; the twelve screens are indexed
+     * on /config, so the demo walks rail -> Settings -> the screen it wants.
+     */
+    await clickRailLink(/^Settings/)
+    await waitFor(() => expect(scenario.currentPath()).toBe('/config'))
+
+    await user.click(await screen.findByRole('link', { name: /^Companies/ }))
     await waitFor(() => expect(scenario.currentPath()).toBe('/config/companies'))
     expect(await screen.findByText('HDFC Ergo General Insurance')).toBeInTheDocument()
 
-    await clickRailLink(/^Agencies/)
+    await clickRailLink(/^Settings/)
+    await user.click(await screen.findByRole('link', { name: /^Agencies/ }))
     await waitFor(() => expect(scenario.currentPath()).toBe('/config/agencies'))
     expect(await screen.findByText('Jagad Insurance (HDFC Ergo)')).toBeInTheDocument()
 
@@ -132,9 +143,9 @@ describe('the golden path', () => {
     renderScenario(repositories, '/assistant')
     await screen.findByRole('navigation', { name: 'Main' })
 
-    // The admin sees the sections the demo script's section 2 walks.
-    expect(within(rail()).getByRole('link', { name: /^Companies/ })).toBeInTheDocument()
-    expect(within(rail()).getByRole('link', { name: /^Agencies/ })).toBeInTheDocument()
+    // The admin sees the sections the demo script's section 2 walks. Config is
+    // one item that indexes twelve, so Settings is what the rail shows.
+    expect(within(rail()).getByRole('link', { name: /^Settings/ })).toBeInTheDocument()
 
     await switchAccount('Kiran Solanki')
 
@@ -142,10 +153,8 @@ describe('the golden path', () => {
     // it is rendered from the permission evaluator, which is the claim the script
     // makes out loud at this exact moment in the demo.
     await waitFor(() =>
-      expect(within(rail()).queryByRole('link', { name: /^Companies/ })).toBeNull(),
+      expect(within(rail()).queryByRole('link', { name: /^Settings/ })).toBeNull(),
     )
-    expect(within(rail()).queryByRole('link', { name: /^Agencies/ })).toBeNull()
-    expect(within(rail()).queryByRole('link', { name: /^Users/ })).toBeNull()
 
     // What he keeps is his own book, and it is relabelled to say so: the section
     // reads "My book" and its items read "My customers", "My leads". Commission

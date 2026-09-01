@@ -77,12 +77,6 @@ export function BackOfficeHomeScreen() {
         }
       />
 
-      <p className={styles.lede}>
-        The six operations queues, each with the number of rows waiting in it right now. The work
-        itself is done on the screen that owns the queue, beside the record it is about — this page
-        only says where to go next.
-      </p>
-
       <ul className={styles.grid} aria-label="Operations queues">
         {OPS_QUEUES.map((queue) => (
           <li key={queue.key} className={styles.cell}>
@@ -131,8 +125,6 @@ function QueueTile({ queue, depth, loading }: QueueTileProps) {
           <span className={styles.tileCountUnit}>waiting</span>
         </span>
       )}
-
-      <span className={styles.tileWhat}>{queue.what}</span>
 
       {queue.href ? (
         <span className={styles.tileGo}>

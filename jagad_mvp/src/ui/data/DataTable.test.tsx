@@ -168,3 +168,83 @@ describe('DataTable', () => {
     expect(screen.getByText('No inquiries waiting')).toBeInTheDocument()
   })
 })
+
+describe('folding away columns that say the same thing in every row', () => {
+  const SAME_OWNER: Inquiry[] = ROWS.map((row) => ({ ...row, owner: 'Nita Shah' })) as Inquiry[]
+
+  const withOwner = dataTableColumns<Inquiry & { owner: string }>()
+  const OWNER_COLUMNS = withOwner.columns([
+    withOwner.accessor('reference', { header: 'Reference' }),
+    withOwner.accessor('customer', { header: 'Customer' }),
+    withOwner.accessor('owner', { header: 'Owner' }),
+  ])
+
+  function renderOwners(collapse: boolean) {
+    return render(
+      <DataTable
+        label="Inquiries"
+        data={SAME_OWNER as (Inquiry & { owner: string })[]}
+        columns={OWNER_COLUMNS}
+        getRowId={(row) => row.id}
+        collapseConstantColumns={collapse}
+      />,
+    )
+  }
+
+  it('states the shared value once in the caption instead of in every row', () => {
+    renderOwners(true)
+
+    expect(screen.queryByRole('columnheader', { name: /Owner/ })).not.toBeInTheDocument()
+    // Said once, not three times.
+    expect(screen.getAllByText('Nita Shah')).toHaveLength(1)
+    expect(screen.getByText('Every row:')).toBeInTheDocument()
+  })
+
+  it('leaves the column alone when the flag is off', () => {
+    renderOwners(false)
+
+    expect(screen.getByRole('columnheader', { name: /Owner/ })).toBeInTheDocument()
+    expect(screen.getAllByText('Nita Shah')).toHaveLength(3)
+  })
+
+  it('never folds a display column, whose every row reads undefined', async () => {
+    const display = dataTableColumns<Inquiry>()
+    const columns = display.columns([
+      display.accessor('reference', { header: 'Reference' }),
+      display.accessor('customer', { header: 'Customer' }),
+      display.display({
+        id: 'row-actions',
+        header: () => 'Actions',
+        cell: () => <button type="button">Discard</button>,
+      }),
+    ])
+
+    render(
+      <DataTable
+        label="Inquiries"
+        data={ROWS}
+        columns={columns}
+        getRowId={(row) => row.id}
+        collapseConstantColumns
+      />,
+    )
+
+    // One Discard per row, and no caption: nothing here is constant DATA.
+    expect(screen.getAllByRole('button', { name: 'Discard' })).toHaveLength(3)
+    expect(screen.queryByText('Every row:')).not.toBeInTheDocument()
+  })
+
+  it('does not fold on a page too short for sameness to mean anything', () => {
+    render(
+      <DataTable
+        label="Inquiries"
+        data={[SAME_OWNER[0]] as (Inquiry & { owner: string })[]}
+        columns={OWNER_COLUMNS}
+        getRowId={(row) => row.id}
+        collapseConstantColumns
+      />,
+    )
+
+    expect(screen.getByRole('columnheader', { name: /Owner/ })).toBeInTheDocument()
+  })
+})

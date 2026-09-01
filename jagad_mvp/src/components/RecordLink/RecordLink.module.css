@@ -1,0 +1,43 @@
+/* Navy carries navigation everywhere in this product, and a link between two
+   records is navigation. The underline is on hover only: a record panel holding
+   five linked fields would otherwise read as five underlined rows. */
+.link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  color: var(--action);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.link:hover .label {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Resolved to nothing. Quiet, and never blue - nothing here can be opened. */
+.absent {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  color: var(--ink-3);
+}
+
+.label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Ids and numbers are mono everywhere in this product; they are read character
+   by character rather than as a word. */
+.reference {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+}

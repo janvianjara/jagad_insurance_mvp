@@ -92,7 +92,6 @@ export function UploadNoticesDialog({ companies, templates, onUploaded }: Upload
         open={open}
         onClose={close}
         title="Upload a month of renewal notices"
-        description="One PDF from one insurer, holding every notice it sent for that expiry month."
         dismissOnScrimClick={false}
       >
         <div className={styles.uploadForm}>

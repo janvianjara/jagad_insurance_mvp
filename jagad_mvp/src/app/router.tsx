@@ -20,6 +20,7 @@ import {
   ConfigFormsScreen,
   ConfigMastersScreen,
   ConfigProductsScreen,
+  ConfigHomeScreen,
   ConfigUsersScreen,
 } from '../features/config/config-routes'
 import { SignInRoute, TwoFactorRoute } from '../features/auth/routes'
@@ -122,6 +123,7 @@ const BUILT_SCREENS: Readonly<Record<string, () => ReactElement>> = {
   '/inquiries': () => <InquiryQueueRoute />,
   '/inquiries/new': () => <InquiryCaptureRoute />,
   '/inquiries/:id': () => <InquiryDetailRoute />,
+  '/config': () => <ConfigHomeScreen />,
   '/config/users': () => <ConfigUsersScreen />,
   '/config/masters': () => <ConfigMastersScreen />,
   '/config/companies': () => <ConfigCompaniesScreen />,

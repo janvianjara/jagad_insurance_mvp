@@ -35,6 +35,13 @@ type DrawerProps = {
   maximised?: boolean
   onMaximisedChange?: (maximised: boolean) => void
   /**
+   * How the drawer opens when it is remembering its own state — full-bleed for a
+   * panel that is a workspace rather than a record, like the schema builder.
+   * Ignored while `maximised` is supplied, and never sticky: closing still resets
+   * to false, and the toggle in the header still wins.
+   */
+  defaultMaximised?: boolean
+  /**
    * Where focus goes on close. Defaults to whatever had focus when the drawer
    * opened, which is the trigger in every normal flow.
    */
@@ -65,12 +72,13 @@ export function Drawer({
   onWidthChange,
   maximised,
   onMaximisedChange,
+  defaultMaximised = false,
   returnFocusTo,
 }: DrawerProps) {
   const panelRef = useRef<HTMLElement>(null)
   const restoreRef = useRef<HTMLElement | null>(null)
   const [ownWidth, setOwnWidth] = useState(DRAWER_DEFAULT_W)
-  const [ownMaximised, setOwnMaximised] = useState(false)
+  const [ownMaximised, setOwnMaximised] = useState(defaultMaximised)
   const [resizing, setResizing] = useState(false)
   const titleId = useId()
 

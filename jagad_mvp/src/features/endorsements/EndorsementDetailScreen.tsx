@@ -461,7 +461,7 @@ export function EndorsementDetailScreen() {
     <>
       <PageHeader
         title={`${ENDORSEMENT_TYPE_LABEL[record.type]} endorsement`}
-        breadcrumb={<Link to="/endorsements">Endorsements</Link>}
+        backTo={{ to: '/endorsements', label: 'Endorsements' }}
         meta={
           <>
             <RecordId
@@ -586,7 +586,6 @@ export function EndorsementDetailScreen() {
             {record.type === 'cancellation' ? (
               <Panel
                 title="Claims in the policy period"
-                description="Run against this platform’s own claim data, and answered straight away."
               >
                 {claims === null ? (
                   <p className={styles.prose}>The check has not been run on this record yet.</p>

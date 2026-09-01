@@ -77,12 +77,6 @@ export function ReportsScreen() {
         }
       />
 
-      <p className={styles.lede}>
-        Everything below is read from the record. A count is a count of rows that exist; a total is
-        the sum of amounts somebody typed from an insurer’s document. Nothing on these five reports
-        is projected, estimated or worked out.
-      </p>
-
       <section className={styles.stats} aria-label="Headline figures">
         <StatCard
           label="Policies on the book"
@@ -115,10 +109,10 @@ export function ReportsScreen() {
         />
       </section>
 
-      <Panel
-        title="The five reports"
-        description="Each one says what it reads and what it refuses to work out."
-      >
+      {/* Not "the five reports": there are ten, and the sentence had been wrong
+          since the catalogue doubled. A title that counts is a title that goes
+          stale, so this one does not count. */}
+      <Panel title="All reports">
         {!data ? (
           <div aria-busy="true">
             <Skeleton width="100%" height="12rem" />
@@ -133,7 +127,10 @@ export function ReportsScreen() {
                     <span className={styles.reportTitle}>{definition.title}</span>
                   </span>
                   <span className={styles.reportSummary}>{definition.summary}</span>
-                  <span className={styles.reportNever}>{definition.never}</span>
+                  {/* `definition.never` is NOT dropped — it is printed by
+                      `ReportScreen`, against the numbers it qualifies. Saying it
+                      here as well doubled the height of all ten cards to repeat
+                      a caveat about a report nobody has opened yet. */}
                   <span className={styles.reportGo}>
                     Open the report
                     <Icon name="chevron-right" size="sm" />

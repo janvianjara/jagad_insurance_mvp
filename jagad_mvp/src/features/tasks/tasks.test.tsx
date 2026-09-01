@@ -147,9 +147,21 @@ describe('FR-15 — a row says what work it is and what record it belongs to', (
     const row = await screen.findByRole('row', { name: new RegExp(first.systemNo) })
     // The record it belongs to, named rather than left as an id.
     expect(within(row).getByText(expectedName)).toBeInTheDocument()
-    // And whether it was pushed to a person or is sitting in the pool.
+
+    /*
+     * And whether it was pushed to a person or is sitting in the pool — asserted
+     * against the GRID rather than the row.
+     *
+     * Delivery is the same on every task on this page, so `<DataTable>` states it
+     * once in the caption instead of printing it twenty-five times down a column
+     * that could not tell two rows apart. FR-15 asks that the reader can tell
+     * push from pull, and they can; it does not ask for a column of one repeated
+     * word. Should the page ever hold both kinds, the column comes back on its
+     * own and this assertion still passes — the rule is re-evaluated per page.
+     */
+    const grid = screen.getByRole('grid')
     expect(
-      within(row).getByText(deliveryOf(first) === 'pull' ? 'Pool' : 'Pushed'),
+      within(grid).getByText(deliveryOf(first) === 'pull' ? 'Pool' : 'Pushed'),
     ).toBeInTheDocument()
   })
 })

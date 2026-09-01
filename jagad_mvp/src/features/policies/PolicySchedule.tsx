@@ -208,7 +208,6 @@ export function PolicySchedule({
 
       <Panel
         title="Debits and collections"
-        description="What the bank reported against the mandate, and what the agency recorded arriving. Two different records of the same money, kept apart on purpose."
       >
         <h3 className={styles.subhead}>Presentations reported by the bank</h3>
         {mandateEvents.length === 0 ? (

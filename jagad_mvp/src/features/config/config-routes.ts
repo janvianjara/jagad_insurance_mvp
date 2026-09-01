@@ -14,6 +14,7 @@
 
 import { lazy } from 'react'
 
+export const ConfigHomeScreen = lazy(() => import('./ConfigHomeScreen'))
 export const ConfigUsersScreen = lazy(() => import('./users/UsersScreen'))
 export const ConfigMastersScreen = lazy(() => import('./masters/MastersScreen'))
 

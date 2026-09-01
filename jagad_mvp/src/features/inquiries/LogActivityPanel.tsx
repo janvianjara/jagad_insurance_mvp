@@ -202,7 +202,6 @@ export function LogActivityPanel({
     return (
       <Panel
         title="Contact"
-        description="What was said, and what happens next. Every logged contact leaves the inquiry with a date on it or an outcome that closes it."
       >
         <ContactSummary inquiry={inquiry} stages={stages} now={now} />
 
@@ -246,7 +245,6 @@ export function LogActivityPanel({
   return (
     <Panel
       title="Log a contact"
-      description="The outcome decides what happens next, so choose it first."
     >
       {refusal ? (
         <p className={styles.refusal} role="alert">

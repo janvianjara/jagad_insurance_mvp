@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router'
 import type { ReactNode } from 'react'
@@ -113,6 +114,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
 
   const filters = config.filters ?? []
   const filterKeys = filters.map((filter) => filter.key)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   assertQueueFilterKeys(filterKeys)
 
   const schema: QueueUrlSchema = {
@@ -156,6 +158,24 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
 
   const narrowed = isQueueNarrowed(state)
 
+  /*
+   * The filter bar, in two halves.
+   *
+   * `advanced` filters are folded away until asked for — but never while one of
+   * them is active, because a list narrowed by a control the reader cannot see
+   * is a list they cannot explain. `hasActiveAdvanced` is derived from the URL
+   * rather than remembered, so arriving on a shared link with `stage=` already
+   * set opens the panel on the first paint.
+   */
+  const advancedFilters = filters.filter((filter) => filter.advanced === true)
+  const activeAdvanced = advancedFilters.filter(
+    (filter) => (state.filters[filter.key]?.length ?? 0) > 0,
+  ).length
+  const advancedOpen = showAdvanced || activeAdvanced > 0
+  const shownFilters = advancedOpen
+    ? filters
+    : filters.filter((filter) => filter.advanced !== true)
+
   const recordDrawer =
     opensInDrawer(config) && openRecord ? (
       <Drawer
@@ -163,6 +183,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
         onClose={() => apply({ record: null })}
         title={config.drawerTitle(openRecord)}
         subtitle={config.drawerSubtitle?.(openRecord)}
+        defaultMaximised={config.drawerMaximised}
       >
         {config.renderDrawer(openRecord, {
           // A drawer that writes must be able to say so; `?record=` is not part
@@ -214,7 +235,12 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           />
         </Field>
 
-        {filters.map((filter) => (
+        {/*
+          * Advanced filters are folded away, and unfold themselves the moment one
+          * of them is carrying a value — a filter that is narrowing the list is
+          * never hidden from the person reading the list.
+          */}
+        {shownFilters.map((filter) => (
           <Field key={filter.key} label={filter.label} className={styles.control}>
             <Select
               value={state.filters[filter.key]?.[0] ?? ''}
@@ -232,6 +258,19 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
             />
           </Field>
         ))}
+
+        {advancedFilters.length > 0 ? (
+          <Button
+            size="sm"
+            aria-expanded={advancedOpen}
+            onClick={() => setShowAdvanced(!advancedOpen)}
+            // An active advanced filter pins the panel open: closing it would
+            // hide a control that is changing what the list shows.
+            disabled={activeAdvanced > 0}
+          >
+            {advancedOpen ? 'Fewer filters' : `More filters (${advancedFilters.length})`}
+          </Button>
+        ) : null}
       </ActionBar>
 
       <div className={styles.body}>
@@ -274,6 +313,7 @@ export function WorkQueue<Row extends RowData>({ config, actions, children }: Wo
           label={config.title}
           loading={page.isLoading}
           fill
+          collapseConstantColumns
           selectable={Boolean(config.bulkActions && config.bulkActions.length > 0)}
           rowSelection={rowSelection}
           onRowSelectionChange={(next) =>

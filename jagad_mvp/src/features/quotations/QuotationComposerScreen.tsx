@@ -375,7 +375,7 @@ export function QuotationComposerScreen() {
 
   const header = (
     <PageHeader
-      breadcrumb={<Link to="/quotations">Quotations</Link>}
+      backTo={{ to: '/quotations', label: 'Quotations' }}
       title={customerName}
       meta={
         <>
@@ -693,7 +693,6 @@ export function QuotationComposerScreen() {
         {quotation.status === 'generated' ? (
           <Panel
             title="Send it to the customer"
-            description="Auto-share is off, so this goes out when a person says so."
           >
             <Button variant="primary" icon="msg" disabled={!mayAct} onClick={() => setArmed('share')}>
               Send to the customer
@@ -719,7 +718,6 @@ export function QuotationComposerScreen() {
         {quotation.status === 'shared' ? (
           <Panel
             title="The customer’s answer"
-            description="Won opens a deal from the accepted columns. Both a revision and a loss need a reason before anything is written."
           >
             <div className={styles.answer}>
               <fieldset className={styles.acceptedSet}>
@@ -921,7 +919,6 @@ export function QuotationComposerScreen() {
         {showDocument ? (
           <Panel
             title="The document"
-            description="One sheet per company, or all of them side by side. Every figure on it was typed."
           >
             <DocumentViewer
               document={documentFor(
@@ -996,7 +993,6 @@ function SentPanel({ receipt, data }: { receipt: SendReceipt; data: ComposerData
   return (
     <Panel
       title="Sent to the customer"
-      description="What went out, on which channel, and the log it left behind."
     >
       <KeyValueList
         columns={2}

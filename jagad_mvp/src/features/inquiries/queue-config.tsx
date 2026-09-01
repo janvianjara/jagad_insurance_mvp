@@ -324,11 +324,13 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
       },
       {
         key: 'source',
+        advanced: true,
         label: 'Source',
         options: Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label })),
       },
       {
         key: 'categoryId',
+        advanced: true,
         label: 'Category',
         options: categories.map((category) => ({ value: category.id, label: category.label })),
       },
@@ -339,6 +341,7 @@ export function inquiryQueueConfig(deps: InquiryQueueDeps): QueueConfig<Inquiry>
       },
       {
         key: 'stageKey',
+        advanced: true,
         label: 'Stage',
         anyLabel: 'Any stage',
         options: stages

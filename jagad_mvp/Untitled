@@ -1,0 +1,42 @@
+I'll review the inquiry module against three things: the PRD spec, what you've actually built (the page you're on), and the end-product vision. Let me pull all three.Now let me extract the inquiry-related sections from the PRD to compare against your build.Reviewed the live inquiry detail (INQ-1032) against the PRD's inquiry scope (FR-06.1–.3, plus FR-08/15/17/21 that the module leans on). Quick honest read first, then gaps, then what to add for the end product.
+
+Let me record that you've moved into build while I write this up.## What's solid (so you know I actually looked)
+
+The state-machine discipline is the strongest thing here — "every move goes through the workflow machine, a refused move writes nothing and says why" is exactly the escalation.md 1%-human contract made visible. TAT allowance sourced from category config, assignment trail as an append-only event log, contact stage/attempts/next-action, the requirement wizard explicitly feeding the composer with "no money here," and the demo-clock for TAT testing. This is a genuine operator, not a register. The gaps below are mostly the *9,000-existing-customer* reality that a clean-slate build tends to skip — not architecture problems.
+
+## Gaps — confirmed on this screen
+
+| # | Gap | FR | Why it bites | Fix |
+|---|-----|-----|--------------|-----|
+| 1 | **Referrer identity missing.** Source = "Referral" but *who referred* is nowhere on the record | FR-06.2 | Referral is Jagad's #1 channel since 1998. Without linking the referring customer you lose attribution, referral-reward tracking, and the "who sends us business" report | Add referrer field at capture (free-text + link to existing customer); surface it in The Record |
+| 2 | **No duplicate / known-customer check.** Inquiry keyed on mobile with no "this is customer X" or "open inquiry already exists" signal | FR-09.8 implies it; capture-side dedupe not specified | Two agents chase the same lead; a 9,000-customer's history splits across a fresh inquiry | On mobile entry, match against customers + open inquiries → show "existing customer / duplicate?" banner with merge-or-continue |
+| 3 | **Health data captured pre-consent.** Wizard collects members + eldest age at *inquiry* stage; consent link only fires at KYC (FR-09.9) | DPDP + Aadhaar register (§12) | Third-party PII (people to be covered) sitting before any notice is a DPDP exposure | Good that it's band-not-names today — keep it that way; don't collect names/DOBs until the consent link. Add a one-line notice at first personal-data capture |
+| 4 | **"Lost" looks terminal.** Mark-lost + mandatory reason is right, but no win-back / snooze path | mirror of FR-12.10 (lapse win-back) | Price-lost and not-now-lost leads are your warmest future pipeline | Lost-reason → recipe: `price` resurfaces at renewal season, `not now` snoozes and re-queues on a date |
+
+## Gaps — verify (couldn't see these screens from the detail page)
+
+- **Reassign / escalate / unrouted branches** (scenarios 1.3–1.5): does TAT-lapse actually reassign to next-in-category, then escalate to Sales Manager with full trail, and does a no-category-match inquiry land in an *unrouted queue* with an admin alert? Escalations shows 0 here.
+- **Queue/list view SLA**: does `Inquiries (9)` sort by TAT-breach and show aging? Sales-Manager oversight needs the at-a-glance "about to breach" view (U1).
+- **Manual reassign / pull**: routing is push (auto-assign) — can an SM manually reassign, or an agent grab from a pool? (FR-15.2 push|pull)
+- **Multi-line wizard**: the requirement wizard reads Health-only. Motor/Life/Travel need their own field sets driven by the SKU builder (FR-03), not hardcoded. Confirm it's schema-driven.
+- **Convert gate**: does "Convert to quotation" block on "Still to record (2)," or can you convert an empty requirement?
+
+## Add for the end product
+
+**Real-world hardening (near-term, high leverage)**
+- **Existing-policy fields on the inquiry**: current insurer + expiry date → an inquiry with an expiry becomes a scheduled, renewal-style follow-up automatically.
+- **Auto follow-up cadence**: recipe-driven nudge chain (Day 0 call → Day 1 WhatsApp → Day 3 → Day 5 auto-lost "unreachable"), agent just confirms. Kills the "leads that never pick up" pile.
+- **Inbound WhatsApp threaded to the inquiry**: today contact-logging is manual/outbound only. Threading inbound messages onto the activity trail is the actual "guidance till claim" differentiator.
+- **Offer awareness on the inquiry** (your client's own verbatim register op, FR-08.1a): surface "promos live for Health right now" on the screen so the agent pitches them, and capture offer-shown for lost-reason analysis.
+- **One inquiry → N quotations across lines**: a household inquiry spawning Health floater + a separate Motor quote.
+
+**AI-native layer (roadmap you already scoped)**
+- **Lead scoring**: rank the 9 open inquiries by conversion likelihood (source quality, referrer value, existing-customer, response speed); queue sorts by score × SLA.
+- **Cross-sell prompt**: existing-customer inquiry → "has Health with you, Motor expires in 40d — bundle."
+- **AI requirement extraction**: paste a WhatsApp chat / voice note → auto-fill the requirement wizard.
+- **Referral graph + rewards**: who refers whom, leaderboard, auto-thank.
+- **Lost-reason pareto**: the report that makes mandatory lost-reasons worth collecting.
+
+One caveat on scope: I reviewed the inquiry *detail* screen plus the PRD — not the capture form, list/queue, routing config, or the reassign/escalate branches in action, so the "verify" block is genuinely unconfirmed rather than known-broken.
+
+Want me to (a) go deep on any one gap with the exact fields/recipe, (b) look at your capture form + list view for a fuller audit if you point me at those URLs, or (c) package this as a punch-list doc or a canvas overlay you can hand the dev team? I won't generate a file until you say which.

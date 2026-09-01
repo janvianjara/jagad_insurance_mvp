@@ -553,6 +553,7 @@ Commit: `feat(claims): the tokenised upload link, and a state that stops lying a
 Sessions append one line here instead of widening their step. Format:
 `- [ ] (found in P-xx) description — belongs to P-yy | P1 | P2`
 
+- [ ] (found in the form-builder rework) the scenario suites are order-flaky under the full `npm run test` run: three different tests fail on each run (walkthrough demo clock, admin configuration 6.4, quotation 2.7, claim 4.1) and every one of them passes in isolation and on a clean tree, so it is shared time/store state across parallel workers rather than any one test - reproduce with repeated full runs, then isolate whatever is not reset between files - belongs to P1 | P1
 - [ ] (found in claims audit CLM-0412) the cashless fork has no query loop: `query_open` hangs off `filed_with_insurer` only, so a cashless claim in `tracked` that receives an insurer query has no state to move to - two transition rows plus a fork-aware `pipelineIndex` fold - belongs to P-20b | P2
 - [ ] (found in claims audit CLM-0414) `blocked` has no outgoing transition, so a claim blocked on a lapsed policy is permanently stuck even after reinstatement, with no reopen and no correction path - belongs to P-20b | P2
 - [ ] (found in claims audit) `IntimateClaimCommand` takes `policyActive` from the caller, so the dead-policy guard judges a value the desk never verifies; re-read the policy inside `claimDesk.intimate` - belongs to P-20b | P2

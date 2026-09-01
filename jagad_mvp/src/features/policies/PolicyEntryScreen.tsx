@@ -412,7 +412,6 @@ export function PolicyEntryScreen() {
         {deal ? (
           <Panel
             title="From this deal"
-            description="What the customer accepted. Entry starts from one of these; the rest stay on the deal."
           >
             <ul className={styles.items}>
               {deal.lineItems.map((item) => (
@@ -536,7 +535,6 @@ export function PolicyEntryScreen() {
 
         <Panel
           title="How this policy is being entered"
-          description="A direct entry is a policy the insurer has already issued, so it skips the proposal entirely."
         >
           <Field label="Entry path" control="group" required>
             <RadioGroup
@@ -629,7 +627,6 @@ export function PolicyEntryScreen() {
         ) : (
           <Panel
             title="The premium, and then the record"
-            description="The derived total is a cross-check against the insurer document. The Final Premium is the figure printed on it, and it is typed."
           >
             {shape === null ? (
               <KeyValueList

@@ -25,6 +25,51 @@
   color: var(--ink);
 }
 
+/* What every row on this page shares, said once instead of per row. It is data,
+   so it is quiet but not hidden, and it sits above the header where a caption
+   belongs rather than floating over the first row. */
+/*
+ * The caption keeps its OWN display. Setting `display: flex` here stops the
+ * element generating a table-caption box, so it no longer spans the table — it
+ * became a cell-sized block in the top-left corner and stretched the severity
+ * stripe column to fit it. The flex layout goes on a child, where it cannot
+ * take the spanning behaviour with it.
+ */
+.caption {
+  caption-side: top;
+  padding: var(--pad-y) var(--pad-x);
+  border-bottom: 1px solid var(--hair);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.captionInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+}
+
+.captionLead {
+  color: var(--ink-3);
+}
+
+.captionFact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+}
+
+/* The column's own name, so the value is attributable without the column. */
+.captionLabel {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-cap);
+  text-transform: uppercase;
+}
+
 .head {
   background: var(--surface);
 }

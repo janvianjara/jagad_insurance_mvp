@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { RepositoriesProvider } from '../../../app/repositories'
@@ -44,6 +45,20 @@ function fieldRow(scope: HTMLElement, key: string): HTMLElement {
   return row as HTMLElement
 }
 
+/**
+ * Opens a field's panel — every control this file is about lives in one, and a
+ * control that is not offered has to be looked for where it would have been.
+ */
+async function openField(
+  user: ReturnType<typeof userEvent.setup>,
+  scope: HTMLElement,
+  key: string,
+): Promise<HTMLElement> {
+  const row = fieldRow(scope, key)
+  await user.click(within(row).getByRole('button', { expanded: false }))
+  return row
+}
+
 /** Every control a person can operate in this scope, by its visible label. */
 function controlLabels(scope: HTMLElement): string[] {
   return [...scope.querySelectorAll('label')].map((label) => label.textContent ?? '')
@@ -57,10 +72,11 @@ beforeEach(() => {
 
 describe('the roll-up, which is the only arithmetic a schema can express', () => {
   it('offers its typed components and its typed GST figure, and nothing else', async () => {
+    const user = userEvent.setup()
     renderBuilder('frm-policy-health-v2')
     const drawer = await screen.findByRole('dialog', { name: /Policy entry health · version 2/ })
 
-    const rollUp = fieldRow(drawer, 'finalPremium')
+    const rollUp = await openField(user, drawer, 'finalPremium')
     expect(within(rollUp).getByLabelText('Kind')).toHaveValue('rollup')
 
     // Net is a sum over typed amounts: one tick box per money leaf, and the GST
@@ -101,10 +117,11 @@ describe('the roll-up, which is the only arithmetic a schema can express', () =>
 
 describe('an amount field', () => {
   it('carries no default, no placeholder and no bounds', async () => {
+    const user = userEvent.setup()
     renderBuilder('frm-policy-health-v2')
     const drawer = await screen.findByRole('dialog', { name: /Policy entry health · version 2/ })
 
-    const money = fieldRow(drawer, 'basePremium')
+    const money = await openField(user, drawer, 'basePremium')
     expect(money).toHaveTextContent(/An amount is typed from a document/)
 
     for (const label of controlLabels(money)) {
@@ -117,10 +134,11 @@ describe('an amount field', () => {
 
 describe('branching', () => {
   it('does not offer an amount as a condition, on a field or on a stage', async () => {
+    const user = userEvent.setup()
     renderBuilder('frm-policy-health-v2')
     const drawer = await screen.findByRole('dialog', { name: /Policy entry health · version 2/ })
 
-    const mode = fieldRow(drawer, 'premiumMode')
+    const mode = await openField(user, drawer, 'premiumMode')
     const condition = within(mode).getByLabelText(/Shown when/)
     const offered = [...condition.querySelectorAll('option')].map((option) => option.value)
 

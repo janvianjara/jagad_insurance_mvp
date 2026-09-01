@@ -166,6 +166,10 @@ export function formsQueue(input: FormsQueueInput): QueueConfig<FormSchema> {
     },
 
     rowTarget: 'drawer',
+    // The builder is a workbench — palette, layout and a live preview side by
+    // side — so it opens at full width rather than in the 440px column a record
+    // is read in. The header toggle still puts it back.
+    drawerMaximised: true,
     drawerTitle: (row) => `${objectLabel(row.objectKey)} · version ${row.version}`,
     drawerSubtitle: (row) =>
       row.productId === null ? 'Fallback for every product' : `Only for ${row.productId}`,

@@ -171,7 +171,6 @@ export function CommissionScreen() {
 
       <Panel
         title="Booked totals by channel"
-        description="Where the money came in: on the agency's own appointments, or through a broking code."
       >
         <div className={styles.tableWrap}>
           <table className={styles.channels} aria-label="Booked totals by channel">

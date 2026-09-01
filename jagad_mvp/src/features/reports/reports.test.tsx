@@ -185,14 +185,24 @@ describe('the dashboard and the reports agree', () => {
     expect(within(stats).getByText(String(set.claims.open))).toBeInTheDocument()
   })
 
-  it('indexes all five reports, each saying what it refuses to work out', async () => {
+  /*
+   * The index lists every report and does NOT repeat what each one refuses to
+   * work out. That caveat belongs against the numbers it qualifies — the test
+   * below, "prints the promise on the report itself", is the one that holds it —
+   * and printing it twice made every card on the index two paragraphs tall to
+   * qualify a report nobody had opened.
+   *
+   * The count is not asserted as a number on purpose: it was "five" here and in
+   * the screen's own heading long after the catalogue reached ten.
+   */
+  it('indexes every report in the catalogue, without repeating its caveat', async () => {
     renderReports(repositories)
     await screen.findByRole('heading', { name: 'Reports' })
 
     for (const report of REPORTS) {
       const link = await screen.findByRole('link', { name: new RegExp(report.title) })
       expect(link).toHaveAttribute('href', `/reports/${report.key}`)
-      expect(link.textContent ?? '').toContain(report.never)
+      expect(link.textContent ?? '').not.toContain(report.never)
     }
   })
 

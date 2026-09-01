@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import type { ReactNode } from 'react'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
@@ -253,7 +253,7 @@ export function InquiryDetailScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/inquiries">Inquiries</Link>}
+        backTo={{ to: '/inquiries', label: 'Inquiries' }}
         title={inquiry.contactName}
         meta={
           <>
@@ -330,7 +330,7 @@ export function InquiryDetailScreen() {
 
         <div className={styles.columns}>
           <div className={styles.main}>
-            <Panel title="What happens next" description="Every move here goes through the workflow machine. A refused move writes nothing and says why.">
+            <Panel title="What happens next">
               {actions.length === 0 ? (
                 <p className={styles.none}>
                   This inquiry is in a final state. Nothing further moves from{' '}
@@ -453,7 +453,6 @@ export function InquiryDetailScreen() {
 
             <Panel
               title="Assignment trail"
-              description="Every event on this record, oldest first. An escalation carries the whole trail with it."
             >
               <AssignmentTrail
                 entries={buildTrail({

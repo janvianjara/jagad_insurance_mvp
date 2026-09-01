@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { Icon } from '../Icon'
+import { acceptSummary } from './accept-summary'
 import { useControlAria, useField } from './field-context'
 import { cx } from './cx'
 import styles from './FileDrop.module.css'
@@ -51,6 +52,16 @@ export function FileDrop({
   const inputId = wiring.props.id ?? `${generated}-input`
   const [dragging, setDragging] = useState(false)
 
+  /*
+   * What this field takes, stated on the field.
+   *
+   * An explicit `hint` still wins — a caller with better words than "PDF or
+   * image" should use them. Where there is none, the terms come off the same
+   * `accept` string the input enforces, so the promise and the enforcement
+   * cannot disagree.
+   */
+  const terms = hint ?? acceptSummary(accept)
+
   function emit(list: FileList | null) {
     if (!list || list.length === 0) return
     onFiles?.(Array.from(list))
@@ -97,7 +108,7 @@ export function FileDrop({
       <label className={styles.prompt} htmlFor={inputId}>
         {prompt} <span className={styles.trigger}>or browse</span>
       </label>
-      {hint ? <span className={styles.hint}>{hint}</span> : null}
+      {terms ? <span className={styles.hint}>{terms}</span> : null}
       {files && files.length > 0 ? (
         <ul className={styles.files}>
           {files.map((file) => (

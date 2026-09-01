@@ -9,10 +9,14 @@ import type { KycState } from '../../domain/workflows'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
 import { RecordCorrection } from '../../components/RecordCorrection'
+import { RecordLink } from '../../components/RecordLink'
 import { RollUp } from '../../components/guardrails'
 import type { RollUpComponent } from '../../components/guardrails'
 import type {
+  Agent,
+  Company,
   Customer,
+  Deal,
   PolicyNcb,
   PolicyPremiumComponent,
   Product,
@@ -32,6 +36,7 @@ import { PolicySchedule } from './PolicySchedule'
 import { PolicyVersions } from './PolicyVersions'
 import { policyDesk } from './data/policy-desk'
 import type { PolicyDossier } from './data/policy-desk'
+import { dealIdOf } from '../../data/repo'
 import { loadPolicyFacets } from './data/policy-facets'
 import type { PolicyFacets } from './data/policy-facets'
 import { POLICY_TABS, POLICY_TAB_LABEL, policyTabFromPath, policyTabHref } from './policy-tabs'
@@ -98,6 +103,10 @@ type DetailData = {
   readonly dossier: PolicyDossier
   readonly customer: Customer | null
   readonly product: Product | null
+  /* The neighbours a policy names but never used to show. */
+  readonly company: Company | null
+  readonly agent: Agent | null
+  readonly deal: Deal | null
   readonly retention: RetentionClass | null
   readonly users: readonly StaffUser[]
   readonly facets: PolicyFacets
@@ -111,9 +120,22 @@ async function loadDetail(
   const dossier = await desk.dossier(policyId)
   if (!dossier) return null
 
-  const [customer, product, classes, users, facets] = await Promise.all([
+  /*
+   * The policy's neighbours, read in the same round as everything else.
+   *
+   * `dealId` is not a column: provenance is a union, and only a policy that came
+   * out of a deal has one — `dealIdOf` is the existing helper that says so
+   * rather than this screen re-deciding it.
+   */
+  const dealId = dealIdOf(dossier.policy.provenance)
+  const [customer, product, company, agent, deal, classes, users, facets] = await Promise.all([
     repositories.customers.get(dossier.policy.customerId),
     repositories.products.get(dossier.policy.productId),
+    repositories.companies.get(dossier.policy.companyId),
+    dossier.policy.agentId === null
+      ? Promise.resolve(null)
+      : repositories.agents.get(dossier.policy.agentId),
+    dealId === null ? Promise.resolve(null) : repositories.deals.get(dealId),
     repositories.config.retentionClasses(),
     repositories.config.users(),
     loadPolicyFacets(repositories, policyId),
@@ -123,6 +145,9 @@ async function loadDetail(
     dossier,
     customer,
     product,
+    company,
+    agent,
+    deal,
     retention: classes.find((entry) => entry.key === dossier.policy.retentionClass) ?? null,
     users,
     facets,
@@ -223,7 +248,8 @@ export function PolicyDetailScreen() {
     )
   }
 
-  const { dossier, customer, product, retention, users, facets } = loaded.data
+  const { dossier, customer, product, company, agent, deal, retention, users, facets } =
+    loaded.data
   const { policy, draft } = dossier
   const desk = policyDesk(repositories)
   const mayAct = can(user, 'edit', 'policies')
@@ -264,15 +290,81 @@ export function PolicyDetailScreen() {
 
     overview: (
       <>
-      <Panel title="The record" description="What this policy is, as it stands.">
+      {/*
+        * Who and what this contract is between, before what state it is in.
+        *
+        * A policy names five other records — the customer, the insurer, the
+        * product, the agent who wrote it and the deal it came out of — and this
+        * screen used to show one of them (the product, in the header) and link
+        * to none. Everything in the product points at a policy; the policy
+        * pointed nowhere, so the only way from here to the customer was the rail
+        * and a search.
+        *
+        * They lead the panel because they are what a person checks first: whose
+        * policy is this, with whom, and who sold it. State and dates follow.
+        */}
+      <Panel title="The record">
         <KeyValueList
           items={[
-            { key: 'state', label: 'State', value: policyLabelFor(policy, now) },
             {
-              key: 'entry',
-              label: 'How it was entered',
-              value: ENTRY_PATH_LABEL[draft?.entryPath ?? 'proposal'],
+              key: 'customer',
+              label: 'Customer',
+              value: (
+                <RecordLink
+                  to={customer ? `/customers/${customer.id}` : undefined}
+                  label={customer?.fullName ?? ''}
+                  reference={customer?.systemNo}
+                  absentText="No customer on file"
+                />
+              ),
             },
+            {
+              key: 'company',
+              label: 'Insurer',
+              value: (
+                <RecordLink
+                  to={company ? `/config/companies?record=${company.id}` : undefined}
+                  label={company?.name ?? ''}
+                  absentText="Not recorded"
+                />
+              ),
+            },
+            {
+              key: 'product',
+              label: 'Product',
+              value: (
+                <RecordLink
+                  to={product ? `/config/products?record=${product.id}` : undefined}
+                  label={product?.name ?? ''}
+                  absentText="Not recorded"
+                />
+              ),
+            },
+            {
+              key: 'agent',
+              label: 'Agent',
+              value: (
+                <RecordLink
+                  to={agent ? `/config/agents?record=${agent.id}` : undefined}
+                  label={agent?.name ?? ''}
+                  absentText="Written by the agency itself"
+                />
+              ),
+            },
+            {
+              key: 'deal',
+              // Only a policy that came out of a deal has one. A captured or
+              // migrated policy honestly has none, and says so.
+              label: 'Came from',
+              value: (
+                <RecordLink
+                  to={deal ? `/deals/${deal.id}` : undefined}
+                  label={deal?.systemNo ?? ''}
+                  absentText={ENTRY_PATH_LABEL[draft?.entryPath ?? 'proposal']}
+                />
+              ),
+            },
+            { key: 'state', label: 'State', value: policyLabelFor(policy, now) },
             { key: 'mode', label: 'Premium mode', value: PREMIUM_MODE_LABEL[policy.premiumMode] },
             {
               key: 'payment',
@@ -365,7 +457,6 @@ export function PolicyDetailScreen() {
 
       <Panel
         title="Dispatch"
-        description="Where the document went, and whether it arrived. Delivery and the customer's own confirmation are recorded separately."
       >
         <DispatchPanel
           policyId={policy.id}
@@ -421,6 +512,7 @@ export function PolicyDetailScreen() {
   return (
     <div className={styles.screen}>
       <PageHeader
+        backTo={{ to: '/policies', label: 'Policies' }}
         title={customer?.fullName ?? 'Policy'}
         meta={
           <>

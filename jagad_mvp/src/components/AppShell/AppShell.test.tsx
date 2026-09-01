@@ -92,7 +92,9 @@ describe('the rail is rendered by can()', () => {
   it('changes the whole rail when the account changes', async () => {
     renderApp('/assistant')
     await screen.findByRole('navigation', { name: 'Main' })
-    expect(within(rail()).queryByRole('link', { name: /Users/ })).toBeInTheDocument()
+    // The admin's configuration reaches the rail as one Settings item; the
+    // twelve screens behind it are indexed on /config rather than listed here.
+    expect(within(rail()).queryByRole('link', { name: /Settings/ })).toBeInTheDocument()
 
     await signInAs('Kiran Solanki')
 

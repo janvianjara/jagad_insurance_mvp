@@ -104,7 +104,10 @@ describe('canvas 6 — admin configuration', () => {
     await user.keyboard('{Escape}')
 
     // --- a policy under it, on the line it was appointed for --------------
-    await clickRailLink('Products')
+    // Through Settings: the rail carries one configuration item that indexes
+    // the twelve screens, rather than twelve items past the fold.
+    await clickRailLink(/^Settings/)
+    await user.click(await screen.findByRole('link', { name: /^Products/ }))
     await user.click(await screen.findByRole('button', { name: 'New product' }))
     const productDialog = await screen.findByRole('dialog', { name: 'New product' })
 
@@ -122,7 +125,8 @@ describe('canvas 6 — admin configuration', () => {
     // --- and it reaches placement -----------------------------------------
     // Appointing the broker to the new insurer is what makes the partnership
     // usable; until then the row exists but nothing may be written on it.
-    await clickRailLink('Agencies')
+    await clickRailLink(/^Settings/)
+    await user.click(await screen.findByRole('link', { name: /^Agencies/ }))
     const agencyDrawer = await openRow(BROKER)
     await user.click(within(agencyDrawer).getByRole('checkbox', { name: new RegExp(NEW_COMPANY) }))
     await user.click(within(agencyDrawer).getByRole('button', { name: 'Save agency' }))

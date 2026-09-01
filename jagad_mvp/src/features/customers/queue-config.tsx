@@ -134,11 +134,13 @@ export function customerQueueConfig(deps: CustomerQueueDeps): QueueConfig<Custom
       },
       {
         key: 'source',
+        advanced: true,
         label: 'Source',
         options: Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label })),
       },
       {
         key: 'city',
+        advanced: true,
         label: 'City',
         options: cities.map((city) => ({ value: city, label: city })),
       },

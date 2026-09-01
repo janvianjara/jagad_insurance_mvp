@@ -50,7 +50,7 @@ export function ReportScreen() {
   if (!definition) {
     return (
       <div className={styles.screen}>
-        <PageHeader title="No such report" breadcrumb={<Link to="/reports">Reports</Link>} />
+        <PageHeader title="No such report" backTo={{ to: '/reports', label: 'Reports' }} />
         <EmptyState
           variant="error"
           title={`There is no report called “${key ?? ''}”`}
@@ -68,7 +68,7 @@ export function ReportScreen() {
   if (report.error) {
     return (
       <div className={styles.screen}>
-        <PageHeader title={definition.title} breadcrumb={<Link to="/reports">Reports</Link>} />
+        <PageHeader title={definition.title} backTo={{ to: '/reports', label: 'Reports' }} />
         <EmptyState
           variant="error"
           title="This report could not be loaded"
@@ -87,7 +87,7 @@ export function ReportScreen() {
     <div className={styles.screen}>
       <PageHeader
         title={definition.title}
-        breadcrumb={<Link to="/reports">Reports</Link>}
+        backTo={{ to: '/reports', label: 'Reports' }}
         meta={
           report.data ? (
             <span className={styles.asOf}>

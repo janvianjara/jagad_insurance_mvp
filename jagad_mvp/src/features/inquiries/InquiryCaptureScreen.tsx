@@ -391,7 +391,6 @@ export function InquiryCaptureScreen() {
 
         <FormSection
           title="Who is asking"
-          description="The two fields the person in the field always has."
         >
           <FormRow>
             <Field
@@ -424,7 +423,6 @@ export function InquiryCaptureScreen() {
 
         <FormSection
           title="Where it came from"
-          description="Optional. Leave the category blank and routing will say so rather than guess — the inquiry waits in the unrouted queue with an alert."
         >
           <FormRow>
             <Field label="Source">
@@ -613,7 +611,6 @@ export function InquiryCaptureScreen() {
         {mayAssign ? (
           <FormSection
             title="Who takes it"
-            description="Optional. Name somebody and they own it the moment this is saved, with the turnaround clock running. Leave it and the inquiry waits in the queue for routing."
           >
             <FormRow>
               <Field

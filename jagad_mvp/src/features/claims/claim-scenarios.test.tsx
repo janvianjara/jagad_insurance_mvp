@@ -213,8 +213,15 @@ describe('canvas 4 — the claim file lifecycle', () => {
     renderClaims(repositories, '/claims/clm-0417')
 
     expect(await screen.findByText('CLM-0417')).toBeInTheDocument()
-    expect(screen.getByText(/The loop back to filed can run as many times as the company asks/))
-      .toBeInTheDocument()
+    /*
+     * The open query is asserted as STATE, not as a sentence about the state.
+     *
+     * This used to read the screen's prose — "the loop back to filed can run as
+     * many times as the company asks" — which proved the paragraph existed and
+     * nothing about the machine. The two round trips below are what actually
+     * demonstrate the loop is not a one-shot, and they were already here.
+     */
+    await expectStatus('Query open')
 
     await confirmAction('Answer the query and re-file', 'Send the explanation')
     await expectStatus('Filed with insurer')

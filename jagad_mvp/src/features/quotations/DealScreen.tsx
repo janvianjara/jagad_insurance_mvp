@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useRepositories } from '../../app/repositories-context'
 import { useSessionStore } from '../../app/store'
 import { can } from '../../domain/permissions'
 import { dealHasLineItems } from '../../domain/workflows'
 import { useResource } from '../../lib/useResource'
 import { PageHeader } from '../../components/AppShell'
+import { RecordLink } from '../../components/RecordLink'
 import { RecordCorrection } from '../../components/RecordCorrection'
 import { ConfirmGate, RollUp } from '../../components/guardrails'
 import type { RollUpComponent } from '../../components/guardrails'
@@ -100,7 +101,7 @@ export function DealScreen() {
   return (
     <>
       <PageHeader
-        breadcrumb={<Link to="/deals">Deals</Link>}
+        backTo={{ to: '/deals', label: 'Deals' }}
         title={customer?.fullName ?? deal.customerId}
         meta={
           <>
@@ -141,7 +142,6 @@ export function DealScreen() {
 
         <Panel
           title="Line items"
-          description="What the customer accepted on the quotation. Policy entry starts from these and pre-populates its form."
         >
           {deal.lineItems.length === 0 ? (
             <p className={styles.blocked} role="alert" data-deal-blocked="">
@@ -263,7 +263,6 @@ export function DealScreen() {
 
         <Panel
           title="Policy entry"
-          description="The entry form opens on this deal, with its line items already in place."
         >
           {verdict.ok && placed ? (
             <Button
@@ -290,13 +289,26 @@ export function DealScreen() {
               {
                 key: 'quotation',
                 label: 'From quotation',
-                value: quotation ? (
-                  <Link to={`/quotations/${quotation.id}`}>{quotation.systemNo}</Link>
-                ) : (
-                  deal.quotationId
+                value: (
+                  <RecordLink
+                    to={quotation ? `/quotations/${quotation.id}` : undefined}
+                    label={quotation?.systemNo ?? ''}
+                    absentText={deal.quotationId}
+                  />
                 ),
               },
-              { key: 'customer', label: 'Customer', value: customer?.fullName ?? deal.customerId },
+              {
+                key: 'customer',
+                label: 'Customer',
+                value: (
+                  <RecordLink
+                    to={customer ? `/customers/${customer.id}` : undefined}
+                    label={customer?.fullName ?? ''}
+                    reference={customer?.systemNo}
+                    absentText={deal.customerId}
+                  />
+                ),
+              },
               { key: 'owner', label: 'Owner', value: nameOf(users, deal.ownerId) },
               { key: 'agent', label: 'Agent', value: agentName(agents, deal.agentId) },
               { key: 'subAgent', label: 'Sub-agent', value: agentName(agents, deal.subAgentId) },
